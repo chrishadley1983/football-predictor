@@ -31,6 +31,34 @@ export function slugify(text: string): string {
     .replace(/-+/g, '-')
 }
 
+/** Strip markdown formatting to produce plain text for previews */
+export function stripMarkdown(md: string): string {
+  return md
+    .replace(/^#{1,6}\s+/gm, '')       // headings
+    .replace(/\*\*(.+?)\*\*/g, '$1')    // bold
+    .replace(/\*(.+?)\*/g, '$1')        // italic
+    .replace(/__(.+?)__/g, '$1')        // bold alt
+    .replace(/_(.+?)_/g, '$1')          // italic alt
+    .replace(/~~(.+?)~~/g, '$1')        // strikethrough
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // links
+    .replace(/!\[([^\]]*)\]\([^)]+\)/g, '') // images
+    .replace(/`{1,3}[^`]*`{1,3}/g, '')  // inline code
+    .replace(/^[-*+]\s+/gm, '')         // unordered list markers
+    .replace(/^\d+\.\s+/gm, '')         // ordered list markers
+    .replace(/^>\s+/gm, '')             // blockquotes
+    .replace(/\n{2,}/g, ' ')            // collapse multiple newlines
+    .replace(/\n/g, ' ')                // remaining newlines
+    .trim()
+}
+
+/** Truncate text at a word boundary */
+export function truncateAtWord(text: string, maxLength: number): string {
+  if (text.length <= maxLength) return text
+  const truncated = text.slice(0, maxLength)
+  const lastSpace = truncated.lastIndexOf(' ')
+  return (lastSpace > maxLength * 0.6 ? truncated.slice(0, lastSpace) : truncated) + '...'
+}
+
 export function getDeadlineStatus(deadline: string | Date | null): {
   passed: boolean
   label: string

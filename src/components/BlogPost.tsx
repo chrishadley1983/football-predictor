@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import Markdown from 'react-markdown'
 import { formatDate } from '@/lib/utils'
 import type { Post } from '@/lib/types'
@@ -9,6 +10,18 @@ interface BlogPostProps {
 export function BlogPost({ post }: BlogPostProps) {
   return (
     <article className="prose-sm">
+      {post.image_url && (
+        <div className="relative mb-6 h-64 w-full overflow-hidden rounded-xl sm:h-80">
+          <Image
+            src={post.image_url}
+            alt={post.title}
+            fill
+            className="object-cover"
+            sizes="(max-width: 768px) 100vw, 768px"
+            priority
+          />
+        </div>
+      )}
       <header className="mb-4 border-b border-border-custom pb-4">
         <h1 className="text-2xl font-bold text-foreground">{post.title}</h1>
         <div className="mt-1 flex items-center gap-3 text-sm text-text-secondary">

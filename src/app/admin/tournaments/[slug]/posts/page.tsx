@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
-import { formatDate, slugify } from '@/lib/utils'
+import { formatDate, slugify, stripMarkdown, truncateAtWord } from '@/lib/utils'
 import type { Tournament, Post } from '@/lib/types'
 
 export default function AdminPostsPage() {
@@ -35,6 +35,7 @@ export default function AdminPostsPage() {
   const [title, setTitle] = useState('')
   const [postSlug, setPostSlug] = useState('')
   const [content, setContent] = useState('')
+  const [imageUrl, setImageUrl] = useState('')
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -65,6 +66,7 @@ export default function AdminPostsPage() {
     setTitle('')
     setPostSlug('')
     setContent('')
+    setImageUrl('')
     setEditingPost(null)
     setShowForm(false)
   }
@@ -74,6 +76,7 @@ export default function AdminPostsPage() {
     setTitle(post.title)
     setPostSlug(post.slug)
     setContent(post.content)
+    setImageUrl(post.image_url ?? '')
     setShowForm(true)
   }
 
@@ -88,7 +91,7 @@ export default function AdminPostsPage() {
       const res = await fetch(`/api/admin/tournaments/${slug}/posts`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: editingPost.id, title, slug: postSlug, content }),
+        body: JSON.stringify({ id: editingPost.id, title, slug: postSlug, content, image_url: imageUrl || null }),
       })
 
       if (!res.ok) {
@@ -108,7 +111,7 @@ export default function AdminPostsPage() {
       const res = await fetch(`/api/tournaments/${slug}/posts`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, slug: postSlug, content, author: 'Admin', is_published: true }),
+        body: JSON.stringify({ title, slug: postSlug, content, image_url: imageUrl || null, author: 'Admin', is_published: true }),
       })
 
       if (!res.ok) {
@@ -205,6 +208,13 @@ export default function AdminPostsPage() {
               required
               placeholder="post-slug"
             />
+            <Input
+              label="Image URL (optional)"
+              id="postImageUrl"
+              value={imageUrl}
+              onChange={(e) => setImageUrl(e.target.value)}
+              placeholder="https://images.unsplash.com/..."
+            />
             <div>
               <label htmlFor="postContent" className="mb-1 block text-sm font-medium text-text-secondary">
                 Content (Markdown)
@@ -247,7 +257,7 @@ export default function AdminPostsPage() {
                 </Badge>
               </div>
               <p className="mt-2 line-clamp-2 text-sm text-text-secondary">
-                {post.content.length > 150 ? `${post.content.slice(0, 150)}...` : post.content}
+                {truncateAtWord(stripMarkdown(post.content), 150)}
               </p>
               <div className="mt-3 flex gap-2">
                 <Button size="sm" variant="secondary" onClick={() => handleEdit(post)}>

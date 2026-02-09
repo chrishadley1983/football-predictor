@@ -44,6 +44,7 @@ export async function PATCH(
     if (body.title !== undefined) updates.title = body.title
     if (body.slug !== undefined) updates.slug = body.slug
     if (body.content !== undefined) updates.content = body.content
+    if (body.image_url !== undefined) updates.image_url = body.image_url
     if (body.is_published !== undefined) updates.is_published = body.is_published
 
     const { data: post, error } = await admin

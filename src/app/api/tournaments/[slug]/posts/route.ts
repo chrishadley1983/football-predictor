@@ -79,6 +79,7 @@ export async function POST(
         slug: body.slug,
         content: body.content,
         author: body.author ?? 'Admin',
+        image_url: body.image_url ?? null,
         is_published: body.is_published ?? true,
       })
       .select()

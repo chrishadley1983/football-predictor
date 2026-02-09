@@ -189,6 +189,7 @@ export interface Post {
   slug: string
   content: string
   author: string
+  image_url: string | null
   published_at: string
   is_published: boolean
   created_at: string
@@ -976,6 +977,7 @@ export interface Database {
           slug: string
           content: string
           author: string
+          image_url: string | null
           published_at: string
           is_published: boolean
           created_at: string
@@ -987,6 +989,7 @@ export interface Database {
           slug: string
           content: string
           author?: string
+          image_url?: string | null
           published_at?: string
           is_published?: boolean
           created_at?: string
@@ -997,6 +1000,7 @@ export interface Database {
           slug?: string
           content?: string
           author?: string
+          image_url?: string | null
           published_at?: string
           is_published?: boolean
           created_at?: string

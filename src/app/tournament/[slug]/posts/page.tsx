@@ -1,7 +1,8 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { formatDate } from '@/lib/utils'
+import { formatDate, stripMarkdown, truncateAtWord } from '@/lib/utils'
 import type { Tournament, Post } from '@/lib/types'
 
 export default async function PostsPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -40,16 +41,29 @@ export default async function PostsPage({ params }: { params: Promise<{ slug: st
             <Link
               key={post.id}
               href={`/tournament/${slug}/posts/${post.slug}`}
-              className="block rounded-xl border border-border-custom bg-surface p-4 transition-all hover:border-gold/30 hover:shadow-lg hover:shadow-black/20"
+              className="block overflow-hidden rounded-xl border border-border-custom bg-surface transition-all hover:border-gold/30 hover:shadow-lg hover:shadow-black/20"
             >
-              <h2 className="text-lg font-semibold text-foreground">{post.title}</h2>
-              <div className="mt-1 flex items-center gap-3 text-sm text-text-secondary">
-                <span>{post.author}</span>
-                <span>{formatDate(post.published_at)}</span>
+              {post.image_url && (
+                <div className="relative h-48 w-full">
+                  <Image
+                    src={post.image_url}
+                    alt={post.title}
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 768px) 100vw, 700px"
+                  />
+                </div>
+              )}
+              <div className="p-4">
+                <h2 className="text-lg font-semibold text-foreground">{post.title}</h2>
+                <div className="mt-1 flex items-center gap-3 text-sm text-text-secondary">
+                  <span>{post.author}</span>
+                  <span>{formatDate(post.published_at)}</span>
+                </div>
+                <p className="mt-2 line-clamp-2 text-sm text-text-secondary">
+                  {truncateAtWord(stripMarkdown(post.content), 200)}
+                </p>
               </div>
-              <p className="mt-2 line-clamp-2 text-sm text-text-secondary">
-                {post.content.length > 200 ? `${post.content.slice(0, 200)}...` : post.content}
-              </p>
             </Link>
           ))}
         </div>
