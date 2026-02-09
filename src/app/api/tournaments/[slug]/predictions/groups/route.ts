@@ -117,24 +117,56 @@ export async function POST(
       return NextResponse.json({ error: 'predictions must be an array' }, { status: 400 })
     }
 
+    // Validate all predictions have required fields
+    for (const pred of predictions) {
+      if (!pred.group_id || !pred.predicted_1st || !pred.predicted_2nd || !pred.predicted_3rd) {
+        return NextResponse.json(
+          { error: 'All three positions (1st, 2nd, 3rd) are required for each group' },
+          { status: 400 }
+        )
+      }
+    }
+
     // Upsert each group prediction
     for (const pred of predictions) {
-      const { error: upsertErr } = await supabase
+      // Check if prediction already exists
+      const { data: existing } = await supabase
         .from('group_predictions')
-        .upsert(
-          {
+        .select('id')
+        .eq('entry_id', entry.id)
+        .eq('group_id', pred.group_id)
+        .maybeSingle()
+
+      if (existing) {
+        // Update existing prediction (preserve points_earned)
+        const { error: updateErr } = await supabase
+          .from('group_predictions')
+          .update({
+            predicted_1st: pred.predicted_1st,
+            predicted_2nd: pred.predicted_2nd,
+            predicted_3rd: pred.predicted_3rd,
+          })
+          .eq('id', existing.id)
+
+        if (updateErr) {
+          return NextResponse.json({ error: updateErr.message }, { status: 400 })
+        }
+      } else {
+        // Insert new prediction
+        const { error: insertErr } = await supabase
+          .from('group_predictions')
+          .insert({
             entry_id: entry.id,
             group_id: pred.group_id,
             predicted_1st: pred.predicted_1st,
             predicted_2nd: pred.predicted_2nd,
-            predicted_3rd: pred.predicted_3rd ?? null,
+            predicted_3rd: pred.predicted_3rd,
             points_earned: 0,
-          },
-          { onConflict: 'entry_id,group_id' }
-        )
+          })
 
-      if (upsertErr) {
-        return NextResponse.json({ error: upsertErr.message }, { status: 400 })
+        if (insertErr) {
+          return NextResponse.json({ error: insertErr.message }, { status: 400 })
+        }
       }
     }
 

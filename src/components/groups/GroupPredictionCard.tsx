@@ -56,7 +56,7 @@ export function GroupPredictionCard({ group, prediction, onPredict, readonly, re
     return 'ring-2 ring-red-accent' // did not qualify
   }
 
-  const hasAllRequired = first && second
+  const hasAllRequired = first && second && third
   const changed =
     first !== (prediction?.predicted_1st ?? '') ||
     second !== (prediction?.predicted_2nd ?? '') ||

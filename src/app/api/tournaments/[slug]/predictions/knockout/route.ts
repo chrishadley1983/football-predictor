@@ -125,20 +125,40 @@ export async function POST(
 
     // Upsert each knockout prediction
     for (const pred of predictions) {
-      const { error: upsertErr } = await supabase
+      // Check if prediction already exists
+      const { data: existing } = await supabase
         .from('knockout_predictions')
-        .upsert(
-          {
+        .select('id')
+        .eq('entry_id', entry.id)
+        .eq('match_id', pred.match_id)
+        .maybeSingle()
+
+      if (existing) {
+        // Update existing prediction (preserve points_earned)
+        const { error: updateErr } = await supabase
+          .from('knockout_predictions')
+          .update({
+            predicted_winner_id: pred.predicted_winner_id,
+          })
+          .eq('id', existing.id)
+
+        if (updateErr) {
+          return NextResponse.json({ error: updateErr.message }, { status: 400 })
+        }
+      } else {
+        // Insert new prediction
+        const { error: insertErr } = await supabase
+          .from('knockout_predictions')
+          .insert({
             entry_id: entry.id,
             match_id: pred.match_id,
             predicted_winner_id: pred.predicted_winner_id,
             points_earned: 0,
-          },
-          { onConflict: 'entry_id,match_id' }
-        )
+          })
 
-      if (upsertErr) {
-        return NextResponse.json({ error: upsertErr.message }, { status: 400 })
+        if (insertErr) {
+          return NextResponse.json({ error: insertErr.message }, { status: 400 })
+        }
       }
     }
 

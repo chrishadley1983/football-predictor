@@ -168,14 +168,19 @@ export default function GroupPredictionPage() {
       return
     }
 
-    const supabase = createClient()
-    const { error: updateError } = await supabase
-      .from('tournament_entries')
-      .update({ tiebreaker_goals: goals })
-      .eq('id', entry.id)
+    // Route through API to enforce server-side tournament status/deadline checks
+    const res = await fetch(`/api/tournaments/${slug}/predictions/groups`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        predictions: [],
+        tiebreaker_goals: goals,
+      }),
+    })
 
-    if (updateError) {
-      setError(updateError.message)
+    if (!res.ok) {
+      const data = await res.json()
+      setError(data.error || 'Failed to save tiebreaker')
     } else {
       setSuccessMsg('Tiebreaker saved!')
       setTimeout(() => setSuccessMsg(''), 2000)

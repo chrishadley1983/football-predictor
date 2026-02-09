@@ -9,9 +9,10 @@ import type { ChatMessageWithPlayer } from '@/lib/types'
 interface ChatRoomProps {
   tournamentId: string
   currentPlayerId: string | null
+  isAdmin?: boolean
 }
 
-export function ChatRoom({ tournamentId, currentPlayerId }: ChatRoomProps) {
+export function ChatRoom({ tournamentId, currentPlayerId, isAdmin }: ChatRoomProps) {
   const [messages, setMessages] = useState<ChatMessageWithPlayer[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -92,6 +93,18 @@ export function ChatRoom({ tournamentId, currentPlayerId }: ChatRoomProps) {
           }
         }
       )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'chat_messages',
+          filter: `tournament_id=eq.${tournamentId}`,
+        },
+        (payload) => {
+          setMessages((prev) => prev.filter((m) => m.id !== payload.old.id))
+        }
+      )
       .subscribe()
 
     return () => {
@@ -100,6 +113,22 @@ export function ChatRoom({ tournamentId, currentPlayerId }: ChatRoomProps) {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tournamentId])
+
+  async function handleDelete(messageId: string) {
+    const supabase = supabaseRef.current
+    const { error: deleteError } = await supabase
+      .from('chat_messages')
+      .delete()
+      .eq('id', messageId)
+
+    if (deleteError) {
+      console.error('Failed to delete message:', deleteError.message)
+      setError(`Failed to delete: ${deleteError.message}`)
+      return
+    }
+
+    setMessages((prev) => prev.filter((m) => m.id !== messageId))
+  }
 
   async function handleSend(content: string) {
     if (!currentPlayerId) return
@@ -165,6 +194,7 @@ export function ChatRoom({ tournamentId, currentPlayerId }: ChatRoomProps) {
             key={msg.id}
             message={msg}
             isOwnMessage={msg.player_id === currentPlayerId}
+            onDelete={isAdmin ? handleDelete : undefined}
           />
         ))}
         <div ref={bottomRef} />

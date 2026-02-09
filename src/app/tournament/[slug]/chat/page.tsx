@@ -18,10 +18,12 @@ export default async function ChatPage({ params }: { params: Promise<{ slug: str
 
   const t = tournament as Tournament
 
-  // Get current player if authenticated
+  // Get current player and admin status if authenticated
   let currentPlayerId: string | null = null
+  let isAdmin = false
   const { data: { user } } = await supabase.auth.getUser()
   if (user) {
+    isAdmin = user.app_metadata?.role === 'admin'
     const { data: player } = await supabase
       .from('players')
       .select('id')
@@ -43,7 +45,7 @@ export default async function ChatPage({ params }: { params: Promise<{ slug: str
           {t.name} &mdash; Chat
         </h1>
       </div>
-      <ChatRoom tournamentId={t.id} currentPlayerId={currentPlayerId} />
+      <ChatRoom tournamentId={t.id} currentPlayerId={currentPlayerId} isAdmin={isAdmin} />
     </div>
   )
 }
