@@ -35,8 +35,8 @@ export function BracketMatch({ match, prediction, onSelectWinner, readonly }: Br
   const canInteract = !readonly && !actualWinner && match.home_team && match.away_team
 
   return (
-    <div className="flex w-36 flex-col gap-0.5 rounded-md border border-gray-200 bg-gray-50 p-1 dark:border-gray-700 dark:bg-gray-850 sm:w-40">
-      <div className="mb-0.5 text-center text-[10px] text-gray-400">
+    <div className="flex w-36 flex-col gap-0.5 rounded-xl border border-border-custom bg-surface p-1 sm:w-40">
+      <div className="mb-0.5 text-center text-[10px] text-text-muted">
         {match.round.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())} #{match.match_number}
       </div>
       <BracketTeam

@@ -1,16 +1,18 @@
 import type { Metadata } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
+import { Oswald, DM_Sans } from 'next/font/google'
 import { Navbar } from '@/components/ui/Navbar'
 import './globals.css'
 
-const geistSans = Geist({
-  variable: '--font-geist-sans',
+const oswald = Oswald({
+  variable: '--font-oswald',
   subsets: ['latin'],
+  weight: ['300', '400', '500', '600', '700'],
 })
 
-const geistMono = Geist_Mono({
-  variable: '--font-geist-mono',
+const dmSans = DM_Sans({
+  variable: '--font-dm-sans',
   subsets: ['latin'],
+  weight: ['300', '400', '500', '600'],
 })
 
 export const metadata: Metadata = {
@@ -25,11 +27,21 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-gray-50 font-sans antialiased dark:bg-gray-950`}>
-        <Navbar />
-        <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-          {children}
-        </main>
+      <body className={`${oswald.variable} ${dmSans.variable} min-h-screen bg-background font-body text-foreground antialiased`}>
+        {/* Subtle radial gradient overlay */}
+        <div
+          className="pointer-events-none fixed inset-0 z-0"
+          style={{
+            background: `radial-gradient(ellipse 70% 50% at 30% 0%, rgba(26,92,58,0.35) 0%, transparent 60%),
+                         radial-gradient(ellipse 50% 40% at 80% 90%, rgba(20,60,40,0.25) 0%, transparent 50%)`,
+          }}
+        />
+        <div className="relative z-10">
+          <Navbar />
+          <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+            {children}
+          </main>
+        </div>
       </body>
     </html>
   )

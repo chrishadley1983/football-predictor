@@ -66,8 +66,8 @@ export default function LoginPage() {
       <div className="mx-auto max-w-md pt-12">
         <Card>
           <div className="text-center">
-            <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">Check your email</h2>
-            <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+            <h2 className="text-lg font-bold text-foreground">Check your email</h2>
+            <p className="mt-2 text-sm text-text-secondary">
               We sent a login link to <strong>{email}</strong>. Click the link to sign in.
             </p>
           </div>
@@ -78,10 +78,10 @@ export default function LoginPage() {
 
   return (
     <div className="mx-auto max-w-md pt-12">
-      <Card header={<h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Login</h1>}>
+      <Card header={<h1 className="text-xl font-bold text-foreground">Login</h1>}>
         <form onSubmit={handlePasswordLogin} className="space-y-4">
           {error && (
-            <div className="rounded-md bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">
+            <div className="rounded-md bg-red-accent/10 p-3 text-sm text-red-accent">
               {error}
             </div>
           )}
@@ -111,10 +111,10 @@ export default function LoginPage() {
 
           <div className="relative py-2">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-200 dark:border-gray-700" />
+              <div className="w-full border-t border-border-custom" />
             </div>
             <div className="relative flex justify-center text-xs">
-              <span className="bg-white px-2 text-gray-500 dark:bg-gray-900 dark:text-gray-400">or</span>
+              <span className="bg-surface px-2 text-text-muted">or</span>
             </div>
           </div>
 
@@ -128,9 +128,9 @@ export default function LoginPage() {
             Send magic link
           </Button>
 
-          <p className="text-center text-sm text-gray-500 dark:text-gray-400">
+          <p className="text-center text-sm text-text-secondary">
             Don&apos;t have an account?{' '}
-            <Link href="/auth/register" className="font-medium text-green-600 hover:text-green-700">
+            <Link href="/auth/register" className="font-medium text-gold hover:text-gold-light">
               Register
             </Link>
           </p>

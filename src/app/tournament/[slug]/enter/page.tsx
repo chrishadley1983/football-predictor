@@ -73,40 +73,40 @@ export default function EnterTournamentPage() {
   }
 
   if (loading) {
-    return <p className="py-12 text-center text-gray-500">Loading...</p>
+    return <p className="py-12 text-center text-text-muted">Loading...</p>
   }
 
   if (!tournament) {
-    return <p className="py-12 text-center text-red-600">Tournament not found</p>
+    return <p className="py-12 text-center text-red-accent">Tournament not found</p>
   }
 
   return (
     <div className="mx-auto max-w-md pt-8">
-      <Card header={<h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Enter {tournament.name}</h1>}>
+      <Card header={<h1 className="text-xl font-bold text-foreground">Enter {tournament.name}</h1>}>
         <div className="space-y-4">
           {error && (
-            <div className="rounded-md bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">
+            <div className="rounded-md bg-red-accent/10 p-3 text-sm text-red-accent">
               {error}
             </div>
           )}
 
-          <div className="rounded-md bg-gray-50 p-4 dark:bg-gray-800">
-            <h3 className="font-medium text-gray-900 dark:text-gray-100">Entry Fee</h3>
-            <p className="mt-1 text-2xl font-bold text-green-700 dark:text-green-400">
+          <div className="rounded-md bg-surface-light p-4">
+            <h3 className="font-medium text-foreground">Entry Fee</h3>
+            <p className="mt-1 text-2xl font-bold text-gold">
               &pound;{tournament.entry_fee_gbp.toFixed(2)}
             </p>
           </div>
 
-          <div className="text-sm text-gray-600 dark:text-gray-400">
-            <h3 className="font-medium text-gray-900 dark:text-gray-100">Payment</h3>
+          <div className="text-sm text-text-secondary">
+            <h3 className="font-medium text-foreground">Payment</h3>
             <p className="mt-1">
               Payment is collected manually by the tournament organiser. After registering,
               the admin will confirm your payment. You can still submit predictions before payment is confirmed.
             </p>
           </div>
 
-          <div className="text-sm text-gray-600 dark:text-gray-400">
-            <h3 className="font-medium text-gray-900 dark:text-gray-100">What you get</h3>
+          <div className="text-sm text-text-secondary">
+            <h3 className="font-medium text-foreground">What you get</h3>
             <ul className="mt-1 list-inside list-disc space-y-1">
               <li>Predict group stage outcomes</li>
               <li>Fill in the knockout bracket</li>
@@ -116,7 +116,7 @@ export default function EnterTournamentPage() {
           </div>
 
           {alreadyEntered ? (
-            <div className="rounded-md bg-green-50 p-3 text-center text-sm text-green-700 dark:bg-green-950 dark:text-green-300">
+            <div className="rounded-md bg-green-accent/10 p-3 text-center text-sm text-green-accent">
               You are already entered in this tournament.
             </div>
           ) : (

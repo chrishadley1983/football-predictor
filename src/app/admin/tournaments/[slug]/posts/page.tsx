@@ -172,24 +172,24 @@ export default function AdminPostsPage() {
     )
   }
 
-  if (loading) return <p className="py-12 text-center text-gray-500">Loading...</p>
-  if (!tournament) return <p className="py-12 text-center text-red-600">{error || 'Tournament not found'}</p>
+  if (loading) return <p className="py-12 text-center text-text-muted">Loading...</p>
+  if (!tournament) return <p className="py-12 text-center text-red-accent">{error || 'Tournament not found'}</p>
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{tournament.name} - Posts</h1>
+        <h1 className="font-heading text-2xl font-bold text-foreground">{tournament.name} - Posts</h1>
         {!showForm && (
           <Button onClick={() => setShowForm(true)}>New Post</Button>
         )}
       </div>
 
-      {error && <div className="rounded-md bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">{error}</div>}
-      {success && <div className="rounded-md bg-green-50 p-3 text-sm text-green-700 dark:bg-green-950 dark:text-green-300">{success}</div>}
+      {error && <div className="rounded-md bg-red-accent/10 p-3 text-sm text-red-accent">{error}</div>}
+      {success && <div className="rounded-md bg-green-accent/10 p-3 text-sm text-green-accent">{success}</div>}
 
       {/* Post form */}
       {showForm && (
-        <Card header={<h2 className="font-semibold text-gray-900 dark:text-gray-100">{editingPost ? 'Edit Post' : 'New Post'}</h2>}>
+        <Card header={<h2 className="font-semibold text-foreground">{editingPost ? 'Edit Post' : 'New Post'}</h2>}>
           <div className="space-y-4">
             <Input
               label="Title"
@@ -211,7 +211,7 @@ export default function AdminPostsPage() {
               placeholder="post-slug"
             />
             <div>
-              <label htmlFor="postContent" className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label htmlFor="postContent" className="mb-1 block text-sm font-medium text-text-secondary">
                 Content (Markdown)
               </label>
               <textarea
@@ -219,7 +219,7 @@ export default function AdminPostsPage() {
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
                 rows={10}
-                className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+                className="block w-full rounded-md border border-border-custom bg-surface-light px-3 py-2 text-sm text-foreground shadow-sm focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold"
                 placeholder="Write your post content in Markdown..."
               />
             </div>
@@ -235,15 +235,15 @@ export default function AdminPostsPage() {
 
       {/* Post list */}
       {posts.length === 0 ? (
-        <p className="py-8 text-center text-sm text-gray-500">No posts yet.</p>
+        <p className="py-8 text-center text-sm text-text-muted">No posts yet.</p>
       ) : (
         <div className="space-y-3">
           {posts.map((post) => (
             <Card key={post.id}>
               <div className="flex items-start justify-between">
                 <div>
-                  <h3 className="font-semibold text-gray-900 dark:text-gray-100">{post.title}</h3>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                  <h3 className="font-semibold text-foreground">{post.title}</h3>
+                  <p className="text-xs text-text-muted">
                     /{post.slug} &middot; {formatDate(post.published_at)} &middot; {post.author}
                   </p>
                 </div>
@@ -251,7 +251,7 @@ export default function AdminPostsPage() {
                   {post.is_published ? 'Published' : 'Draft'}
                 </Badge>
               </div>
-              <p className="mt-2 line-clamp-2 text-sm text-gray-600 dark:text-gray-400">
+              <p className="mt-2 line-clamp-2 text-sm text-text-secondary">
                 {post.content.slice(0, 150)}...
               </p>
               <div className="mt-3 flex gap-2">

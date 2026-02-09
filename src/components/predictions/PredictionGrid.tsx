@@ -17,17 +17,17 @@ export function PredictionGrid({ predictions, groups, results = [] }: Prediction
   }
 
   function getCellColor(teamId: string | null, predictedPosition: number): string {
-    if (!teamId || resultMap.size === 0) return 'bg-gray-50 dark:bg-gray-800'
+    if (!teamId || resultMap.size === 0) return 'bg-surface-light'
     const result = resultMap.get(teamId)
-    if (!result) return 'bg-gray-50 dark:bg-gray-800'
+    if (!result) return 'bg-surface-light'
 
     if (result.qualified && result.final_position === predictedPosition) {
-      return 'bg-green-100 text-green-900 dark:bg-green-900 dark:text-green-100' // exact
+      return 'bg-green-accent/20 text-green-accent' // exact
     }
     if (result.qualified) {
-      return 'bg-yellow-100 text-yellow-900 dark:bg-yellow-900 dark:text-yellow-100' // qualified, wrong pos
+      return 'bg-yellow-accent/20 text-yellow-accent' // qualified, wrong pos
     }
-    return 'bg-red-100 text-red-900 dark:bg-red-900 dark:text-red-100' // not qualified
+    return 'bg-red-accent/20 text-red-accent' // not qualified
   }
 
   // Find team code by id across all groups
@@ -42,22 +42,22 @@ export function PredictionGrid({ predictions, groups, results = [] }: Prediction
   }
 
   if (predictions.length === 0) {
-    return <p className="py-8 text-center text-sm text-gray-500">No predictions available yet.</p>
+    return <p className="py-8 text-center text-sm text-text-muted">No predictions available yet.</p>
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
+    <div className="overflow-x-auto rounded-xl border border-border-custom">
       <table className="w-full text-xs">
-        <thead className="bg-gray-50 dark:bg-gray-800">
+        <thead className="bg-surface-light">
           <tr>
-            <th className="sticky left-0 z-10 bg-gray-50 px-2 py-2 text-left font-medium text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+            <th className="sticky left-0 z-10 bg-surface-light px-2 py-2 text-left font-medium text-text-muted">
               Group
             </th>
-            <th className="sticky left-[60px] z-10 bg-gray-50 px-2 py-2 text-left font-medium text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+            <th className="sticky left-[60px] z-10 bg-surface-light px-2 py-2 text-left font-medium text-text-muted">
               Pos
             </th>
             {predictions.map((p) => (
-              <th key={p.entry_id} className="px-2 py-2 text-center font-medium text-gray-500 dark:text-gray-400">
+              <th key={p.entry_id} className="px-2 py-2 text-center font-medium text-text-muted">
                 <div className="max-w-[60px] truncate">
                   {p.player.display_name.split(' ')[0]}
                 </div>
@@ -65,19 +65,19 @@ export function PredictionGrid({ predictions, groups, results = [] }: Prediction
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
+        <tbody className="divide-y divide-border-custom bg-surface">
           {groups.map((group) => (
             [1, 2, 3].map((pos) => (
               <tr key={`${group.id}-${pos}`}>
                 {pos === 1 && (
                   <td
                     rowSpan={3}
-                    className="sticky left-0 z-10 bg-white px-2 py-1 font-medium text-gray-900 dark:bg-gray-900 dark:text-gray-100"
+                    className="sticky left-0 z-10 bg-surface px-2 py-1 font-medium text-foreground"
                   >
                     {group.name}
                   </td>
                 )}
-                <td className="sticky left-[60px] z-10 bg-white px-2 py-1 text-gray-500 dark:bg-gray-900 dark:text-gray-400">
+                <td className="sticky left-[60px] z-10 bg-surface px-2 py-1 text-text-muted">
                   {pos === 1 ? '1st' : pos === 2 ? '2nd' : '3rd'}
                 </td>
                 {predictions.map((p) => {

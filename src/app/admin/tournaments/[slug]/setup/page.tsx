@@ -111,8 +111,8 @@ export default function SetupPage() {
     setSetupLoading(false)
   }
 
-  if (loading) return <p className="py-12 text-center text-gray-500">Loading...</p>
-  if (!tournament) return <p className="py-12 text-center text-red-600">{error || 'Tournament not found'}</p>
+  if (loading) return <p className="py-12 text-center text-text-muted">Loading...</p>
+  if (!tournament) return <p className="py-12 text-center text-red-accent">{error || 'Tournament not found'}</p>
 
   const groupCount = tournament.groups?.length ?? 0
   const teamCount = tournament.groups?.reduce((sum, g) => sum + g.group_teams.length, 0) ?? 0
@@ -137,11 +137,11 @@ export default function SetupPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+          <h1 className="font-heading text-2xl font-bold text-foreground">
             Setup: {tournament.name}
           </h1>
-          <p className="mt-1 text-sm text-gray-500">
-            <Link href={`/admin/tournaments/${slug}/manage`} className="text-green-600 hover:underline">
+          <p className="mt-1 text-sm text-text-muted">
+            <Link href={`/admin/tournaments/${slug}/manage`} className="text-gold hover:underline">
               Back to Manage
             </Link>
           </p>
@@ -149,39 +149,39 @@ export default function SetupPage() {
       </div>
 
       {error && (
-        <div className="rounded-md bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">
+        <div className="rounded-md bg-red-accent/10 p-3 text-sm text-red-accent">
           {error}
         </div>
       )}
       {success && (
-        <div className="rounded-md bg-green-50 p-3 text-sm text-green-700 dark:bg-green-950 dark:text-green-300">
+        <div className="rounded-md bg-green-accent/10 p-3 text-sm text-green-accent">
           {success}
         </div>
       )}
 
       {/* Section 1: Quick Setup */}
-      <Card header={<h2 className="font-semibold text-gray-900 dark:text-gray-100">Quick Setup</h2>}>
+      <Card header={<h2 className="font-semibold text-foreground">Quick Setup</h2>}>
         <div className="space-y-4">
           <div className="flex items-center gap-4">
             <Button onClick={handleSeedWC2022} loading={seedLoading} variant="primary">
               Seed WC 2022 Data
             </Button>
-            <span className="text-xs text-gray-500">Creates a test tournament with all 32 teams and bracket</span>
+            <span className="text-xs text-text-muted">Creates a test tournament with all 32 teams and bracket</span>
           </div>
-          <div className="rounded-md bg-gray-50 p-3 dark:bg-gray-800">
-            <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">Current Status</h3>
+          <div className="rounded-md bg-surface-light p-3">
+            <h3 className="text-sm font-medium text-text-secondary">Current Status</h3>
             <div className="mt-2 grid grid-cols-3 gap-4 text-center">
               <div>
-                <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{groupCount}</div>
-                <div className="text-xs text-gray-500">Groups</div>
+                <div className="font-heading text-2xl font-bold text-foreground">{groupCount}</div>
+                <div className="text-xs text-text-muted">Groups</div>
               </div>
               <div>
-                <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{teamCount}</div>
-                <div className="text-xs text-gray-500">Teams</div>
+                <div className="font-heading text-2xl font-bold text-foreground">{teamCount}</div>
+                <div className="text-xs text-text-muted">Teams</div>
               </div>
               <div>
-                <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{matchCount}</div>
-                <div className="text-xs text-gray-500">Knockout Matches</div>
+                <div className="font-heading text-2xl font-bold text-foreground">{matchCount}</div>
+                <div className="text-xs text-text-muted">Knockout Matches</div>
               </div>
             </div>
           </div>
@@ -189,23 +189,23 @@ export default function SetupPage() {
       </Card>
 
       {/* Section 2: Groups Overview */}
-      <Card header={<h2 className="font-semibold text-gray-900 dark:text-gray-100">Groups</h2>}>
+      <Card header={<h2 className="font-semibold text-foreground">Groups</h2>}>
         {groupCount === 0 ? (
-          <p className="text-sm text-gray-500">No groups set up yet. Use Quick Setup above.</p>
+          <p className="text-sm text-text-muted">No groups set up yet. Use Quick Setup above.</p>
         ) : (
           <div className="space-y-4">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {tournament.groups.map((group) => (
-                <div key={group.id} className="rounded-md border border-gray-200 p-3 dark:border-gray-700">
-                  <h3 className="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
+                <div key={group.id} className="rounded-md border border-border-custom p-3">
+                  <h3 className="mb-2 text-sm font-semibold text-text-secondary">
                     {group.name}
                   </h3>
                   <div className="space-y-1">
                     {group.group_teams.map((gt) => (
-                      <div key={gt.team.id} className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                      <div key={gt.team.id} className="flex items-center gap-2 text-sm text-text-secondary">
                         <span>{gt.team.flag_emoji}</span>
                         <span>{gt.team.name}</span>
-                        <span className="text-xs text-gray-400">({gt.team.code})</span>
+                        <span className="text-xs text-text-muted">({gt.team.code})</span>
                       </div>
                     ))}
                   </div>
@@ -223,13 +223,13 @@ export default function SetupPage() {
 
       {/* Section 3: Bracket Preview */}
       {matchCount > 0 && (
-        <Card header={<h2 className="font-semibold text-gray-900 dark:text-gray-100">Bracket Preview</h2>}>
+        <Card header={<h2 className="font-semibold text-foreground">Bracket Preview</h2>}>
           <div className="space-y-4">
             {roundOrder
               .filter((round) => matchesByRound[round])
               .map((round) => (
                 <div key={round}>
-                  <h3 className="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
+                  <h3 className="mb-2 text-sm font-semibold text-text-secondary">
                     {roundLabels[round] ?? round}
                   </h3>
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -238,22 +238,22 @@ export default function SetupPage() {
                       .map((match) => (
                         <div
                           key={match.id}
-                          className="flex items-center gap-2 rounded bg-gray-50 p-2 text-sm dark:bg-gray-800"
+                          className="flex items-center gap-2 rounded bg-surface-light p-2 text-sm"
                         >
-                          <span className="w-6 text-xs text-gray-400">#{match.match_number}</span>
-                          <span className="flex-1">
+                          <span className="w-6 text-xs text-text-muted">#{match.match_number}</span>
+                          <span className="flex-1 text-foreground">
                             {match.home_team
                               ? `${match.home_team.flag_emoji ?? ''} ${match.home_team.code}`
                               : match.home_source ?? 'TBD'}
                           </span>
-                          <span className="text-xs text-gray-400">vs</span>
-                          <span className="flex-1">
+                          <span className="text-xs text-text-muted">vs</span>
+                          <span className="flex-1 text-foreground">
                             {match.away_team
                               ? `${match.away_team.flag_emoji ?? ''} ${match.away_team.code}`
                               : match.away_source ?? 'TBD'}
                           </span>
                           {match.winner_team && (
-                            <span className="text-xs font-medium text-green-600">
+                            <span className="text-xs font-medium text-green-accent">
                               W: {match.winner_team.code}
                             </span>
                           )}

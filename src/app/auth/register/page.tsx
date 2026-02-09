@@ -77,10 +77,10 @@ export default function RegisterPage() {
 
   return (
     <div className="mx-auto max-w-md pt-12">
-      <Card header={<h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Register</h1>}>
+      <Card header={<h1 className="text-xl font-bold text-foreground">Register</h1>}>
         <form onSubmit={handleRegister} className="space-y-4">
           {error && (
-            <div className="rounded-md bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">
+            <div className="rounded-md bg-red-accent/10 p-3 text-sm text-red-accent">
               {error}
             </div>
           )}
@@ -128,9 +128,9 @@ export default function RegisterPage() {
             Create Account
           </Button>
 
-          <p className="text-center text-sm text-gray-500 dark:text-gray-400">
+          <p className="text-center text-sm text-text-secondary">
             Already have an account?{' '}
-            <Link href="/auth/login" className="font-medium text-green-600 hover:text-green-700">
+            <Link href="/auth/login" className="font-medium text-gold hover:text-gold-light">
               Login
             </Link>
           </p>

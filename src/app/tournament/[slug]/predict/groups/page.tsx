@@ -183,33 +183,33 @@ export default function GroupPredictionPage() {
     setSaving(false)
   }
 
-  if (loading) return <p className="py-12 text-center text-gray-500">Loading...</p>
-  if (error && !tournament) return <p className="py-12 text-center text-red-600">{error}</p>
+  if (loading) return <p className="py-12 text-center text-text-muted">Loading...</p>
+  if (error && !tournament) return <p className="py-12 text-center text-red-accent">{error}</p>
 
   const groups = tournament?.groups ?? []
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Group Stage Predictions</h1>
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+        <h1 className="font-heading text-2xl font-bold text-foreground">Group Stage Predictions</h1>
+        <p className="mt-1 text-sm text-text-secondary">
           {tournament?.name} &mdash; Predict the finishing order for each group
         </p>
         {deadline && !deadline.passed && (
-          <p className="mt-1 text-sm font-medium text-yellow-600">{deadline.label}</p>
+          <p className="mt-1 text-sm font-medium text-yellow-accent">{deadline.label}</p>
         )}
         {isReadonly && (
-          <p className="mt-2 rounded-md bg-yellow-50 p-2 text-sm text-yellow-700 dark:bg-yellow-950 dark:text-yellow-300">
+          <p className="mt-2 rounded-md bg-yellow-accent/10 p-2 text-sm text-yellow-accent">
             Predictions are locked. The deadline has passed or the group stage is closed.
           </p>
         )}
       </div>
 
       {error && (
-        <div className="rounded-md bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">{error}</div>
+        <div className="rounded-md bg-red-accent/10 p-3 text-sm text-red-accent">{error}</div>
       )}
       {successMsg && (
-        <div className="rounded-md bg-green-50 p-3 text-sm text-green-700 dark:bg-green-950 dark:text-green-300">{successMsg}</div>
+        <div className="rounded-md bg-green-accent/10 p-3 text-sm text-green-accent">{successMsg}</div>
       )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -226,7 +226,7 @@ export default function GroupPredictionPage() {
       </div>
 
       {/* Tiebreaker */}
-      <Card header={<h2 className="font-semibold text-gray-900 dark:text-gray-100">Tiebreaker</h2>}>
+      <Card header={<h2 className="font-semibold text-foreground">Tiebreaker</h2>}>
         <div className="flex items-end gap-3">
           <div className="flex-1">
             <Input

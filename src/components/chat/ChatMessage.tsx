@@ -33,18 +33,18 @@ export function ChatMessage({ message, isOwnMessage }: ChatMessageProps) {
         className={cn(
           'max-w-[80%] rounded-lg px-3 py-2',
           isOwnMessage
-            ? 'bg-blue-600 text-white'
-            : 'bg-gray-100 text-gray-900 dark:bg-gray-700 dark:text-gray-100'
+            ? 'bg-gold text-black'
+            : 'bg-surface-light text-foreground'
         )}
       >
         {!isOwnMessage && (
-          <p className="text-xs font-bold text-gray-600 dark:text-gray-300">{displayName}</p>
+          <p className="text-xs font-bold text-text-secondary">{displayName}</p>
         )}
         <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
         <p
           className={cn(
             'mt-0.5 text-[10px]',
-            isOwnMessage ? 'text-blue-200' : 'text-gray-400 dark:text-gray-500'
+            isOwnMessage ? 'text-black/50' : 'text-text-muted'
           )}
         >
           {formatRelativeTime(message.created_at)}

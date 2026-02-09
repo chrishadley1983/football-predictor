@@ -33,7 +33,7 @@ export default function SeedButton() {
         {loading ? 'Seeding...' : 'Seed WC 2022'}
       </button>
       {result && (
-        <div className="absolute right-0 top-full mt-1 w-64 rounded border bg-white p-2 text-xs shadow-lg dark:bg-gray-800 dark:border-gray-600">
+        <div className="absolute right-0 top-full mt-1 w-64 rounded border border-border-custom bg-surface p-2 text-xs shadow-lg">
           {result}
         </div>
       )}

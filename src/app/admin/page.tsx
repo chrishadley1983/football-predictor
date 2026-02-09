@@ -23,12 +23,12 @@ export default async function AdminPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Admin Dashboard</h1>
+        <h1 className="font-heading text-2xl font-bold text-foreground">Admin Dashboard</h1>
         <div className="flex gap-2">
           <SeedButton />
           <Link
             href="/admin/tournaments/new"
-            className="rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
+            className="rounded-md bg-gold px-4 py-2 text-sm font-medium text-black hover:bg-gold-light"
           >
             New Tournament
           </Link>
@@ -36,15 +36,15 @@ export default async function AdminPage() {
       </div>
 
       {(!tournaments || tournaments.length === 0) ? (
-        <p className="py-8 text-center text-sm text-gray-500">No tournaments yet. Create one to get started.</p>
+        <p className="py-8 text-center text-sm text-text-muted">No tournaments yet. Create one to get started.</p>
       ) : (
         <div className="space-y-3">
           {(tournaments as Tournament[]).map((t) => (
             <Card key={t.id}>
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="font-semibold text-gray-900 dark:text-gray-100">{t.name}</h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">/{t.slug}</p>
+                  <h3 className="font-semibold text-foreground">{t.name}</h3>
+                  <p className="text-sm text-text-muted">/{t.slug}</p>
                 </div>
                 <div className="flex items-center gap-3">
                   <TournamentStatusBadge status={t.status} />
@@ -53,37 +53,37 @@ export default async function AdminPage() {
               <div className="mt-3 flex flex-wrap gap-2">
                 <Link
                   href={`/admin/tournaments/${t.slug}/manage`}
-                  className="rounded bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+                  className="rounded bg-surface-light px-3 py-1 text-xs font-medium text-text-secondary hover:bg-border-custom"
                 >
                   Manage
                 </Link>
                 <Link
                   href={`/admin/tournaments/${t.slug}/setup`}
-                  className="rounded bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700 hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-300 dark:hover:bg-blue-800"
+                  className="rounded bg-blue-500/20 px-3 py-1 text-xs font-medium text-blue-400 hover:bg-blue-500/30"
                 >
                   Setup
                 </Link>
                 <Link
                   href={`/admin/tournaments/${t.slug}/results`}
-                  className="rounded bg-orange-100 px-3 py-1 text-xs font-medium text-orange-700 hover:bg-orange-200 dark:bg-orange-900 dark:text-orange-300 dark:hover:bg-orange-800"
+                  className="rounded bg-orange-500/20 px-3 py-1 text-xs font-medium text-orange-400 hover:bg-orange-500/30"
                 >
                   Results & Simulate
                 </Link>
                 <Link
                   href={`/admin/tournaments/${t.slug}/entries`}
-                  className="rounded bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+                  className="rounded bg-surface-light px-3 py-1 text-xs font-medium text-text-secondary hover:bg-border-custom"
                 >
                   Entries
                 </Link>
                 <Link
                   href={`/admin/tournaments/${t.slug}/posts`}
-                  className="rounded bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+                  className="rounded bg-surface-light px-3 py-1 text-xs font-medium text-text-secondary hover:bg-border-custom"
                 >
                   Posts
                 </Link>
                 <Link
                   href={`/tournament/${t.slug}`}
-                  className="rounded bg-green-100 px-3 py-1 text-xs font-medium text-green-700 hover:bg-green-200 dark:bg-green-900 dark:text-green-300 dark:hover:bg-green-800"
+                  className="rounded bg-green-accent/20 px-3 py-1 text-xs font-medium text-green-accent hover:bg-green-accent/30"
                 >
                   View Public
                 </Link>

@@ -3,7 +3,6 @@ import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { TournamentStatusBadge } from '@/components/ui/Badge'
 import { Card } from '@/components/ui/Card'
-import { Button } from '@/components/ui/Button'
 import { formatCurrency, formatDate, getDeadlineStatus } from '@/lib/utils'
 import type { Tournament } from '@/lib/types'
 
@@ -33,8 +32,8 @@ export default async function TournamentPage({ params }: { params: Promise<{ slu
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{t.name}</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
+          <h1 className="font-heading text-3xl font-bold text-foreground">{t.name}</h1>
+          <p className="text-sm text-text-secondary">
             {t.type === 'world_cup' ? 'World Cup' : 'Euros'} {t.year}
           </p>
         </div>
@@ -45,28 +44,28 @@ export default async function TournamentPage({ params }: { params: Promise<{ slu
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <div className="text-center">
-            <p className="text-sm text-gray-500 dark:text-gray-400">Entry Fee</p>
-            <p className="text-xl font-bold text-gray-900 dark:text-gray-100">{formatCurrency(t.entry_fee_gbp)}</p>
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-text-muted">Entry Fee</p>
+            <p className="font-heading text-2xl font-bold text-foreground">{formatCurrency(t.entry_fee_gbp)}</p>
           </div>
         </Card>
         <Card>
           <div className="text-center">
-            <p className="text-sm text-gray-500 dark:text-gray-400">Prize Pool</p>
-            <p className="text-xl font-bold text-green-700 dark:text-green-400">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-text-muted">Prize Pool</p>
+            <p className="font-heading text-2xl font-bold text-gold">
               {t.prize_pool_gbp !== null ? formatCurrency(t.prize_pool_gbp) : 'TBD'}
             </p>
           </div>
         </Card>
         <Card>
           <div className="text-center">
-            <p className="text-sm text-gray-500 dark:text-gray-400">Entries</p>
-            <p className="text-xl font-bold text-gray-900 dark:text-gray-100">{entryCount ?? 0}</p>
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-text-muted">Entries</p>
+            <p className="font-heading text-2xl font-bold text-foreground">{entryCount ?? 0}</p>
           </div>
         </Card>
         <Card>
           <div className="text-center">
-            <p className="text-sm text-gray-500 dark:text-gray-400">Prize Split</p>
-            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-text-muted">Prize Split</p>
+            <p className="text-sm font-medium text-text-secondary">
               {t.overall_prize_pct}% overall / {t.group_stage_prize_pct}% groups
             </p>
           </div>
@@ -74,19 +73,19 @@ export default async function TournamentPage({ params }: { params: Promise<{ slu
       </div>
 
       {/* Deadlines */}
-      <Card header={<h2 className="font-semibold text-gray-900 dark:text-gray-100">Deadlines</h2>}>
+      <Card header={<h2 className="font-heading font-semibold text-foreground">Deadlines</h2>}>
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-600 dark:text-gray-400">Group Stage Predictions</span>
-            <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+            <span className="text-sm text-text-secondary">Group Stage Predictions</span>
+            <span className="text-sm font-medium text-foreground">
               {t.group_stage_deadline
                 ? `${formatDate(t.group_stage_deadline)} - ${groupDeadline.label}`
                 : 'Not set'}
             </span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-600 dark:text-gray-400">Knockout Predictions</span>
-            <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+            <span className="text-sm text-text-secondary">Knockout Predictions</span>
+            <span className="text-sm font-medium text-foreground">
               {t.knockout_stage_deadline
                 ? `${formatDate(t.knockout_stage_deadline)} - ${knockoutDeadline.label}`
                 : 'Not set'}
@@ -99,10 +98,13 @@ export default async function TournamentPage({ params }: { params: Promise<{ slu
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {(t.status === 'group_stage_open') && (
           <Link href={`/tournament/${slug}/enter`}>
-            <Card className="transition-shadow hover:shadow-md">
-              <div className="text-center">
-                <h3 className="font-semibold text-green-700 dark:text-green-400">Enter Tournament</h3>
-                <p className="mt-1 text-sm text-gray-500">Register and pay entry fee</p>
+            <Card className="border-gold/25 bg-gold/5 transition-all hover:border-gold/40 hover:bg-gold/10">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-semibold text-gold-light">Enter Tournament</h3>
+                  <p className="mt-1 text-sm text-text-secondary">Register and pay entry fee</p>
+                </div>
+                <span className="text-text-muted opacity-0 transition-opacity group-hover:opacity-70">&rarr;</span>
               </div>
             </Card>
           </Link>
@@ -110,10 +112,13 @@ export default async function TournamentPage({ params }: { params: Promise<{ slu
 
         {['group_stage_open'].includes(t.status) && (
           <Link href={`/tournament/${slug}/predict/groups`}>
-            <Card className="transition-shadow hover:shadow-md">
-              <div className="text-center">
-                <h3 className="font-semibold text-green-700 dark:text-green-400">Group Predictions</h3>
-                <p className="mt-1 text-sm text-gray-500">Predict group stage outcomes</p>
+            <Card className="border-gold/25 bg-gold/5 transition-all hover:border-gold/40 hover:bg-gold/10">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-semibold text-gold-light">Group Predictions</h3>
+                  <p className="mt-1 text-sm text-text-secondary">Predict group stage outcomes</p>
+                </div>
+                <span className="text-text-muted opacity-0 transition-opacity group-hover:opacity-70">&rarr;</span>
               </div>
             </Card>
           </Link>
@@ -121,56 +126,59 @@ export default async function TournamentPage({ params }: { params: Promise<{ slu
 
         {['knockout_open'].includes(t.status) && (
           <Link href={`/tournament/${slug}/predict/knockout`}>
-            <Card className="transition-shadow hover:shadow-md">
-              <div className="text-center">
-                <h3 className="font-semibold text-green-700 dark:text-green-400">Knockout Predictions</h3>
-                <p className="mt-1 text-sm text-gray-500">Fill in your bracket</p>
+            <Card className="border-gold/25 bg-gold/5 transition-all hover:border-gold/40 hover:bg-gold/10">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-semibold text-gold-light">Knockout Predictions</h3>
+                  <p className="mt-1 text-sm text-text-secondary">Fill in your bracket</p>
+                </div>
+                <span className="text-text-muted opacity-0 transition-opacity group-hover:opacity-70">&rarr;</span>
               </div>
             </Card>
           </Link>
         )}
 
         <Link href={`/tournament/${slug}/leaderboard`}>
-          <Card className="transition-shadow hover:shadow-md">
+          <Card className="transition-all hover:border-gold/30">
             <div className="text-center">
-              <h3 className="font-semibold text-gray-700 dark:text-gray-300">Leaderboard</h3>
-              <p className="mt-1 text-sm text-gray-500">View scores and rankings</p>
+              <h3 className="font-semibold text-foreground">Leaderboard</h3>
+              <p className="mt-1 text-sm text-text-secondary">View scores and rankings</p>
             </div>
           </Card>
         </Link>
 
         <Link href={`/tournament/${slug}/predictions`}>
-          <Card className="transition-shadow hover:shadow-md">
+          <Card className="transition-all hover:border-gold/30">
             <div className="text-center">
-              <h3 className="font-semibold text-gray-700 dark:text-gray-300">All Predictions</h3>
-              <p className="mt-1 text-sm text-gray-500">See what everyone predicted</p>
+              <h3 className="font-semibold text-foreground">All Predictions</h3>
+              <p className="mt-1 text-sm text-text-secondary">See what everyone predicted</p>
             </div>
           </Card>
         </Link>
 
         <Link href={`/tournament/${slug}/rules`}>
-          <Card className="transition-shadow hover:shadow-md">
+          <Card className="transition-all hover:border-gold/30">
             <div className="text-center">
-              <h3 className="font-semibold text-gray-700 dark:text-gray-300">Rules</h3>
-              <p className="mt-1 text-sm text-gray-500">Scoring system explained</p>
+              <h3 className="font-semibold text-foreground">Rules</h3>
+              <p className="mt-1 text-sm text-text-secondary">Scoring system explained</p>
             </div>
           </Card>
         </Link>
 
         <Link href={`/tournament/${slug}/posts`}>
-          <Card className="transition-shadow hover:shadow-md">
+          <Card className="transition-all hover:border-gold/30">
             <div className="text-center">
-              <h3 className="font-semibold text-gray-700 dark:text-gray-300">Blog Posts</h3>
-              <p className="mt-1 text-sm text-gray-500">Tournament updates and analysis</p>
+              <h3 className="font-semibold text-foreground">Blog Posts</h3>
+              <p className="mt-1 text-sm text-text-secondary">Tournament updates and analysis</p>
             </div>
           </Card>
         </Link>
 
         <Link href={`/tournament/${slug}/chat`}>
-          <Card className="transition-shadow hover:shadow-md">
+          <Card className="transition-all hover:border-gold/30">
             <div className="text-center">
-              <h3 className="font-semibold text-gray-700 dark:text-gray-300">Chat</h3>
-              <p className="mt-1 text-sm text-gray-500">Live tournament discussion</p>
+              <h3 className="font-semibold text-foreground">Chat</h3>
+              <p className="mt-1 text-sm text-text-secondary">Live tournament discussion</p>
             </div>
           </Card>
         </Link>

@@ -72,12 +72,12 @@ export default function NewTournamentPage() {
 
   return (
     <div className="mx-auto max-w-2xl">
-      <h1 className="mb-6 text-2xl font-bold text-gray-900 dark:text-gray-100">Create New Tournament</h1>
+      <h1 className="mb-6 font-heading text-2xl font-bold text-foreground">Create New Tournament</h1>
 
       <Card>
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
-            <div className="rounded-md bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">
+            <div className="rounded-md bg-red-accent/10 p-3 text-sm text-red-accent">
               {error}
             </div>
           )}

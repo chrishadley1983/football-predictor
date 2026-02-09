@@ -23,7 +23,7 @@ export function GroupResultsCard({ group, results }: GroupResultsCardProps) {
   })
 
   return (
-    <Card header={<h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">{group.name}</h3>}>
+    <Card header={<h3 className="text-base font-semibold text-foreground">{group.name}</h3>}>
       <div className="space-y-2">
         {sortedTeams.map((team) => {
           const result = resultMap.get(team.id)
@@ -33,16 +33,16 @@ export function GroupResultsCard({ group, results }: GroupResultsCardProps) {
               className={cn(
                 'flex items-center justify-between rounded px-3 py-2',
                 result?.qualified
-                  ? 'bg-green-50 dark:bg-green-950'
-                  : 'bg-gray-50 dark:bg-gray-800'
+                  ? 'bg-green-accent/10'
+                  : 'bg-surface-light'
               )}
             >
               <div className="flex items-center gap-2">
-                <span className="w-5 text-center text-sm font-bold text-gray-500">
+                <span className="w-5 text-center text-sm font-bold text-text-muted">
                   {result?.final_position ?? '-'}
                 </span>
                 {team.flag_emoji && <span className="text-sm">{team.flag_emoji}</span>}
-                <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{team.name}</span>
+                <span className="text-sm font-medium text-foreground">{team.name}</span>
               </div>
               {result?.qualified && (
                 <Badge variant="green">Qualified</Badge>

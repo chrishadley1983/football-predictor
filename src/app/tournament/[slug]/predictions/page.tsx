@@ -23,8 +23,8 @@ export default async function PredictionsPage({ params }: { params: Promise<{ sl
   if (!groupDeadline.passed && t.status === 'group_stage_open') {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{t.name} - All Predictions</h1>
-        <div className="rounded-md bg-yellow-50 p-4 text-sm text-yellow-700 dark:bg-yellow-950 dark:text-yellow-300">
+        <h1 className="font-heading text-2xl font-bold text-foreground">{t.name} - All Predictions</h1>
+        <div className="rounded-md bg-yellow-accent/10 p-4 text-sm text-yellow-accent">
           Predictions will be visible after the group stage deadline has passed.
           <br />
           {groupDeadline.label}
@@ -109,7 +109,7 @@ export default async function PredictionsPage({ params }: { params: Promise<{ sl
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{t.name} - All Predictions</h1>
+      <h1 className="font-heading text-2xl font-bold text-foreground">{t.name} - All Predictions</h1>
       <PredictionGrid
         predictions={predictions}
         groups={(groups as GroupWithTeams[]) ?? []}

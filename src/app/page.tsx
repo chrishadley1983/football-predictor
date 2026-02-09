@@ -40,10 +40,10 @@ export default async function HomePage() {
     <div className="space-y-12">
       {/* Hero */}
       <section className="text-center">
-        <h1 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl dark:text-gray-100">
+        <h1 className="shimmer-text font-heading text-3xl font-bold tracking-tight sm:text-4xl">
           Football Prediction Game
         </h1>
-        <p className="mx-auto mt-3 max-w-xl text-gray-600 dark:text-gray-400">
+        <p className="mx-auto mt-3 max-w-xl text-text-secondary">
           Predict group stage outcomes and knockout bracket results for major international tournaments.
           Compete with friends for prizes.
         </p>
@@ -52,7 +52,7 @@ export default async function HomePage() {
       {/* Current/Upcoming Tournament */}
       {currentTournament && (
         <section>
-          <h2 className="mb-4 text-xl font-bold text-gray-900 dark:text-gray-100">Current Tournament</h2>
+          <h2 className="mb-4 font-heading text-xl font-bold text-foreground">Current Tournament</h2>
           <div className="max-w-md">
             <TournamentCard tournament={currentTournament} />
           </div>
@@ -62,7 +62,7 @@ export default async function HomePage() {
       {/* All Tournaments */}
       {tournaments && tournaments.length > 0 && (
         <section>
-          <h2 className="mb-4 text-xl font-bold text-gray-900 dark:text-gray-100">Tournaments</h2>
+          <h2 className="mb-4 font-heading text-xl font-bold text-foreground">Tournaments</h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {(tournaments as Tournament[]).map((t) => (
               <TournamentCard key={t.id} tournament={t} />
@@ -74,16 +74,16 @@ export default async function HomePage() {
       {/* Recent Posts */}
       {posts && posts.length > 0 && (
         <section>
-          <h2 className="mb-4 text-xl font-bold text-gray-900 dark:text-gray-100">Recent Posts</h2>
+          <h2 className="mb-4 font-heading text-xl font-bold text-foreground">Recent Posts</h2>
           <div className="space-y-3">
             {posts.map((post) => (
               <Link
                 key={post.id}
                 href={`/tournament/${(post.tournament as { slug: string })?.slug}/posts/${post.slug}`}
-                className="block rounded-lg border border-gray-200 bg-white p-4 transition-shadow hover:shadow-md dark:border-gray-700 dark:bg-gray-900"
+                className="block rounded-xl border border-border-custom bg-surface p-4 transition-all hover:border-gold/30 hover:shadow-lg hover:shadow-black/20"
               >
-                <h3 className="font-semibold text-gray-900 dark:text-gray-100">{post.title}</h3>
-                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                <h3 className="font-semibold text-foreground">{post.title}</h3>
+                <p className="mt-1 text-sm text-text-secondary">
                   {post.author} &middot; {new Date(post.published_at).toLocaleDateString('en-GB')}
                 </p>
               </Link>
@@ -96,8 +96,8 @@ export default async function HomePage() {
       {honours && honours.length > 0 && (
         <section>
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Honours Board</h2>
-            <Link href="/honours" className="text-sm font-medium text-green-600 hover:text-green-700">
+            <h2 className="font-heading text-xl font-bold text-foreground">Honours Board</h2>
+            <Link href="/honours" className="text-sm font-medium text-gold hover:text-gold-light">
               View all
             </Link>
           </div>

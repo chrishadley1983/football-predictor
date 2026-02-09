@@ -14,19 +14,19 @@ interface BracketTeamProps {
 export function BracketTeam({ team, selected, correct, clickable, onClick }: BracketTeamProps) {
   if (!team) {
     return (
-      <div className="flex h-8 items-center gap-2 rounded border border-dashed border-gray-300 bg-gray-50 px-2 text-xs text-gray-400 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-500">
+      <div className="flex h-8 items-center gap-2 rounded border border-dashed border-border-custom bg-surface-light px-2 text-xs text-text-muted">
         TBD
       </div>
     )
   }
 
-  let colorClass = 'border-gray-300 bg-white dark:border-gray-600 dark:bg-gray-800'
+  let colorClass = 'border-border-custom bg-surface-light'
   if (correct === true) {
-    colorClass = 'border-green-500 bg-green-50 dark:border-green-600 dark:bg-green-950'
+    colorClass = 'border-green-accent bg-green-accent/10'
   } else if (correct === false) {
-    colorClass = 'border-red-500 bg-red-50 dark:border-red-600 dark:bg-red-950'
+    colorClass = 'border-red-accent bg-red-accent/10'
   } else if (selected) {
-    colorClass = 'border-green-500 bg-green-50 ring-1 ring-green-400 dark:border-green-500 dark:bg-green-950'
+    colorClass = 'border-gold bg-gold/10 ring-1 ring-gold/50'
   }
 
   return (
@@ -37,12 +37,12 @@ export function BracketTeam({ team, selected, correct, clickable, onClick }: Bra
       className={cn(
         'flex h-8 w-full items-center gap-2 rounded border px-2 text-xs font-medium transition-colors',
         colorClass,
-        clickable && 'cursor-pointer hover:border-green-400 hover:bg-green-50 dark:hover:bg-green-950',
+        clickable && 'cursor-pointer hover:border-gold hover:bg-gold/10',
         !clickable && 'cursor-default'
       )}
     >
       {team.flag_emoji && <span className="text-sm">{team.flag_emoji}</span>}
-      <span className="truncate text-gray-900 dark:text-gray-100">{team.code}</span>
+      <span className="truncate text-foreground">{team.code}</span>
     </button>
   )
 }

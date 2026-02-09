@@ -142,33 +142,33 @@ export default function KnockoutPredictionPage() {
     setSaving(false)
   }
 
-  if (loading) return <p className="py-12 text-center text-gray-500">Loading bracket...</p>
-  if (error && !tournament) return <p className="py-12 text-center text-red-600">{error}</p>
+  if (loading) return <p className="py-12 text-center text-text-muted">Loading bracket...</p>
+  if (error && !tournament) return <p className="py-12 text-center text-red-accent">{error}</p>
 
   const pendingCount = Object.keys(pendingPredictions).length
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Knockout Bracket Predictions</h1>
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+        <h1 className="font-heading text-2xl font-bold text-foreground">Knockout Bracket Predictions</h1>
+        <p className="mt-1 text-sm text-text-secondary">
           {tournament?.name} &mdash; Click on a team to predict them as the match winner
         </p>
         {deadline && !deadline.passed && (
-          <p className="mt-1 text-sm font-medium text-yellow-600">{deadline.label}</p>
+          <p className="mt-1 text-sm font-medium text-yellow-accent">{deadline.label}</p>
         )}
         {isReadonly && (
-          <p className="mt-2 rounded-md bg-yellow-50 p-2 text-sm text-yellow-700 dark:bg-yellow-950 dark:text-yellow-300">
+          <p className="mt-2 rounded-md bg-yellow-accent/10 p-2 text-sm text-yellow-accent">
             Predictions are locked. The deadline has passed or the knockout stage is closed.
           </p>
         )}
       </div>
 
       {error && (
-        <div className="rounded-md bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">{error}</div>
+        <div className="rounded-md bg-red-accent/10 p-3 text-sm text-red-accent">{error}</div>
       )}
       {successMsg && (
-        <div className="rounded-md bg-green-50 p-3 text-sm text-green-700 dark:bg-green-950 dark:text-green-300">{successMsg}</div>
+        <div className="rounded-md bg-green-accent/10 p-3 text-sm text-green-accent">{successMsg}</div>
       )}
 
       <KnockoutBracket
@@ -179,8 +179,8 @@ export default function KnockoutPredictionPage() {
       />
 
       {!isReadonly && (
-        <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
-          <span className="text-sm text-gray-600 dark:text-gray-400">
+        <div className="flex items-center justify-between rounded-xl border border-border-custom bg-surface p-4">
+          <span className="text-sm text-text-secondary">
             {pendingCount > 0
               ? `${pendingCount} unsaved prediction${pendingCount > 1 ? 's' : ''}`
               : 'All changes saved'}

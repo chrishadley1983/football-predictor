@@ -48,12 +48,12 @@ export function GroupPredictionCard({ group, prediction, onPredict, readonly, re
     const result = resultMap.get(teamId)
     if (!result) return ''
     if (result.qualified && result.final_position === predictedPosition) {
-      return 'ring-2 ring-green-500' // exact position
+      return 'ring-2 ring-green-accent' // exact position
     }
     if (result.qualified) {
-      return 'ring-2 ring-yellow-500' // qualified but wrong position
+      return 'ring-2 ring-yellow-accent' // qualified but wrong position
     }
-    return 'ring-2 ring-red-500' // did not qualify
+    return 'ring-2 ring-red-accent' // did not qualify
   }
 
   const hasAllRequired = first && second
@@ -65,14 +65,14 @@ export function GroupPredictionCard({ group, prediction, onPredict, readonly, re
   return (
     <Card
       header={
-        <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">{group.name}</h3>
+        <h3 className="text-base font-semibold text-foreground">{group.name}</h3>
       }
     >
       <div className="space-y-3">
         {/* Team list */}
         <div className="flex flex-wrap gap-2">
           {teams.map((t) => (
-            <span key={t.id} className="inline-flex items-center gap-1 rounded bg-gray-100 px-2 py-1 text-xs text-gray-700 dark:bg-gray-800 dark:text-gray-300">
+            <span key={t.id} className="inline-flex items-center gap-1 rounded bg-surface-light px-2 py-1 text-xs text-text-secondary">
               {t.flag_emoji && <span>{t.flag_emoji}</span>}
               {t.name}
             </span>
@@ -128,7 +128,7 @@ export function GroupPredictionCard({ group, prediction, onPredict, readonly, re
         )}
 
         {prediction && (
-          <p className="text-center text-xs text-green-600">
+          <p className="text-center text-xs text-green-accent">
             Saved
           </p>
         )}

@@ -20,7 +20,7 @@ export default async function HonoursPage() {
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-bold text-gray-900 dark:text-gray-100">Honours Board</h1>
+      <h1 className="mb-6 font-heading text-2xl font-bold text-foreground">Honours Board</h1>
       <HonoursBoard honours={(honours as HonoursWithDetails[]) ?? []} />
     </div>
   )

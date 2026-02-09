@@ -50,27 +50,27 @@ export function LeaderboardTable({ entries, currentPlayerId }: LeaderboardTableP
 
   function headerClass(field: SortField) {
     return cn(
-      'cursor-pointer select-none whitespace-nowrap px-3 py-2 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400',
-      sortField === field && 'text-green-700 dark:text-green-400'
+      'cursor-pointer select-none whitespace-nowrap px-3 py-2 text-center text-xs font-medium uppercase tracking-wider text-text-muted',
+      sortField === field && 'text-gold'
     )
   }
 
   if (entries.length === 0) {
-    return <p className="py-8 text-center text-sm text-gray-500">No entries yet.</p>
+    return <p className="py-8 text-center text-sm text-text-muted">No entries yet.</p>
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
+    <div className="overflow-x-auto rounded-xl border border-border-custom">
       <table className="w-full min-w-[500px]">
-        <thead className="bg-gray-50 dark:bg-gray-800">
+        <thead className="bg-surface-light">
           <tr>
-            <th className="whitespace-nowrap px-3 py-2 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+            <th className="whitespace-nowrap px-3 py-2 text-center text-xs font-medium uppercase tracking-wider text-text-muted">
               #
             </th>
-            <th className="whitespace-nowrap px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+            <th className="whitespace-nowrap px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-text-muted">
               Player
             </th>
-            <th className="hidden whitespace-nowrap px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 sm:table-cell dark:text-gray-400">
+            <th className="hidden whitespace-nowrap px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-text-muted sm:table-cell">
               Nickname
             </th>
             <th className={headerClass('group_stage_points')} onClick={() => handleSort('group_stage_points')}>
@@ -87,7 +87,7 @@ export function LeaderboardTable({ entries, currentPlayerId }: LeaderboardTableP
             </th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
+        <tbody className="divide-y divide-border-custom bg-surface">
           {sorted.map((entry, idx) => (
             <PlayerRow
               key={entry.entry_id}

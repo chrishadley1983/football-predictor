@@ -92,7 +92,7 @@ export function KnockoutBracket({ matches, predictions = [], onPrediction, reado
     <div className="flex flex-col gap-6 md:hidden">
       {rounds.map((r) => (
         <div key={r.round}>
-          <h3 className="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
+          <h3 className="mb-2 text-sm font-semibold text-text-secondary">
             {r.round.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
           </h3>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -124,7 +124,7 @@ export function KnockoutBracket({ matches, predictions = [], onPrediction, reado
       {/* Final */}
       {finalMatch && (
         <div className="flex flex-col items-center">
-          <div className="mb-2 text-sm font-bold text-green-700 dark:text-green-400">Final</div>
+          <div className="mb-2 text-sm font-bold text-gold">Final</div>
           <BracketMatch
             match={finalMatch}
             prediction={predictionMap[finalMatch.id]}

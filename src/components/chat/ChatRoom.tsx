@@ -141,22 +141,22 @@ export function ChatRoom({ tournamentId, currentPlayerId }: ChatRoomProps) {
   if (loading) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <p className="text-sm text-gray-500 dark:text-gray-400">Loading chat...</p>
+        <p className="text-sm text-text-muted">Loading chat...</p>
       </div>
     )
   }
 
   return (
-    <div className="flex flex-col rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
+    <div className="flex flex-col rounded-lg border border-border-custom bg-surface">
       {error && (
-        <div className="mx-4 mt-3 rounded-md bg-red-50 p-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">
+        <div className="mx-4 mt-3 rounded-md bg-red-accent/10 p-2 text-sm text-red-accent">
           {error}
         </div>
       )}
       {/* Messages area */}
       <div className="flex h-[28rem] flex-col gap-2 overflow-y-auto p-4">
         {messages.length === 0 && (
-          <p className="text-center text-sm text-gray-400 dark:text-gray-500">
+          <p className="text-center text-sm text-text-muted">
             No messages yet. Start the conversation!
           </p>
         )}
@@ -171,11 +171,11 @@ export function ChatRoom({ tournamentId, currentPlayerId }: ChatRoomProps) {
       </div>
 
       {/* Input area */}
-      <div className="border-t border-gray-200 p-3 dark:border-gray-700">
+      <div className="border-t border-border-custom p-3">
         {currentPlayerId ? (
           <ChatInput onSend={handleSend} />
         ) : (
-          <p className="text-center text-sm text-gray-500 dark:text-gray-400">
+          <p className="text-center text-sm text-text-muted">
             Sign in to join the chat
           </p>
         )}

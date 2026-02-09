@@ -36,7 +36,7 @@ export default async function PostPage({
     <div className="mx-auto max-w-3xl">
       <Link
         href={`/tournament/${slug}/posts`}
-        className="mb-4 inline-block text-sm text-green-600 hover:text-green-700"
+        className="mb-4 inline-block text-sm text-gold hover:text-gold-light"
       >
         &larr; Back to posts
       </Link>

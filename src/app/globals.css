@@ -1,26 +1,78 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* ── Background ── */
+  --bg-deep: #0f1f17;
+  --bg-surface: #162b20;
+  --bg-surface-light: #1c3528;
+
+  /* ── Border ── */
+  --border-custom: #2a4a38;
+  --border-light: #3a6050;
+
+  /* ── Text ── */
+  --text-primary: #e8f0ec;
+  --text-secondary: #a3bfb0;
+  --text-muted: #6d9480;
+  --text-faint: #4a7560;
+
+  /* ── Accents ── */
+  --gold: #d4a528;
+  --gold-light: #e8c547;
+  --gold-muted: #a08020;
+  --green-accent: #34d399;
+  --red-accent: #f87171;
+  --yellow-accent: #fbbf24;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-background: var(--bg-deep);
+  --color-foreground: var(--text-primary);
+  --color-surface: var(--bg-surface);
+  --color-surface-light: var(--bg-surface-light);
+  --color-border-custom: var(--border-custom);
+  --color-border-light: var(--border-light);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+  --color-text-faint: var(--text-faint);
+  --color-gold: var(--gold);
+  --color-gold-light: var(--gold-light);
+  --color-gold-muted: var(--gold-muted);
+  --color-green-accent: var(--green-accent);
+  --color-red-accent: var(--red-accent);
+  --color-yellow-accent: var(--yellow-accent);
+  --font-heading: var(--font-oswald);
+  --font-body: var(--font-dm-sans);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ── Keyframes ── */
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse-gold {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(212, 165, 40, 0.4); }
+  50% { box-shadow: 0 0 0 8px rgba(212, 165, 40, 0); }
+}
+
+/* ── Utilities ── */
+.shimmer-text {
+  background-image: linear-gradient(135deg, var(--text-primary) 20%, var(--gold) 55%, var(--gold-light) 100%);
+  background-size: 200% auto;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer 6s linear infinite;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg-deep);
+  color: var(--text-primary);
+  font-family: var(--font-dm-sans), sans-serif;
 }

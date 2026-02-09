@@ -1,7 +1,7 @@
 import { cn } from '@/lib/utils'
 import type { TournamentStatus, PaymentStatus } from '@/lib/types'
 
-type BadgeVariant = 'green' | 'yellow' | 'red' | 'gray' | 'blue' | 'purple'
+type BadgeVariant = 'green' | 'yellow' | 'red' | 'gray' | 'blue' | 'purple' | 'gold'
 
 interface BadgeProps {
   children: React.ReactNode
@@ -10,12 +10,13 @@ interface BadgeProps {
 }
 
 const variantClasses: Record<BadgeVariant, string> = {
-  green: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-  yellow: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-  red: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-  gray: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
-  blue: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-  purple: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
+  green: 'bg-green-accent/20 text-green-accent',
+  yellow: 'bg-yellow-accent/20 text-yellow-accent',
+  red: 'bg-red-accent/20 text-red-accent',
+  gray: 'bg-surface-light text-text-secondary',
+  blue: 'bg-blue-500/20 text-blue-400',
+  purple: 'bg-purple-500/20 text-purple-400',
+  gold: 'bg-gold/20 text-gold',
 }
 
 export function Badge({ children, variant = 'gray', className }: BadgeProps) {

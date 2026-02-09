@@ -173,8 +173,8 @@ export default function ResultsPage() {
     setScoringLoading(false)
   }
 
-  if (loading) return <p className="py-12 text-center text-gray-500">Loading...</p>
-  if (!tournament) return <p className="py-12 text-center text-red-600">{error || 'Tournament not found'}</p>
+  if (loading) return <p className="py-12 text-center text-text-muted">Loading...</p>
+  if (!tournament) return <p className="py-12 text-center text-red-accent">{error || 'Tournament not found'}</p>
 
   const matchesByRound: Record<string, KnockoutMatchWithTeams[]> = {}
   for (const m of tournament.knockout_matches ?? []) {
@@ -186,25 +186,25 @@ export default function ResultsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+          <h1 className="font-heading text-2xl font-bold text-foreground">
             Results & Simulation: {tournament.name}
           </h1>
           <div className="mt-1"><TournamentStatusBadge status={tournament.status} /></div>
         </div>
         <a
           href={`/admin/tournaments/${slug}/manage`}
-          className="rounded bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300"
+          className="rounded bg-surface-light px-3 py-1 text-xs font-medium text-text-secondary hover:bg-border-custom"
         >
           Back to Manage
         </a>
       </div>
 
-      {error && <div className="rounded-md bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">{error}</div>}
-      {success && <div className="rounded-md bg-green-50 p-3 text-sm text-green-700 dark:bg-green-950 dark:text-green-300">{success}</div>}
+      {error && <div className="rounded-md bg-red-accent/10 p-3 text-sm text-red-accent">{error}</div>}
+      {success && <div className="rounded-md bg-green-accent/10 p-3 text-sm text-green-accent">{success}</div>}
 
       {/* Force Complete Controls */}
-      <Card header={<h2 className="font-semibold text-gray-900 dark:text-gray-100">Force Complete (Simulation)</h2>}>
-        <p className="mb-4 text-sm text-gray-500">
+      <Card header={<h2 className="font-semibold text-foreground">Force Complete (Simulation)</h2>}>
+        <p className="mb-4 text-sm text-text-muted">
           Randomly assign results to speed up testing. Results are randomly generated.
         </p>
         <div className="flex flex-wrap gap-3">
@@ -228,7 +228,7 @@ export default function ResultsPage() {
             </Button>
           ))}
         </div>
-        <div className="mt-4 border-t border-gray-200 pt-3 dark:border-gray-700">
+        <div className="mt-4 border-t border-border-custom pt-3">
           <Button
             onClick={handleRecalculateScores}
             loading={scoringLoading}
@@ -242,21 +242,21 @@ export default function ResultsPage() {
 
       {/* Group Results */}
       {tournament.groups && tournament.groups.length > 0 && (
-        <Card header={<h2 className="font-semibold text-gray-900 dark:text-gray-100">Group Results</h2>}>
+        <Card header={<h2 className="font-semibold text-foreground">Group Results</h2>}>
           <div className="space-y-6">
             {tournament.groups.map((group) => (
               <div key={group.id}>
-                <h3 className="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">{group.name}</h3>
+                <h3 className="mb-2 text-sm font-semibold text-text-secondary">{group.name}</h3>
                 <div className="space-y-2">
                   {group.group_teams.map((gt) => {
                     const result = groupResults.find((r) => r.group_id === group.id && r.team_id === gt.team.id)
                     return (
-                      <div key={gt.team.id} className="flex items-center gap-3 rounded bg-gray-50 p-2 dark:bg-gray-800">
-                        <span className="w-24 text-sm">
+                      <div key={gt.team.id} className="flex items-center gap-3 rounded bg-surface-light p-2">
+                        <span className="w-24 text-sm text-foreground">
                           {gt.team.flag_emoji} {gt.team.name}
                         </span>
                         <select
-                          className="rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-700"
+                          className="rounded border border-border-custom bg-surface-light px-2 py-1 text-xs text-foreground"
                           value={result?.final_position ?? ''}
                           onChange={(e) => {
                             const pos = parseInt(e.target.value, 10)
@@ -272,7 +272,7 @@ export default function ResultsPage() {
                           <option value="4">4th</option>
                         </select>
                         {result && (
-                          <span className={`text-xs font-medium ${result.qualified ? 'text-green-600' : 'text-gray-400'}`}>
+                          <span className={`text-xs font-medium ${result.qualified ? 'text-green-accent' : 'text-text-muted'}`}>
                             {result.qualified ? 'Qualified' : 'Eliminated'}
                           </span>
                         )}
@@ -291,23 +291,23 @@ export default function ResultsPage() {
         const matches = matchesByRound[round.key]
         if (!matches || matches.length === 0) return null
         return (
-          <Card key={round.key} header={<h2 className="font-semibold text-gray-900 dark:text-gray-100">{round.label}</h2>}>
+          <Card key={round.key} header={<h2 className="font-semibold text-foreground">{round.label}</h2>}>
             <div className="space-y-3">
               {matches.sort((a, b) => a.match_number - b.match_number).map((match) => (
-                <div key={match.id} className="flex items-center gap-3 rounded bg-gray-50 p-3 dark:bg-gray-800">
-                  <span className="w-12 text-xs font-medium text-gray-500">#{match.match_number}</span>
+                <div key={match.id} className="flex items-center gap-3 rounded bg-surface-light p-3">
+                  <span className="w-12 text-xs font-medium text-text-muted">#{match.match_number}</span>
                   <div className="flex flex-1 items-center gap-2">
-                    <span className={`text-sm ${match.winner_team_id === match.home_team_id ? 'font-bold text-green-600' : ''}`}>
+                    <span className={`text-sm ${match.winner_team_id === match.home_team_id ? 'font-bold text-green-accent' : 'text-foreground'}`}>
                       {match.home_team ? `${match.home_team.flag_emoji ?? ''} ${match.home_team.name}` : `(${match.home_source ?? 'TBD'})`}
                     </span>
-                    <span className="text-xs text-gray-400">vs</span>
-                    <span className={`text-sm ${match.winner_team_id === match.away_team_id ? 'font-bold text-green-600' : ''}`}>
+                    <span className="text-xs text-text-muted">vs</span>
+                    <span className={`text-sm ${match.winner_team_id === match.away_team_id ? 'font-bold text-green-accent' : 'text-foreground'}`}>
                       {match.away_team ? `${match.away_team.flag_emoji ?? ''} ${match.away_team.name}` : `(${match.away_source ?? 'TBD'})`}
                     </span>
                   </div>
                   {match.home_team_id && match.away_team_id && (
                     <select
-                      className="rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-700"
+                      className="rounded border border-border-custom bg-surface-light px-2 py-1 text-xs text-foreground"
                       value={match.winner_team_id ?? ''}
                       onChange={(e) => {
                         if (e.target.value) handleSetKnockoutWinner(match.id, e.target.value)
@@ -319,7 +319,7 @@ export default function ResultsPage() {
                     </select>
                   )}
                   {match.winner_team_id && (
-                    <span className="text-xs font-bold text-green-600">
+                    <span className="text-xs font-bold text-green-accent">
                       Winner: {match.winner_team?.name ?? '?'}
                     </span>
                   )}

@@ -10,15 +10,15 @@ interface CardProps {
 
 export function Card({ children, className, header, footer }: CardProps) {
   return (
-    <div className={cn('rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900', className)}>
+    <div className={cn('rounded-xl border border-border-custom bg-surface shadow-lg shadow-black/20', className)}>
       {header && (
-        <div className="border-b border-gray-200 px-4 py-3 dark:border-gray-700">
+        <div className="border-b border-border-custom px-4 py-3">
           {header}
         </div>
       )}
       <div className="px-4 py-4">{children}</div>
       {footer && (
-        <div className="border-t border-gray-200 px-4 py-3 dark:border-gray-700">
+        <div className="border-t border-border-custom px-4 py-3">
           {footer}
         </div>
       )}

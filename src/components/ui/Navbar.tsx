@@ -56,97 +56,63 @@ export function Navbar() {
   const tournamentMatch = pathname.match(/^\/tournament\/([^/]+)/)
   const tournamentSlug = tournamentMatch ? tournamentMatch[1] : null
 
+  const linkClass = (active: boolean) =>
+    cn(
+      'text-sm font-medium transition-colors hover:text-gold',
+      active ? 'text-gold' : 'text-text-secondary'
+    )
+
+  const mobileLinkClass = 'block rounded-md px-3 py-2 text-sm font-medium text-text-secondary hover:bg-surface-light'
+
   return (
-    <nav className="border-b border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
+    <nav className="border-b border-border-custom bg-surface/85 backdrop-blur-sm">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 text-lg font-bold text-green-700 dark:text-green-400">
+          <Link href="/" className="flex items-center gap-2 font-heading text-lg font-bold tracking-wider text-gold">
             Prediction Game
           </Link>
 
           {/* Desktop nav */}
           <div className="hidden items-center gap-6 md:flex">
-            <Link
-              href="/honours"
-              className={cn(
-                'text-sm font-medium transition-colors hover:text-green-600',
-                pathname === '/honours' ? 'text-green-700 dark:text-green-400' : 'text-gray-600 dark:text-gray-300'
-              )}
-            >
+            <Link href="/honours" className={linkClass(pathname === '/honours')}>
               Honours
             </Link>
 
             {tournamentSlug && (
               <>
-                <Link
-                  href={`/tournament/${tournamentSlug}`}
-                  className={cn(
-                    'text-sm font-medium transition-colors hover:text-green-600',
-                    pathname === `/tournament/${tournamentSlug}` ? 'text-green-700 dark:text-green-400' : 'text-gray-600 dark:text-gray-300'
-                  )}
-                >
+                <Link href={`/tournament/${tournamentSlug}`} className={linkClass(pathname === `/tournament/${tournamentSlug}`)}>
                   Overview
                 </Link>
-                <Link
-                  href={`/tournament/${tournamentSlug}/leaderboard`}
-                  className={cn(
-                    'text-sm font-medium transition-colors hover:text-green-600',
-                    pathname.includes('/leaderboard') ? 'text-green-700 dark:text-green-400' : 'text-gray-600 dark:text-gray-300'
-                  )}
-                >
+                <Link href={`/tournament/${tournamentSlug}/leaderboard`} className={linkClass(pathname.includes('/leaderboard'))}>
                   Leaderboard
                 </Link>
-                <Link
-                  href={`/tournament/${tournamentSlug}/predictions`}
-                  className={cn(
-                    'text-sm font-medium transition-colors hover:text-green-600',
-                    pathname.includes('/predictions') && !pathname.includes('/predict/') ? 'text-green-700 dark:text-green-400' : 'text-gray-600 dark:text-gray-300'
-                  )}
-                >
+                <Link href={`/tournament/${tournamentSlug}/predictions`} className={linkClass(pathname.includes('/predictions') && !pathname.includes('/predict/'))}>
                   Predictions
                 </Link>
-                <Link
-                  href={`/tournament/${tournamentSlug}/posts`}
-                  className={cn(
-                    'text-sm font-medium transition-colors hover:text-green-600',
-                    pathname.includes('/posts') ? 'text-green-700 dark:text-green-400' : 'text-gray-600 dark:text-gray-300'
-                  )}
-                >
+                <Link href={`/tournament/${tournamentSlug}/posts`} className={linkClass(pathname.includes('/posts'))}>
                   Posts
                 </Link>
-                <Link
-                  href={`/tournament/${tournamentSlug}/chat`}
-                  className={cn(
-                    'text-sm font-medium transition-colors hover:text-green-600',
-                    pathname.includes('/chat') ? 'text-green-700 dark:text-green-400' : 'text-gray-600 dark:text-gray-300'
-                  )}
-                >
+                <Link href={`/tournament/${tournamentSlug}/chat`} className={linkClass(pathname.includes('/chat'))}>
                   Chat
                 </Link>
               </>
             )}
 
             {isAdmin && (
-              <Link
-                href="/admin"
-                className={cn(
-                  'text-sm font-medium transition-colors hover:text-green-600',
-                  pathname.startsWith('/admin') ? 'text-green-700 dark:text-green-400' : 'text-gray-600 dark:text-gray-300'
-                )}
-              >
+              <Link href="/admin" className={linkClass(pathname.startsWith('/admin'))}>
                 Admin
               </Link>
             )}
 
             {player ? (
               <div className="flex items-center gap-3">
-                <span className="text-sm text-gray-600 dark:text-gray-300">
+                <span className="text-sm text-text-secondary">
                   {player.display_name}
                 </span>
                 <button
                   onClick={handleLogout}
-                  className="text-sm font-medium text-gray-500 hover:text-red-600 dark:text-gray-400"
+                  className="text-sm font-medium text-text-muted hover:text-red-accent"
                 >
                   Logout
                 </button>
@@ -155,13 +121,13 @@ export function Navbar() {
               <div className="flex items-center gap-3">
                 <Link
                   href="/auth/login"
-                  className="text-sm font-medium text-gray-600 hover:text-green-600 dark:text-gray-300"
+                  className="text-sm font-medium text-text-secondary hover:text-gold"
                 >
                   Login
                 </Link>
                 <Link
                   href="/auth/register"
-                  className="rounded-md bg-green-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-700"
+                  className="rounded-md bg-gold px-3 py-1.5 text-sm font-medium text-black hover:bg-gold-light"
                 >
                   Register
                 </Link>
@@ -172,7 +138,7 @@ export function Navbar() {
           {/* Mobile menu button */}
           <button
             onClick={() => setMenuOpen(!menuOpen)}
-            className="inline-flex items-center justify-center rounded-md p-2 text-gray-600 hover:bg-gray-100 md:hidden dark:text-gray-300 dark:hover:bg-gray-800"
+            className="inline-flex items-center justify-center rounded-md p-2 text-text-secondary hover:bg-surface-light md:hidden"
           >
             <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               {menuOpen ? (
@@ -187,56 +153,54 @@ export function Navbar() {
 
       {/* Mobile menu */}
       {menuOpen && (
-        <div className="border-t border-gray-200 md:hidden dark:border-gray-700">
+        <div className="border-t border-border-custom md:hidden">
           <div className="space-y-1 px-4 py-3">
-            <Link href="/honours" className="block rounded-md px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800" onClick={() => setMenuOpen(false)}>
+            <Link href="/honours" className={mobileLinkClass} onClick={() => setMenuOpen(false)}>
               Honours
             </Link>
 
             {tournamentSlug && (
               <>
-                <Link href={`/tournament/${tournamentSlug}`} className="block rounded-md px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800" onClick={() => setMenuOpen(false)}>
+                <Link href={`/tournament/${tournamentSlug}`} className={mobileLinkClass} onClick={() => setMenuOpen(false)}>
                   Overview
                 </Link>
-                <Link href={`/tournament/${tournamentSlug}/leaderboard`} className="block rounded-md px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800" onClick={() => setMenuOpen(false)}>
+                <Link href={`/tournament/${tournamentSlug}/leaderboard`} className={mobileLinkClass} onClick={() => setMenuOpen(false)}>
                   Leaderboard
                 </Link>
-                <Link href={`/tournament/${tournamentSlug}/predictions`} className="block rounded-md px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800" onClick={() => setMenuOpen(false)}>
+                <Link href={`/tournament/${tournamentSlug}/predictions`} className={mobileLinkClass} onClick={() => setMenuOpen(false)}>
                   Predictions
                 </Link>
-                <Link href={`/tournament/${tournamentSlug}/posts`} className="block rounded-md px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800" onClick={() => setMenuOpen(false)}>
+                <Link href={`/tournament/${tournamentSlug}/posts`} className={mobileLinkClass} onClick={() => setMenuOpen(false)}>
                   Posts
                 </Link>
-                <Link href={`/tournament/${tournamentSlug}/chat`} className="block rounded-md px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800" onClick={() => setMenuOpen(false)}>
+                <Link href={`/tournament/${tournamentSlug}/chat`} className={mobileLinkClass} onClick={() => setMenuOpen(false)}>
                   Chat
                 </Link>
               </>
             )}
 
             {isAdmin && (
-              <Link href="/admin" className="block rounded-md px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800" onClick={() => setMenuOpen(false)}>
+              <Link href="/admin" className={mobileLinkClass} onClick={() => setMenuOpen(false)}>
                 Admin
               </Link>
             )}
 
             {player ? (
-              <>
-                <div className="border-t border-gray-200 pt-2 dark:border-gray-700">
-                  <span className="block px-3 py-1 text-sm text-gray-500 dark:text-gray-400">{player.display_name}</span>
-                  <button
-                    onClick={() => { handleLogout(); setMenuOpen(false) }}
-                    className="block w-full rounded-md px-3 py-2 text-left text-sm font-medium text-red-600 hover:bg-gray-100 dark:hover:bg-gray-800"
-                  >
-                    Logout
-                  </button>
-                </div>
-              </>
+              <div className="border-t border-border-custom pt-2">
+                <span className="block px-3 py-1 text-sm text-text-muted">{player.display_name}</span>
+                <button
+                  onClick={() => { handleLogout(); setMenuOpen(false) }}
+                  className="block w-full rounded-md px-3 py-2 text-left text-sm font-medium text-red-accent hover:bg-surface-light"
+                >
+                  Logout
+                </button>
+              </div>
             ) : (
-              <div className="border-t border-gray-200 pt-2 dark:border-gray-700">
-                <Link href="/auth/login" className="block rounded-md px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800" onClick={() => setMenuOpen(false)}>
+              <div className="border-t border-border-custom pt-2">
+                <Link href="/auth/login" className={mobileLinkClass} onClick={() => setMenuOpen(false)}>
                   Login
                 </Link>
-                <Link href="/auth/register" className="block rounded-md px-3 py-2 text-sm font-medium text-green-600 hover:bg-gray-100 dark:hover:bg-gray-800" onClick={() => setMenuOpen(false)}>
+                <Link href="/auth/register" className="block rounded-md px-3 py-2 text-sm font-medium text-gold hover:bg-surface-light" onClick={() => setMenuOpen(false)}>
                   Register
                 </Link>
               </div>

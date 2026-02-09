@@ -62,7 +62,7 @@ function getPlayerDisplay(h: HonoursWithDetails): string {
 
 export function HonoursBoard({ honours }: HonoursBoardProps) {
   if (honours.length === 0) {
-    return <p className="py-8 text-center text-sm text-gray-500">No historical records yet.</p>
+    return <p className="py-8 text-center text-sm text-text-muted">No historical records yet.</p>
   }
 
   // Group by tournament, sorted by year descending
@@ -93,53 +93,53 @@ export function HonoursBoard({ honours }: HonoursBoardProps) {
 
         return (
           <div key={tournamentId}>
-            <h2 className="mb-4 text-xl font-bold text-gray-900 dark:text-gray-100">
+            <h2 className="mb-4 font-heading text-xl font-bold text-foreground">
               {tournament.name} ({tournament.year})
             </h2>
 
             {/* Main Awards */}
             {mainHonours.length > 0 && (
               <div className="mb-6">
-                <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gold">
                   Roll of Honour
                 </h3>
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {mainHonours.map((h) => (
                     <div
                       key={h.id}
-                      className={`rounded-lg border p-4 ${
+                      className={`rounded-xl border p-4 ${
                         h.prize_type === 'overall_winner'
-                          ? 'border-yellow-300 bg-yellow-50 dark:border-yellow-700 dark:bg-yellow-950'
+                          ? 'border-gold bg-gold/10'
                           : h.prize_type === 'runner_up'
-                            ? 'border-gray-300 bg-gray-50 dark:border-gray-600 dark:bg-gray-800'
+                            ? 'border-border-light bg-surface-light'
                             : h.prize_type === 'third_place'
-                              ? 'border-orange-300 bg-orange-50 dark:border-orange-700 dark:bg-orange-950'
-                              : 'border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900'
+                              ? 'border-orange-700/50 bg-orange-900/20'
+                              : 'border-border-custom bg-surface'
                       }`}
                     >
                       <div className="flex items-center gap-2">
                         <span className="text-2xl">{PRIZE_EMOJI[h.prize_type]}</span>
                         <div>
-                          <p className="text-xs font-medium uppercase text-gray-500 dark:text-gray-400">
+                          <p className="text-xs font-medium uppercase text-text-muted">
                             {PRIZE_LABELS[h.prize_type]}
                           </p>
-                          <p className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                          <p className="text-lg font-bold text-foreground">
                             {getPlayerDisplay(h)}
                           </p>
                         </div>
                         {h.points !== null && (
-                          <span className="ml-auto rounded-full bg-green-100 px-2.5 py-0.5 text-sm font-semibold text-green-800 dark:bg-green-900 dark:text-green-200">
+                          <span className="ml-auto rounded-full bg-green-accent/20 px-2.5 py-0.5 text-sm font-semibold text-green-accent">
                             {h.points}pts
                           </span>
                         )}
                       </div>
                       {h.description && (
-                        <p className="mt-2 text-sm italic text-gray-600 dark:text-gray-400">
+                        <p className="mt-2 text-sm italic text-text-secondary">
                           {h.description}
                         </p>
                       )}
                       {h.prize_amount_gbp !== null && h.prize_amount_gbp > 0 && (
-                        <p className="mt-1 text-sm font-medium text-green-700 dark:text-green-400">
+                        <p className="mt-1 text-sm font-medium text-gold">
                           Prize: {formatCurrency(h.prize_amount_gbp)}
                         </p>
                       )}
@@ -152,37 +152,37 @@ export function HonoursBoard({ honours }: HonoursBoardProps) {
             {/* Fun Awards */}
             {funHonours.length > 0 && (
               <div>
-                <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gold">
                   Wall of Shame
                 </h3>
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {funHonours.map((h) => (
                     <div
                       key={h.id}
-                      className={`rounded-lg border p-4 ${
+                      className={`rounded-xl border p-4 ${
                         h.prize_type === 'wooden_spoon'
-                          ? 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950'
-                          : 'border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900'
+                          ? 'border-red-accent/30 bg-red-accent/10'
+                          : 'border-border-custom bg-surface'
                       }`}
                     >
                       <div className="flex items-center gap-2">
                         <span className="text-2xl">{PRIZE_EMOJI[h.prize_type]}</span>
                         <div>
-                          <p className="text-xs font-medium uppercase text-gray-500 dark:text-gray-400">
+                          <p className="text-xs font-medium uppercase text-text-muted">
                             {PRIZE_LABELS[h.prize_type]}
                           </p>
-                          <p className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                          <p className="text-lg font-bold text-foreground">
                             {getPlayerDisplay(h)}
                           </p>
                         </div>
                         {h.points !== null && (
-                          <span className="ml-auto rounded-full bg-gray-100 px-2.5 py-0.5 text-sm font-semibold text-gray-700 dark:bg-gray-800 dark:text-gray-300">
+                          <span className="ml-auto rounded-full bg-surface-light px-2.5 py-0.5 text-sm font-semibold text-text-secondary">
                             {h.points}pts
                           </span>
                         )}
                       </div>
                       {h.description && (
-                        <p className="mt-2 text-sm italic text-gray-600 dark:text-gray-400">
+                        <p className="mt-2 text-sm italic text-text-secondary">
                           {h.description}
                         </p>
                       )}

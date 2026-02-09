@@ -81,64 +81,64 @@ export default function EntriesPage() {
     )
   }
 
-  if (loading) return <p className="py-12 text-center text-gray-500">Loading...</p>
-  if (!tournament) return <p className="py-12 text-center text-red-600">{error || 'Tournament not found'}</p>
+  if (loading) return <p className="py-12 text-center text-text-muted">Loading...</p>
+  if (!tournament) return <p className="py-12 text-center text-red-accent">{error || 'Tournament not found'}</p>
 
   const paidCount = entries.filter((e) => e.payment_status === 'paid').length
   const prizePool = paidCount * tournament.entry_fee_gbp
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{tournament.name} - Entries</h1>
+      <h1 className="font-heading text-2xl font-bold text-foreground">{tournament.name} - Entries</h1>
 
-      {error && <div className="rounded-md bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">{error}</div>}
+      {error && <div className="rounded-md bg-red-accent/10 p-3 text-sm text-red-accent">{error}</div>}
 
       {/* Summary */}
       <div className="grid grid-cols-3 gap-4">
         <Card>
           <div className="text-center">
-            <p className="text-sm text-gray-500 dark:text-gray-400">Total Entries</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{entries.length}</p>
+            <p className="text-sm text-text-secondary">Total Entries</p>
+            <p className="font-heading text-2xl font-bold text-foreground">{entries.length}</p>
           </div>
         </Card>
         <Card>
           <div className="text-center">
-            <p className="text-sm text-gray-500 dark:text-gray-400">Paid</p>
-            <p className="text-2xl font-bold text-green-700 dark:text-green-400">{paidCount}</p>
+            <p className="text-sm text-text-secondary">Paid</p>
+            <p className="font-heading text-2xl font-bold text-green-accent">{paidCount}</p>
           </div>
         </Card>
         <Card>
           <div className="text-center">
-            <p className="text-sm text-gray-500 dark:text-gray-400">Prize Pool</p>
-            <p className="text-2xl font-bold text-green-700 dark:text-green-400">{formatCurrency(prizePool)}</p>
+            <p className="text-sm text-text-secondary">Prize Pool</p>
+            <p className="font-heading text-2xl font-bold text-gold">{formatCurrency(prizePool)}</p>
           </div>
         </Card>
       </div>
 
       {/* Entry list */}
       {entries.length === 0 ? (
-        <p className="py-8 text-center text-sm text-gray-500">No entries yet.</p>
+        <p className="py-8 text-center text-sm text-text-muted">No entries yet.</p>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
+        <div className="overflow-x-auto rounded-lg border border-border-custom">
           <table className="w-full">
-            <thead className="bg-gray-50 dark:bg-gray-800">
+            <thead className="bg-surface-light">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500 dark:text-gray-400">Player</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-gray-500 dark:text-gray-400">Email</th>
-                <th className="px-4 py-3 text-center text-xs font-medium uppercase text-gray-500 dark:text-gray-400">Payment</th>
-                <th className="px-4 py-3 text-center text-xs font-medium uppercase text-gray-500 dark:text-gray-400">Actions</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-text-muted">Player</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase text-text-muted">Email</th>
+                <th className="px-4 py-3 text-center text-xs font-medium uppercase text-text-muted">Payment</th>
+                <th className="px-4 py-3 text-center text-xs font-medium uppercase text-text-muted">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
+            <tbody className="divide-y divide-border-custom bg-surface">
               {entries.map((entry) => (
                 <tr key={entry.id}>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
+                  <td className="whitespace-nowrap px-4 py-3 text-sm text-foreground">
                     {entry.player.display_name}
                     {entry.player.nickname && (
-                      <span className="ml-1 text-xs text-gray-400">({entry.player.nickname})</span>
+                      <span className="ml-1 text-xs text-text-muted">({entry.player.nickname})</span>
                     )}
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
+                  <td className="whitespace-nowrap px-4 py-3 text-sm text-text-secondary">
                     {entry.player.email}
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 text-center">
