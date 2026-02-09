@@ -16,7 +16,7 @@ export default async function HonoursPage() {
       tournament:tournaments (*),
       player:players (*)
     `)
-    .order('id')
+    .order('sort_order', { ascending: true })
 
   return (
     <div>

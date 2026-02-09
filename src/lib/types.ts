@@ -21,7 +21,19 @@ export type KnockoutRound =
   | 'semi_final'
   | 'final'
 
-export type PrizeType = 'overall_winner' | 'group_stage_winner'
+export type PrizeType =
+  | 'overall_winner'
+  | 'runner_up'
+  | 'third_place'
+  | 'group_stage_winner'
+  | 'knockout_stage_winner'
+  | 'best_tiebreaker'
+  | 'wooden_spoon'
+  | 'worst_tiebreaker'
+  | 'hipster'
+  | 'bandwagon'
+  | 'nearly_man'
+  | 'custom'
 
 export type BracketSide = 'left' | 'right'
 
@@ -145,9 +157,13 @@ export interface TournamentStats {
 export interface Honours {
   id: string
   tournament_id: string
-  player_id: string
+  player_id: string | null
+  player_name: string | null
   prize_type: PrizeType
   prize_amount_gbp: number | null
+  description: string | null
+  points: number | null
+  sort_order: number
 }
 
 export interface Post {
@@ -283,7 +299,7 @@ export interface KnockoutPredictionWithMatch extends KnockoutPrediction {
 
 export interface HonoursWithDetails extends Honours {
   tournament: Tournament
-  player: Player
+  player: Player | null
 }
 
 export interface PostWithTournament extends Post {
@@ -817,22 +833,34 @@ export interface Database {
         Row: {
           id: string
           tournament_id: string
-          player_id: string
+          player_id: string | null
+          player_name: string | null
           prize_type: PrizeType
           prize_amount_gbp: number | null
+          description: string | null
+          points: number | null
+          sort_order: number
         }
         Insert: {
           id?: string
           tournament_id: string
-          player_id: string
+          player_id?: string | null
+          player_name?: string | null
           prize_type: PrizeType
           prize_amount_gbp?: number | null
+          description?: string | null
+          points?: number | null
+          sort_order?: number
         }
         Update: {
           tournament_id?: string
-          player_id?: string
+          player_id?: string | null
+          player_name?: string | null
           prize_type?: PrizeType
           prize_amount_gbp?: number | null
+          description?: string | null
+          points?: number | null
+          sort_order?: number
         }
         Relationships: [
           {
