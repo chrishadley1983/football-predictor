@@ -535,9 +535,16 @@ export async function POST(
       })
     }
 
+    // Strip null scheduled_at/venue to avoid errors if columns don't exist yet
+    const cleanedMatches = knockoutMatches.map(({ scheduled_at, venue, ...rest }) => {
+      if (scheduled_at) return { ...rest, scheduled_at, venue }
+      return rest
+    })
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: createdMatches, error: matchesErr } = await admin
       .from('knockout_matches')
-      .insert(knockoutMatches)
+      .insert(cleanedMatches as any)
       .select()
 
     if (matchesErr) {

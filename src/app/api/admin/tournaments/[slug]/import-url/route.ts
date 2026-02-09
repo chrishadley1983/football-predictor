@@ -488,8 +488,19 @@ export async function POST(
       )
     }
 
-    // Determine structure
+    // Determine structure and pad groups with TBC placeholders
     const teamsPerGroup = Math.max(...groups.map((g) => g.teams.length))
+    let tbcCounter = 1
+    for (const group of groups) {
+      while (group.teams.length < teamsPerGroup) {
+        group.teams.push({
+          name: `TBC ${tbcCounter}`,
+          code: `TB${tbcCounter}`,
+          flag_emoji: '',
+        })
+        tbcCounter++
+      }
+    }
 
     // Try to extract knockout dates from the page
     const knockoutRounds = ['Round of 32', 'Round of 16', 'Quarter-final', 'Semi-final', 'Final']
