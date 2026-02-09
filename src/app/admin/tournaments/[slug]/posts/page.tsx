@@ -12,6 +12,16 @@ import type { Tournament, Post } from '@/lib/types'
 
 export default function AdminPostsPage() {
   const { slug } = useParams<{ slug: string }>()
+
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user?.app_metadata?.role !== 'admin') {
+        window.location.href = '/'
+      }
+    })
+  }, [])
+
   const [tournament, setTournament] = useState<Tournament | null>(null)
   const [posts, setPosts] = useState<Post[]>([])
   const [loading, setLoading] = useState(true)

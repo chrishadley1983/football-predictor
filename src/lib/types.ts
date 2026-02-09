@@ -290,6 +290,18 @@ export interface PostWithTournament extends Post {
   tournament: Tournament
 }
 
+export interface ChatMessage {
+  id: string
+  tournament_id: string
+  player_id: string
+  content: string
+  created_at: string
+}
+
+export interface ChatMessageWithPlayer extends ChatMessage {
+  player: Pick<Player, 'display_name' | 'nickname'>
+}
+
 export interface LeaderboardEntry {
   entry_id: string
   player_id: string
@@ -912,6 +924,44 @@ export interface Database {
             columns: ['tournament_id']
             isOneToOne: false
             referencedRelation: 'tournaments'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      chat_messages: {
+        Row: {
+          id: string
+          tournament_id: string
+          player_id: string
+          content: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          tournament_id: string
+          player_id: string
+          content: string
+          created_at?: string
+        }
+        Update: {
+          tournament_id?: string
+          player_id?: string
+          content?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'chat_messages_tournament_id_fkey'
+            columns: ['tournament_id']
+            isOneToOne: false
+            referencedRelation: 'tournaments'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'chat_messages_player_id_fkey'
+            columns: ['player_id']
+            isOneToOne: false
+            referencedRelation: 'players'
             referencedColumns: ['id']
           },
         ]

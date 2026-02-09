@@ -115,6 +115,15 @@ export function Navbar() {
                 >
                   Posts
                 </Link>
+                <Link
+                  href={`/tournament/${tournamentSlug}/chat`}
+                  className={cn(
+                    'text-sm font-medium transition-colors hover:text-green-600',
+                    pathname.includes('/chat') ? 'text-green-700 dark:text-green-400' : 'text-gray-600 dark:text-gray-300'
+                  )}
+                >
+                  Chat
+                </Link>
               </>
             )}
 
@@ -197,6 +206,9 @@ export function Navbar() {
                 </Link>
                 <Link href={`/tournament/${tournamentSlug}/posts`} className="block rounded-md px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800" onClick={() => setMenuOpen(false)}>
                   Posts
+                </Link>
+                <Link href={`/tournament/${tournamentSlug}/chat`} className="block rounded-md px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800" onClick={() => setMenuOpen(false)}>
+                  Chat
                 </Link>
               </>
             )}

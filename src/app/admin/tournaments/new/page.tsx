@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
@@ -10,6 +11,16 @@ import { slugify } from '@/lib/utils'
 
 export default function NewTournamentPage() {
   const router = useRouter()
+
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user?.app_metadata?.role !== 'admin') {
+        window.location.href = '/'
+      }
+    })
+  }, [])
+
   const [name, setName] = useState('')
   const [slug, setSlug] = useState('')
   const [type, setType] = useState('world_cup')

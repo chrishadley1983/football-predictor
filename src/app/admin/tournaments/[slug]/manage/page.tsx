@@ -26,6 +26,16 @@ interface TournamentData extends Tournament {
 
 export default function ManageTournamentPage() {
   const { slug } = useParams<{ slug: string }>()
+
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user?.app_metadata?.role !== 'admin') {
+        window.location.href = '/'
+      }
+    })
+  }, [])
+
   const [tournament, setTournament] = useState<TournamentData | null>(null)
   const [groupResults, setGroupResults] = useState<GroupResult[]>([])
   const [totalGoals, setTotalGoals] = useState('')
@@ -129,26 +139,32 @@ export default function ManageTournamentPage() {
 
   async function handleSaveKnockoutResult(matchId: string, winnerId: string) {
     setError('')
-    const supabase = createClient()
 
-    const { error: updateErr } = await supabase
-      .from('knockout_matches')
-      .update({ winner_team_id: winnerId })
-      .eq('id', matchId)
+    // Use the game-result API for bracket advancement
+    const res = await fetch(`/api/admin/tournaments/${slug}/game-result`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'knockout',
+        match_id: matchId,
+        winner_team_id: winnerId,
+      }),
+    })
 
-    if (updateErr) {
-      setError(updateErr.message)
+    if (!res.ok) {
+      const data = await res.json()
+      setError(data.error || 'Failed to save knockout result')
       return
     }
 
     // Refresh tournament data
-    const res = await fetch(`/api/tournaments/${slug}`)
-    if (res.ok) {
-      const data = await res.json()
+    const refreshRes = await fetch(`/api/tournaments/${slug}`)
+    if (refreshRes.ok) {
+      const data = await refreshRes.json()
       setTournament(data)
     }
 
-    setSuccess('Knockout result saved')
+    setSuccess('Knockout result saved (winner advanced to next round)')
     setTimeout(() => setSuccess(''), 2000)
   }
 
@@ -190,7 +206,7 @@ export default function ManageTournamentPage() {
     setSuccess('')
 
     // Call the scoring API (using server-side scoring engine)
-    const res = await fetch(`/api/tournaments/${slug}/leaderboard`, {
+    const res = await fetch(`/api/tournaments/${slug}/score`, {
       method: 'POST',
     })
 
@@ -214,6 +230,20 @@ export default function ManageTournamentPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Manage: {tournament.name}</h1>
           <div className="mt-1"><TournamentStatusBadge status={tournament.status} /></div>
+        </div>
+        <div className="flex gap-2">
+          <a
+            href={`/admin/tournaments/${slug}/setup`}
+            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          >
+            Setup
+          </a>
+          <a
+            href={`/admin/tournaments/${slug}/results`}
+            className="rounded-md bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-700"
+          >
+            Results & Simulate
+          </a>
         </div>
       </div>
 

@@ -116,23 +116,24 @@ export default function KnockoutPredictionPage() {
     setError('')
     setSuccessMsg('')
 
-    // Save each prediction
-    for (const [matchId, teamId] of Object.entries(pendingPredictions)) {
-      const res = await fetch(`/api/tournaments/${slug}/predictions/knockout`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          match_id: matchId,
-          predicted_winner_id: teamId,
-        }),
+    const predictionsPayload = Object.entries(pendingPredictions).map(
+      ([matchId, teamId]) => ({
+        match_id: matchId,
+        predicted_winner_id: teamId,
       })
+    )
 
-      if (!res.ok) {
-        const data = await res.json()
-        setError(data.error || `Failed to save prediction for match ${matchId}`)
-        setSaving(false)
-        return
-      }
+    const res = await fetch(`/api/tournaments/${slug}/predictions/knockout`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ predictions: predictionsPayload }),
+    })
+
+    if (!res.ok) {
+      const data = await res.json()
+      setError(data.error || 'Failed to save predictions')
+      setSaving(false)
+      return
     }
 
     setPendingPredictions({})

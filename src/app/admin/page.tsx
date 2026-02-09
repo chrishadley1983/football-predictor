@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { TournamentStatusBadge } from '@/components/ui/Badge'
 import { Card } from '@/components/ui/Card'
+import SeedButton from './SeedButton'
 import type { Tournament } from '@/lib/types'
 
 export default async function AdminPage() {
@@ -23,12 +24,15 @@ export default async function AdminPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Admin Dashboard</h1>
-        <Link
-          href="/admin/tournaments/new"
-          className="rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
-        >
-          New Tournament
-        </Link>
+        <div className="flex gap-2">
+          <SeedButton />
+          <Link
+            href="/admin/tournaments/new"
+            className="rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
+          >
+            New Tournament
+          </Link>
+        </div>
       </div>
 
       {(!tournaments || tournaments.length === 0) ? (
@@ -52,6 +56,18 @@ export default async function AdminPage() {
                   className="rounded bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
                 >
                   Manage
+                </Link>
+                <Link
+                  href={`/admin/tournaments/${t.slug}/setup`}
+                  className="rounded bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700 hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-300 dark:hover:bg-blue-800"
+                >
+                  Setup
+                </Link>
+                <Link
+                  href={`/admin/tournaments/${t.slug}/results`}
+                  className="rounded bg-orange-100 px-3 py-1 text-xs font-medium text-orange-700 hover:bg-orange-200 dark:bg-orange-900 dark:text-orange-300 dark:hover:bg-orange-800"
+                >
+                  Results & Simulate
                 </Link>
                 <Link
                   href={`/admin/tournaments/${t.slug}/entries`}

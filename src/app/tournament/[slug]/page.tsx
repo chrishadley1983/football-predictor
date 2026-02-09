@@ -165,6 +165,15 @@ export default async function TournamentPage({ params }: { params: Promise<{ slu
             </div>
           </Card>
         </Link>
+
+        <Link href={`/tournament/${slug}/chat`}>
+          <Card className="transition-shadow hover:shadow-md">
+            <div className="text-center">
+              <h3 className="font-semibold text-gray-700 dark:text-gray-300">Chat</h3>
+              <p className="mt-1 text-sm text-gray-500">Live tournament discussion</p>
+            </div>
+          </Card>
+        </Link>
       </div>
     </div>
   )

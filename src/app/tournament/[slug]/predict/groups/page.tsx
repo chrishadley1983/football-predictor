@@ -111,10 +111,15 @@ export default function GroupPredictionPage() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        group_id: groupId,
-        predicted_1st,
-        predicted_2nd,
-        predicted_3rd,
+        predictions: [
+          {
+            group_id: groupId,
+            predicted_1st,
+            predicted_2nd,
+            predicted_3rd,
+          },
+        ],
+        tiebreaker_goals: tiebreaker ? parseInt(tiebreaker, 10) : undefined,
       }),
     })
 
@@ -125,17 +130,25 @@ export default function GroupPredictionPage() {
       return
     }
 
-    const saved = await res.json()
-
-    // Update local state
+    // Update local state with the prediction we sent
     setPredictions((prev) => {
       const idx = prev.findIndex((p) => p.group_id === groupId)
+      const newPred: GroupPrediction = {
+        id: idx >= 0 ? prev[idx].id : '',
+        entry_id: entry.id,
+        group_id: groupId,
+        predicted_1st,
+        predicted_2nd,
+        predicted_3rd,
+        points_earned: idx >= 0 ? prev[idx].points_earned : 0,
+        submitted_at: new Date().toISOString(),
+      }
       if (idx >= 0) {
         const updated = [...prev]
-        updated[idx] = saved
+        updated[idx] = newPred
         return updated
       }
-      return [...prev, saved]
+      return [...prev, newPred]
     })
 
     setSuccessMsg('Prediction saved!')

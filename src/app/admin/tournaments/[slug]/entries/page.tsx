@@ -15,6 +15,16 @@ interface EntryWithPlayer extends TournamentEntry {
 
 export default function EntriesPage() {
   const { slug } = useParams<{ slug: string }>()
+
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user?.app_metadata?.role !== 'admin') {
+        window.location.href = '/'
+      }
+    })
+  }, [])
+
   const [tournament, setTournament] = useState<Tournament | null>(null)
   const [entries, setEntries] = useState<EntryWithPlayer[]>([])
   const [loading, setLoading] = useState(true)
