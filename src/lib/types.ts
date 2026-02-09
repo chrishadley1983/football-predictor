@@ -101,6 +101,7 @@ export interface Player {
   display_name: string
   nickname: string | null
   email: string
+  avatar_url: string | null
   created_at: string
 }
 
@@ -315,7 +316,7 @@ export interface ChatMessage {
 }
 
 export interface ChatMessageWithPlayer extends ChatMessage {
-  player: Pick<Player, 'display_name' | 'nickname'>
+  player: Pick<Player, 'display_name' | 'nickname' | 'avatar_url'>
 }
 
 export interface LeaderboardEntry {
@@ -323,6 +324,7 @@ export interface LeaderboardEntry {
   player_id: string
   display_name: string
   nickname: string | null
+  avatar_url: string | null
   group_stage_points: number
   knockout_points: number
   total_points: number
@@ -571,6 +573,7 @@ export interface Database {
           display_name: string
           nickname: string | null
           email: string
+          avatar_url: string | null
           created_at: string
         }
         Insert: {
@@ -579,6 +582,7 @@ export interface Database {
           display_name: string
           nickname?: string | null
           email: string
+          avatar_url?: string | null
           created_at?: string
         }
         Update: {
@@ -586,6 +590,7 @@ export interface Database {
           display_name?: string
           nickname?: string | null
           email?: string
+          avatar_url?: string | null
           created_at?: string
         }
         Relationships: []

@@ -38,7 +38,8 @@ export async function GET(
         player:players (
           id,
           display_name,
-          nickname
+          nickname,
+          avatar_url
         )
       `)
       .eq('tournament_id', tournament.id)
@@ -50,12 +51,13 @@ export async function GET(
 
     // Flatten player info into the leaderboard entry format
     const leaderboard = (entries ?? []).map((e) => {
-      const player = e.player as unknown as { id: string; display_name: string; nickname: string | null }
+      const player = e.player as unknown as { id: string; display_name: string; nickname: string | null; avatar_url: string | null }
       return {
         entry_id: e.id,
         player_id: e.player_id,
         display_name: player?.display_name ?? 'Unknown',
         nickname: player?.nickname ?? null,
+        avatar_url: player?.avatar_url ?? null,
         group_stage_points: e.group_stage_points,
         knockout_points: e.knockout_points,
         total_points: e.total_points,

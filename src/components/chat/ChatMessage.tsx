@@ -1,6 +1,7 @@
 'use client'
 
 import { cn } from '@/lib/utils'
+import { PlayerAvatar } from '@/components/ui/PlayerAvatar'
 import type { ChatMessageWithPlayer } from '@/lib/types'
 
 function formatRelativeTime(dateStr: string): string {
@@ -29,6 +30,11 @@ export function ChatMessage({ message, isOwnMessage }: ChatMessageProps) {
 
   return (
     <div className={cn('flex', isOwnMessage ? 'justify-end' : 'justify-start')}>
+      {!isOwnMessage && (
+        <div className="mr-2 mt-1 flex-shrink-0">
+          <PlayerAvatar avatarUrl={message.player.avatar_url} displayName={displayName} size="sm" />
+        </div>
+      )}
       <div
         className={cn(
           'max-w-[80%] rounded-lg px-3 py-2',

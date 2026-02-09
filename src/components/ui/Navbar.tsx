@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
+import { PlayerAvatar } from '@/components/ui/PlayerAvatar'
 import type { Player } from '@/lib/types'
 
 export function Navbar() {
@@ -107,9 +108,12 @@ export function Navbar() {
 
             {player ? (
               <div className="flex items-center gap-3">
-                <span className="text-sm text-text-secondary">
-                  {player.display_name}
-                </span>
+                <Link href="/profile" className="flex items-center gap-2 transition-colors hover:text-gold">
+                  <PlayerAvatar avatarUrl={player.avatar_url} displayName={player.display_name} size="sm" />
+                  <span className="text-sm text-text-secondary">
+                    {player.display_name}
+                  </span>
+                </Link>
                 <button
                   onClick={handleLogout}
                   className="text-sm font-medium text-text-muted hover:text-red-accent"
@@ -187,7 +191,10 @@ export function Navbar() {
 
             {player ? (
               <div className="border-t border-border-custom pt-2">
-                <span className="block px-3 py-1 text-sm text-text-muted">{player.display_name}</span>
+                <Link href="/profile" className="flex items-center gap-2 px-3 py-1" onClick={() => setMenuOpen(false)}>
+                  <PlayerAvatar avatarUrl={player.avatar_url} displayName={player.display_name} size="sm" />
+                  <span className="text-sm text-text-muted">{player.display_name}</span>
+                </Link>
                 <button
                   onClick={() => { handleLogout(); setMenuOpen(false) }}
                   className="block w-full rounded-md px-3 py-2 text-left text-sm font-medium text-red-accent hover:bg-surface-light"

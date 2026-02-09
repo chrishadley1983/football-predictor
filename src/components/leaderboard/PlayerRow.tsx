@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
+import { PlayerAvatar } from '@/components/ui/PlayerAvatar'
 import type { LeaderboardEntry } from '@/lib/types'
 
 interface PlayerRowProps {
@@ -26,7 +27,10 @@ export function PlayerRow({ entry, isCurrentUser, rank }: PlayerRowProps) {
           {rank}
         </td>
         <td className="whitespace-nowrap px-3 py-2 text-sm text-foreground">
-          {entry.display_name}
+          <div className="flex items-center gap-2">
+            <PlayerAvatar avatarUrl={entry.avatar_url} displayName={entry.display_name} size="sm" />
+            {entry.display_name}
+          </div>
         </td>
         <td className="hidden whitespace-nowrap px-3 py-2 text-sm text-text-secondary sm:table-cell">
           {entry.nickname ?? '-'}

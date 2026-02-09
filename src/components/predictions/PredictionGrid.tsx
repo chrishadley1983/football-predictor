@@ -1,6 +1,7 @@
 'use client'
 
 import { cn } from '@/lib/utils'
+import { PlayerAvatar } from '@/components/ui/PlayerAvatar'
 import type { PredictionSummary, GroupWithTeams, GroupResult } from '@/lib/types'
 
 interface PredictionGridProps {
@@ -58,8 +59,11 @@ export function PredictionGrid({ predictions, groups, results = [] }: Prediction
             </th>
             {predictions.map((p) => (
               <th key={p.entry_id} className="px-2 py-2 text-center font-medium text-text-muted">
-                <div className="max-w-[60px] truncate">
-                  {p.player.display_name.split(' ')[0]}
+                <div className="flex flex-col items-center gap-1">
+                  <PlayerAvatar avatarUrl={p.player.avatar_url} displayName={p.player.display_name} size="sm" />
+                  <div className="max-w-[60px] truncate">
+                    {p.player.display_name.split(' ')[0]}
+                  </div>
                 </div>
               </th>
             ))}

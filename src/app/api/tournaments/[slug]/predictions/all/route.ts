@@ -48,7 +48,8 @@ export async function GET(
         player:players (
           id,
           display_name,
-          nickname
+          nickname,
+          avatar_url
         )
       `)
       .eq('tournament_id', tournament.id)
@@ -87,13 +88,14 @@ export async function GET(
 
     // Assemble per-player summary
     const summaries = entries.map((entry) => {
-      const player = entry.player as unknown as { id: string; display_name: string; nickname: string | null }
+      const player = entry.player as unknown as { id: string; display_name: string; nickname: string | null; avatar_url: string | null }
       return {
         entry_id: entry.id,
         player: {
           id: entry.player_id,
           display_name: player?.display_name ?? 'Unknown',
           nickname: player?.nickname ?? null,
+          avatar_url: player?.avatar_url ?? null,
         },
         tiebreaker_goals: entry.tiebreaker_goals,
         group_predictions: (groupPredictions ?? []).filter((gp) => gp.entry_id === entry.id),

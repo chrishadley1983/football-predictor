@@ -27,7 +27,7 @@ export function ChatRoom({ tournamentId, currentPlayerId }: ChatRoomProps) {
     const supabase = supabaseRef.current
     const { data } = await supabase
       .from('chat_messages')
-      .select('*, player:players!chat_messages_player_id_fkey(display_name, nickname)')
+      .select('*, player:players!chat_messages_player_id_fkey(display_name, nickname, avatar_url)')
       .eq('tournament_id', tournamentId)
       .order('created_at', { ascending: true })
       .limit(100)
@@ -39,7 +39,7 @@ export function ChatRoom({ tournamentId, currentPlayerId }: ChatRoomProps) {
         player_id: row.player_id,
         content: row.content,
         created_at: row.created_at,
-        player: row.player as unknown as { display_name: string; nickname: string | null },
+        player: row.player as unknown as { display_name: string; nickname: string | null; avatar_url: string | null },
       }))
       setMessages(mapped)
     }
@@ -72,7 +72,7 @@ export function ChatRoom({ tournamentId, currentPlayerId }: ChatRoomProps) {
           // Fetch the full message with player info
           const { data } = await supabase
             .from('chat_messages')
-            .select('*, player:players!chat_messages_player_id_fkey(display_name, nickname)')
+            .select('*, player:players!chat_messages_player_id_fkey(display_name, nickname, avatar_url)')
             .eq('id', payload.new.id)
             .single()
 
@@ -83,7 +83,7 @@ export function ChatRoom({ tournamentId, currentPlayerId }: ChatRoomProps) {
               player_id: data.player_id,
               content: data.content,
               created_at: data.created_at,
-              player: data.player as unknown as { display_name: string; nickname: string | null },
+              player: data.player as unknown as { display_name: string; nickname: string | null; avatar_url: string | null },
             }
             setMessages((prev) => {
               if (prev.some((m) => m.id === msg.id)) return prev
@@ -113,7 +113,7 @@ export function ChatRoom({ tournamentId, currentPlayerId }: ChatRoomProps) {
         player_id: currentPlayerId,
         content,
       })
-      .select('*, player:players!chat_messages_player_id_fkey(display_name, nickname)')
+      .select('*, player:players!chat_messages_player_id_fkey(display_name, nickname, avatar_url)')
       .single()
 
     if (insertError) {
@@ -129,7 +129,7 @@ export function ChatRoom({ tournamentId, currentPlayerId }: ChatRoomProps) {
         player_id: inserted.player_id,
         content: inserted.content,
         created_at: inserted.created_at,
-        player: inserted.player as unknown as { display_name: string; nickname: string | null },
+        player: inserted.player as unknown as { display_name: string; nickname: string | null; avatar_url: string | null },
       }
       setMessages((prev) => {
         if (prev.some((m) => m.id === msg.id)) return prev
