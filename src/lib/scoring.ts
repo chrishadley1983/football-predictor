@@ -58,7 +58,10 @@ export async function calculateGroupStageScores(tournamentId: string): Promise<v
   if (predsErr) throw new Error(`Failed to fetch group predictions: ${predsErr.message}`)
   if (!predictions || predictions.length === 0) return
 
-  // Score each prediction
+  // Score each prediction and batch update
+  const predictionUpdates: PromiseLike<unknown>[] = []
+  const pointsByEntry: Record<string, number> = {}
+
   for (const pred of predictions) {
     const groupResults = resultsByGroup[pred.group_id]
     if (!groupResults) continue
@@ -87,26 +90,37 @@ export async function calculateGroupStageScores(tournamentId: string): Promise<v
       }
     }
 
-    // Update the prediction with points earned
-    await admin
-      .from('group_predictions')
-      .update({ points_earned: points })
-      .eq('id', pred.id)
+    // Batch the update
+    predictionUpdates.push(
+      admin
+        .from('group_predictions')
+        .update({ points_earned: points })
+        .eq('id', pred.id)
+    )
+
+    // Accumulate points per entry
+    pointsByEntry[pred.entry_id] = (pointsByEntry[pred.entry_id] || 0) + points
   }
 
-  // Now sum up group stage points per entry
-  for (const entry of entries) {
-    const { data: entryPreds } = await admin
-      .from('group_predictions')
-      .select('points_earned')
-      .eq('entry_id', entry.id)
+  // Execute all prediction updates in parallel
+  const predResults = await Promise.all(predictionUpdates)
+  const predFailures = predResults.filter((r) => (r as { error?: unknown }).error)
+  if (predFailures.length > 0) {
+    throw new Error(`${predFailures.length} group prediction updates failed`)
+  }
 
-    const totalGroupPoints = (entryPreds || []).reduce((sum, p) => sum + (p.points_earned || 0), 0)
-
-    await admin
-      .from('tournament_entries')
-      .update({ group_stage_points: totalGroupPoints })
-      .eq('id', entry.id)
+  // Batch update entry totals in parallel
+  const entryResults = await Promise.all(
+    entries.map((entry) =>
+      admin
+        .from('tournament_entries')
+        .update({ group_stage_points: pointsByEntry[entry.id] || 0 })
+        .eq('id', entry.id)
+    )
+  )
+  const entryFailures = entryResults.filter((r) => (r as { error?: unknown }).error)
+  if (entryFailures.length > 0) {
+    throw new Error(`${entryFailures.length} group stage entry updates failed`)
   }
 }
 
@@ -152,7 +166,10 @@ export async function calculateKnockoutScores(tournamentId: string): Promise<voi
   if (predsErr) throw new Error(`Failed to fetch knockout predictions: ${predsErr.message}`)
   if (!predictions || predictions.length === 0) return
 
-  // Score each prediction
+  // Score each prediction and batch update
+  const knockoutUpdates: PromiseLike<unknown>[] = []
+  const knockoutPointsByEntry: Record<string, number> = {}
+
   for (const pred of predictions) {
     const match = matchById[pred.match_id]
     if (!match || !match.winner_team_id) {
@@ -163,25 +180,36 @@ export async function calculateKnockoutScores(tournamentId: string): Promise<voi
     const isCorrect = pred.predicted_winner_id === match.winner_team_id
     const pointsEarned = isCorrect ? match.points_value : 0
 
-    await admin
-      .from('knockout_predictions')
-      .update({ is_correct: isCorrect, points_earned: pointsEarned })
-      .eq('id', pred.id)
+    knockoutUpdates.push(
+      admin
+        .from('knockout_predictions')
+        .update({ is_correct: isCorrect, points_earned: pointsEarned })
+        .eq('id', pred.id)
+    )
+
+    // Accumulate points per entry
+    knockoutPointsByEntry[pred.entry_id] = (knockoutPointsByEntry[pred.entry_id] || 0) + pointsEarned
   }
 
-  // Sum knockout points per entry
-  for (const entry of entries) {
-    const { data: entryPreds } = await admin
-      .from('knockout_predictions')
-      .select('points_earned')
-      .eq('entry_id', entry.id)
+  // Execute all prediction updates in parallel
+  const koResults = await Promise.all(knockoutUpdates)
+  const koFailures = koResults.filter((r) => (r as { error?: unknown }).error)
+  if (koFailures.length > 0) {
+    throw new Error(`${koFailures.length} knockout prediction updates failed`)
+  }
 
-    const totalKnockoutPoints = (entryPreds || []).reduce((sum, p) => sum + (p.points_earned || 0), 0)
-
-    await admin
-      .from('tournament_entries')
-      .update({ knockout_points: totalKnockoutPoints })
-      .eq('id', entry.id)
+  // Batch update entry totals in parallel
+  const koEntryResults = await Promise.all(
+    entries.map((entry) =>
+      admin
+        .from('tournament_entries')
+        .update({ knockout_points: knockoutPointsByEntry[entry.id] || 0 })
+        .eq('id', entry.id)
+    )
+  )
+  const koEntryFailures = koEntryResults.filter((r) => (r as { error?: unknown }).error)
+  if (koEntryFailures.length > 0) {
+    throw new Error(`${koEntryFailures.length} knockout entry updates failed`)
   }
 }
 
@@ -193,12 +221,15 @@ export async function calculateTiebreakers(tournamentId: string): Promise<void> 
   const admin = createAdminClient()
 
   // Get actual total group stage goals
-  const { data: stats } = await admin
+  const { data: stats, error: statsErr } = await admin
     .from('tournament_stats')
     .select('total_group_stage_goals')
     .eq('tournament_id', tournamentId)
     .single()
 
+  if (statsErr && statsErr.code !== 'PGRST116') {
+    throw new Error(`Failed to fetch tournament stats: ${statsErr.message}`)
+  }
   if (!stats || stats.total_group_stage_goals === null) return
 
   const actualGoals = stats.total_group_stage_goals
@@ -212,14 +243,20 @@ export async function calculateTiebreakers(tournamentId: string): Promise<void> 
   if (entriesErr) throw new Error(`Failed to fetch entries: ${entriesErr.message}`)
   if (!entries) return
 
-  for (const entry of entries) {
-    const diff =
-      entry.tiebreaker_goals !== null ? Math.abs(entry.tiebreaker_goals - actualGoals) : null
+  const tbResults = await Promise.all(
+    entries.map((entry) => {
+      const diff =
+        entry.tiebreaker_goals !== null ? Math.abs(entry.tiebreaker_goals - actualGoals) : null
 
-    await admin
-      .from('tournament_entries')
-      .update({ tiebreaker_diff: diff })
-      .eq('id', entry.id)
+      return admin
+        .from('tournament_entries')
+        .update({ tiebreaker_diff: diff })
+        .eq('id', entry.id)
+    })
+  )
+  const tbFailures = tbResults.filter((r) => (r as { error?: unknown }).error)
+  if (tbFailures.length > 0) {
+    throw new Error(`${tbFailures.length} tiebreaker updates failed`)
   }
 }
 
@@ -262,6 +299,7 @@ export async function calculateRankings(tournamentId: string): Promise<void> {
   })
 
   // Assign overall_rank with proper ties (same rank for same values)
+  const overallRanks: { id: string; rank: number }[] = []
   let currentRank = 1
   for (let i = 0; i < overallSorted.length; i++) {
     if (i > 0) {
@@ -274,10 +312,7 @@ export async function calculateRankings(tournamentId: string): Promise<void> {
         currentRank = i + 1
       }
     }
-    await admin
-      .from('tournament_entries')
-      .update({ overall_rank: currentRank })
-      .eq('id', overallSorted[i].id)
+    overallRanks.push({ id: overallSorted[i].id, rank: currentRank })
   }
 
   // Sort for group stage ranking: group_stage_points DESC, tiebreaker_diff ASC NULLS LAST
@@ -293,6 +328,7 @@ export async function calculateRankings(tournamentId: string): Promise<void> {
     return aDiff - bDiff
   })
 
+  const groupRanks: { id: string; rank: number }[] = []
   currentRank = 1
   for (let i = 0; i < groupSorted.length; i++) {
     if (i > 0) {
@@ -304,10 +340,33 @@ export async function calculateRankings(tournamentId: string): Promise<void> {
         currentRank = i + 1
       }
     }
-    await admin
-      .from('tournament_entries')
-      .update({ group_stage_rank: currentRank })
-      .eq('id', groupSorted[i].id)
+    groupRanks.push({ id: groupSorted[i].id, rank: currentRank })
+  }
+
+  // Build combined update map: id -> { overall_rank, group_stage_rank }
+  const rankMap = new Map<string, { overall_rank: number; group_stage_rank: number }>()
+  for (const { id, rank } of overallRanks) {
+    rankMap.set(id, { overall_rank: rank, group_stage_rank: 0 })
+  }
+  for (const { id, rank } of groupRanks) {
+    const existing = rankMap.get(id)
+    if (existing) {
+      existing.group_stage_rank = rank
+    }
+  }
+
+  // Batch all rank updates in parallel
+  const rankResults = await Promise.all(
+    Array.from(rankMap.entries()).map(([id, ranks]) =>
+      admin
+        .from('tournament_entries')
+        .update({ overall_rank: ranks.overall_rank, group_stage_rank: ranks.group_stage_rank })
+        .eq('id', id)
+    )
+  )
+  const rankFailures = rankResults.filter((r) => (r as { error?: unknown }).error)
+  if (rankFailures.length > 0) {
+    throw new Error(`${rankFailures.length} rank updates failed`)
   }
 }
 

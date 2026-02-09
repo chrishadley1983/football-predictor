@@ -29,11 +29,26 @@ export async function POST(
 
     const body: ForceCompletePayload = await request.json()
 
+    // Validate status transitions
     if (body.phase === 'group_stage') {
+      const validStatuses = ['group_stage_open', 'group_stage_closed']
+      if (!validStatuses.includes(tournament.status)) {
+        return NextResponse.json(
+          { error: `Cannot force-complete group stage from status '${tournament.status}'. Tournament must be in group_stage_open or group_stage_closed.` },
+          { status: 400 }
+        )
+      }
       return forceCompleteGroupStage(admin, tournament.id, slug)
     } else if (body.phase === 'knockout_round') {
       if (!body.round) {
         return NextResponse.json({ error: 'round is required for knockout_round phase' }, { status: 400 })
+      }
+      const validStatuses = ['group_stage_closed', 'knockout_open', 'knockout_closed']
+      if (!validStatuses.includes(tournament.status)) {
+        return NextResponse.json(
+          { error: `Cannot force-complete knockout round from status '${tournament.status}'. Tournament must be past group stage.` },
+          { status: 400 }
+        )
       }
       return forceCompleteKnockoutRound(admin, tournament.id, body.round)
     } else {

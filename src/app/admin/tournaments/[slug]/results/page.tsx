@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
@@ -22,15 +22,16 @@ const KNOCKOUT_ROUNDS: { key: KnockoutRound; label: string }[] = [
 
 export default function ResultsPage() {
   const { slug } = useParams<{ slug: string }>()
+  const router = useRouter()
 
   useEffect(() => {
     const supabase = createClient()
     supabase.auth.getUser().then(({ data }) => {
       if (data.user?.app_metadata?.role !== 'admin') {
-        window.location.href = '/'
+        router.replace('/')
       }
     })
-  }, [])
+  }, [router])
 
   const [tournament, setTournament] = useState<TournamentData | null>(null)
   const [groupResults, setGroupResults] = useState<GroupResult[]>([])

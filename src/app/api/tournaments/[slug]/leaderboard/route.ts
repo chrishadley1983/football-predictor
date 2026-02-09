@@ -27,7 +27,6 @@ export async function GET(
       .select(`
         id,
         player_id,
-        payment_status,
         tiebreaker_goals,
         group_stage_points,
         knockout_points,
@@ -65,7 +64,6 @@ export async function GET(
         tiebreaker_diff: e.tiebreaker_diff,
         group_stage_rank: e.group_stage_rank,
         overall_rank: e.overall_rank,
-        payment_status: e.payment_status,
       }
     })
 

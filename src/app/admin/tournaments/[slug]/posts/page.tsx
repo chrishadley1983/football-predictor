@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -12,15 +12,16 @@ import type { Tournament, Post } from '@/lib/types'
 
 export default function AdminPostsPage() {
   const { slug } = useParams<{ slug: string }>()
+  const router = useRouter()
 
   useEffect(() => {
     const supabase = createClient()
     supabase.auth.getUser().then(({ data }) => {
       if (data.user?.app_metadata?.role !== 'admin') {
-        window.location.href = '/'
+        router.replace('/')
       }
     })
-  }, [])
+  }, [router])
 
   const [tournament, setTournament] = useState<Tournament | null>(null)
   const [posts, setPosts] = useState<Post[]>([])
@@ -82,53 +83,43 @@ export default function AdminPostsPage() {
     setError('')
     setSuccess('')
 
-    const supabase = createClient()
-
     if (editingPost) {
-      // Update existing post
-      const { error: updateErr } = await supabase
-        .from('posts')
-        .update({
-          title,
-          slug: postSlug,
-          content,
-        })
-        .eq('id', editingPost.id)
+      // Update existing post via API
+      const res = await fetch(`/api/admin/tournaments/${slug}/posts`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: editingPost.id, title, slug: postSlug, content }),
+      })
 
-      if (updateErr) {
-        setError(updateErr.message)
+      if (!res.ok) {
+        const data = await res.json()
+        setError(data.error || 'Failed to update post')
         setSaving(false)
         return
       }
 
+      const updated = await res.json()
       setPosts((prev) =>
-        prev.map((p) =>
-          p.id === editingPost.id ? { ...p, title, slug: postSlug, content } : p
-        )
+        prev.map((p) => (p.id === editingPost.id ? (updated as Post) : p))
       )
       setSuccess('Post updated')
     } else {
-      // Create new post
-      const { data: newPost, error: insertErr } = await supabase
-        .from('posts')
-        .insert({
-          tournament_id: tournament.id,
-          title,
-          slug: postSlug,
-          content,
-          author: 'Admin',
-          is_published: true,
-        })
-        .select()
-        .single()
+      // Create new post via API
+      const res = await fetch(`/api/tournaments/${slug}/posts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, slug: postSlug, content, author: 'Admin', is_published: true }),
+      })
 
-      if (insertErr) {
-        setError(insertErr.message)
+      if (!res.ok) {
+        const data = await res.json()
+        setError(data.error || 'Failed to create post')
         setSaving(false)
         return
       }
 
-      if (newPost) setPosts((prev) => [newPost as Post, ...prev])
+      const newPost = await res.json()
+      setPosts((prev) => [newPost as Post, ...prev])
       setSuccess('Post created')
     }
 
@@ -137,14 +128,16 @@ export default function AdminPostsPage() {
   }
 
   async function handleDelete(postId: string) {
-    const supabase = createClient()
-    const { error: deleteErr } = await supabase
-      .from('posts')
-      .delete()
-      .eq('id', postId)
+    setError('')
+    const res = await fetch(`/api/admin/tournaments/${slug}/posts`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: postId }),
+    })
 
-    if (deleteErr) {
-      setError(deleteErr.message)
+    if (!res.ok) {
+      const data = await res.json()
+      setError(data.error || 'Failed to delete post')
       return
     }
 
@@ -154,14 +147,16 @@ export default function AdminPostsPage() {
   }
 
   async function handleTogglePublish(post: Post) {
-    const supabase = createClient()
-    const { error: updateErr } = await supabase
-      .from('posts')
-      .update({ is_published: !post.is_published })
-      .eq('id', post.id)
+    setError('')
+    const res = await fetch(`/api/admin/tournaments/${slug}/posts`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: post.id, is_published: !post.is_published }),
+    })
 
-    if (updateErr) {
-      setError(updateErr.message)
+    if (!res.ok) {
+      const data = await res.json()
+      setError(data.error || 'Failed to update post')
       return
     }
 
@@ -244,7 +239,7 @@ export default function AdminPostsPage() {
                 <div>
                   <h3 className="font-semibold text-foreground">{post.title}</h3>
                   <p className="text-xs text-text-muted">
-                    /{post.slug} &middot; {formatDate(post.published_at)} &middot; {post.author}
+                    /{post.slug} &middot; {post.published_at ? formatDate(post.published_at) : 'Draft'} &middot; {post.author}
                   </p>
                 </div>
                 <Badge variant={post.is_published ? 'green' : 'gray'}>
@@ -252,7 +247,7 @@ export default function AdminPostsPage() {
                 </Badge>
               </div>
               <p className="mt-2 line-clamp-2 text-sm text-text-secondary">
-                {post.content.slice(0, 150)}...
+                {post.content.length > 150 ? `${post.content.slice(0, 150)}...` : post.content}
               </p>
               <div className="mt-3 flex gap-2">
                 <Button size="sm" variant="secondary" onClick={() => handleEdit(post)}>

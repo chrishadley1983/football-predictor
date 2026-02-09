@@ -9,14 +9,16 @@ export const metadata = {
 export default async function HonoursPage() {
   const supabase = await createClient()
 
-  const { data: honours } = await supabase
+  const { data: honours, error: honoursErr } = await supabase
     .from('honours')
     .select(`
       *,
       tournament:tournaments (*),
-      player:players (*)
+      player:players (id, display_name, nickname, avatar_url)
     `)
     .order('sort_order', { ascending: true })
+
+  if (honoursErr) console.error('Failed to fetch honours:', honoursErr.message)
 
   return (
     <div>

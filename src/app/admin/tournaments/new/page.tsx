@@ -16,10 +16,10 @@ export default function NewTournamentPage() {
     const supabase = createClient()
     supabase.auth.getUser().then(({ data }) => {
       if (data.user?.app_metadata?.role !== 'admin') {
-        window.location.href = '/'
+        router.replace('/')
       }
     })
-  }, [])
+  }, [router])
 
   const [name, setName] = useState('')
   const [slug, setSlug] = useState('')

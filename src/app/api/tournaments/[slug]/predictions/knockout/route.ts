@@ -123,6 +123,41 @@ export async function POST(
       return NextResponse.json({ error: 'predictions must be an array' }, { status: 400 })
     }
 
+    // Validate all predictions: match must belong to tournament and winner must be a participant
+    if (predictions.length > 0) {
+      const matchIds = predictions.map((p: { match_id: string }) => p.match_id)
+      const { data: matches } = await supabase
+        .from('knockout_matches')
+        .select('id, home_team_id, away_team_id')
+        .eq('tournament_id', tournament.id)
+        .in('id', matchIds)
+
+      if (!matches) {
+        return NextResponse.json({ error: 'Failed to look up matches' }, { status: 500 })
+      }
+
+      const matchMap = new Map(matches.map((m) => [m.id, m]))
+
+      for (const pred of predictions) {
+        const match = matchMap.get(pred.match_id)
+        if (!match) {
+          return NextResponse.json(
+            { error: `Match ${pred.match_id} not found in this tournament` },
+            { status: 400 }
+          )
+        }
+        if (
+          pred.predicted_winner_id !== match.home_team_id &&
+          pred.predicted_winner_id !== match.away_team_id
+        ) {
+          return NextResponse.json(
+            { error: `Predicted winner is not a participant in match ${pred.match_id}` },
+            { status: 400 }
+          )
+        }
+      }
+    }
+
     // Upsert each knockout prediction
     for (const pred of predictions) {
       // Check if prediction already exists

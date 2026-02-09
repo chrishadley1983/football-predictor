@@ -7,12 +7,13 @@ export default async function RulesPage({ params }: { params: Promise<{ slug: st
   const { slug } = await params
   const supabase = await createClient()
 
-  const { data: tournament } = await supabase
+  const { data: tournament, error: tournamentErr } = await supabase
     .from('tournaments')
     .select('*')
     .eq('slug', slug)
     .single()
 
+  if (tournamentErr) console.error('Failed to fetch tournament:', tournamentErr.message)
   if (!tournament) notFound()
 
   const t = tournament as Tournament

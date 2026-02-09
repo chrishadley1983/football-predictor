@@ -1,10 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/Button'
-import { Select } from '@/components/ui/Select'
 import { Input } from '@/components/ui/Input'
 import { Card } from '@/components/ui/Card'
 import { TournamentStatusBadge } from '@/components/ui/Badge'
@@ -26,15 +25,16 @@ interface TournamentData extends Tournament {
 
 export default function ManageTournamentPage() {
   const { slug } = useParams<{ slug: string }>()
+  const router = useRouter()
 
   useEffect(() => {
     const supabase = createClient()
     supabase.auth.getUser().then(({ data }) => {
       if (data.user?.app_metadata?.role !== 'admin') {
-        window.location.href = '/'
+        router.replace('/')
       }
     })
-  }, [])
+  }, [router])
 
   const [tournament, setTournament] = useState<TournamentData | null>(null)
   const [groupResults, setGroupResults] = useState<GroupResult[]>([])
@@ -110,22 +110,28 @@ export default function ManageTournamentPage() {
 
   async function handleSaveGroupResult(groupId: string, teamId: string, position: number, qualified: boolean) {
     setError('')
-    const supabase = createClient()
 
-    // Upsert group result
-    const existing = groupResults.find((r) => r.group_id === groupId && r.team_id === teamId)
-    if (existing) {
-      await supabase
-        .from('group_results')
-        .update({ final_position: position, qualified })
-        .eq('id', existing.id)
-    } else {
-      await supabase
-        .from('group_results')
-        .insert({ group_id: groupId, team_id: teamId, final_position: position, qualified })
+    // Use the game-result API for server-side authorization
+    const res = await fetch(`/api/admin/tournaments/${slug}/game-result`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'group',
+        group_id: groupId,
+        team_id: teamId,
+        final_position: position,
+        qualified,
+      }),
+    })
+
+    if (!res.ok) {
+      const data = await res.json()
+      setError(data.error || 'Failed to save group result')
+      return
     }
 
-    // Refresh results
+    // Refresh results via client read (SELECT is fine through RLS)
+    const supabase = createClient()
     const groupIds = (tournament?.groups ?? []).map((g) => g.id)
     const { data: results } = await supabase
       .from('group_results')
@@ -177,22 +183,16 @@ export default function ManageTournamentPage() {
       return
     }
 
-    const supabase = createClient()
-    const { data: existing } = await supabase
-      .from('tournament_stats')
-      .select('id')
-      .eq('tournament_id', tournament.id)
-      .single()
+    const res = await fetch(`/api/admin/tournaments/${slug}/stats`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ total_group_stage_goals: goals }),
+    })
 
-    if (existing) {
-      await supabase
-        .from('tournament_stats')
-        .update({ total_group_stage_goals: goals })
-        .eq('id', existing.id)
-    } else {
-      await supabase
-        .from('tournament_stats')
-        .insert({ tournament_id: tournament.id, total_group_stage_goals: goals })
+    if (!res.ok) {
+      const data = await res.json()
+      setError(data.error || 'Failed to save total goals')
+      return
     }
 
     setSuccess('Total goals saved')

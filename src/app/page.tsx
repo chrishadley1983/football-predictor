@@ -8,29 +8,35 @@ export default async function HomePage() {
   const supabase = await createClient()
 
   // Fetch tournaments
-  const { data: tournaments } = await supabase
+  const { data: tournaments, error: tournamentsErr } = await supabase
     .from('tournaments')
     .select('*')
     .neq('status', 'draft')
     .order('year', { ascending: false })
 
+  if (tournamentsErr) console.error('Failed to fetch tournaments:', tournamentsErr.message)
+
   // Fetch honours
-  const { data: honours } = await supabase
+  const { data: honours, error: honoursErr } = await supabase
     .from('honours')
     .select(`
       *,
       tournament:tournaments (*),
-      player:players (*)
+      player:players (id, display_name, nickname, avatar_url)
     `)
     .order('id')
 
+  if (honoursErr) console.error('Failed to fetch honours:', honoursErr.message)
+
   // Fetch recent posts
-  const { data: posts } = await supabase
+  const { data: posts, error: postsErr } = await supabase
     .from('posts')
     .select('*, tournament:tournaments (name, slug)')
     .eq('is_published', true)
     .order('published_at', { ascending: false })
     .limit(3)
+
+  if (postsErr) console.error('Failed to fetch posts:', postsErr.message)
 
   const currentTournament = (tournaments as Tournament[] | null)?.find(
     (t) => t.status !== 'completed'

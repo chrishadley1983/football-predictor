@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { requireAdmin } from '@/lib/auth'
 
 // GET: List posts for tournament
@@ -48,10 +49,10 @@ export async function POST(
   try {
     await requireAdmin()
     const { slug } = await params
-    const supabase = await createClient()
+    const admin = createAdminClient()
 
     // Get tournament
-    const { data: tournament } = await supabase
+    const { data: tournament } = await admin
       .from('tournaments')
       .select('id')
       .eq('slug', slug)
@@ -70,7 +71,7 @@ export async function POST(
       )
     }
 
-    const { data: post, error } = await supabase
+    const { data: post, error } = await admin
       .from('posts')
       .insert({
         tournament_id: tournament.id,

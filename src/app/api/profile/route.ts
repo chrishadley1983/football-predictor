@@ -30,7 +30,20 @@ export async function PATCH(request: Request) {
     }
 
     if ('avatar_url' in body) {
-      updates.avatar_url = body.avatar_url ? String(body.avatar_url) : null
+      if (body.avatar_url) {
+        const avatarUrl = String(body.avatar_url)
+        try {
+          const parsed = new URL(avatarUrl)
+          if (parsed.protocol !== 'https:') {
+            return NextResponse.json({ error: 'avatar_url must use HTTPS' }, { status: 400 })
+          }
+        } catch {
+          return NextResponse.json({ error: 'avatar_url must be a valid URL' }, { status: 400 })
+        }
+        updates.avatar_url = avatarUrl
+      } else {
+        updates.avatar_url = null
+      }
     }
 
     if (Object.keys(updates).length === 0) {

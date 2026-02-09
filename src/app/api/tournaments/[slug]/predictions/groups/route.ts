@@ -125,6 +125,35 @@ export async function POST(
           { status: 400 }
         )
       }
+
+      // Validate no duplicate team IDs within a prediction
+      const teamIds = [pred.predicted_1st, pred.predicted_2nd, pred.predicted_3rd]
+      if (new Set(teamIds).size !== teamIds.length) {
+        return NextResponse.json(
+          { error: 'Each team can only be predicted once per group' },
+          { status: 400 }
+        )
+      }
+
+      // Validate all predicted teams belong to this group
+      const { data: groupTeams } = await supabase
+        .from('group_teams')
+        .select('team_id')
+        .eq('group_id', pred.group_id)
+
+      if (!groupTeams) {
+        return NextResponse.json({ error: 'Group not found' }, { status: 404 })
+      }
+
+      const validTeamIds = new Set(groupTeams.map((gt) => gt.team_id))
+      for (const teamId of teamIds) {
+        if (!validTeamIds.has(teamId)) {
+          return NextResponse.json(
+            { error: `Team ${teamId} does not belong to the specified group` },
+            { status: 400 }
+          )
+        }
+      }
     }
 
     // Upsert each group prediction
@@ -172,9 +201,16 @@ export async function POST(
 
     // Update tiebreaker if provided
     if (tiebreaker_goals !== undefined) {
+      const parsedGoals = Number(tiebreaker_goals)
+      if (!Number.isInteger(parsedGoals) || parsedGoals < 0 || parsedGoals > 999) {
+        return NextResponse.json(
+          { error: 'tiebreaker_goals must be a non-negative integer (0-999)' },
+          { status: 400 }
+        )
+      }
       await supabase
         .from('tournament_entries')
-        .update({ tiebreaker_goals })
+        .update({ tiebreaker_goals: parsedGoals })
         .eq('id', entry.id)
     }
 

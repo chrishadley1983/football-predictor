@@ -23,17 +23,10 @@ export async function POST(
       return NextResponse.json({ error: 'Tournament not found' }, { status: 404 })
     }
 
-    // Check tournament is accepting entries (must be in group_stage_open status)
-    if (tournament.status === 'draft') {
+    // Only allow entry during group_stage_open
+    if (tournament.status !== 'group_stage_open') {
       return NextResponse.json(
-        { error: 'Tournament is not yet open for entries' },
-        { status: 400 }
-      )
-    }
-
-    if (tournament.status === 'completed') {
-      return NextResponse.json(
-        { error: 'Tournament has already completed' },
+        { error: 'Tournament is not currently accepting entries' },
         { status: 400 }
       )
     }

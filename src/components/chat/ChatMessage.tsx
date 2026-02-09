@@ -75,6 +75,7 @@ export function ChatMessage({ message, isOwnMessage, onDelete }: ChatMessageProp
                     ? 'text-black/40 opacity-0 hover:text-black/70 group-hover:opacity-100'
                     : 'text-text-muted opacity-0 hover:text-foreground group-hover:opacity-100'
               )}
+              aria-label={confirming ? 'Confirm delete message' : 'Delete message'}
               title={confirming ? 'Click again to confirm' : 'Delete message'}
             >
               {deleting ? '...' : confirming ? 'Delete?' : '\u00D7'}

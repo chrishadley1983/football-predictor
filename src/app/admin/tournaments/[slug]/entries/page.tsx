@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Card } from '@/components/ui/Card'
 import { PaymentStatusBadge } from '@/components/ui/Badge'
@@ -15,15 +15,16 @@ interface EntryWithPlayer extends TournamentEntry {
 
 export default function EntriesPage() {
   const { slug } = useParams<{ slug: string }>()
+  const router = useRouter()
 
   useEffect(() => {
     const supabase = createClient()
     supabase.auth.getUser().then(({ data }) => {
       if (data.user?.app_metadata?.role !== 'admin') {
-        window.location.href = '/'
+        router.replace('/')
       }
     })
-  }, [])
+  }, [router])
 
   const [tournament, setTournament] = useState<Tournament | null>(null)
   const [entries, setEntries] = useState<EntryWithPlayer[]>([])

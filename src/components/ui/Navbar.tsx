@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import { PlayerAvatar } from '@/components/ui/PlayerAvatar'
@@ -10,6 +10,7 @@ import type { Player } from '@/lib/types'
 
 export function Navbar() {
   const pathname = usePathname()
+  const router = useRouter()
   const [player, setPlayer] = useState<Player | null>(null)
   const [isAdmin, setIsAdmin] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -50,7 +51,8 @@ export function Navbar() {
     await supabase.auth.signOut()
     setPlayer(null)
     setIsAdmin(false)
-    window.location.href = '/'
+    router.replace('/')
+    router.refresh()
   }
 
   // Extract tournament slug from path if we're on a tournament page
@@ -142,6 +144,7 @@ export function Navbar() {
           {/* Mobile menu button */}
           <button
             onClick={() => setMenuOpen(!menuOpen)}
+            aria-label={menuOpen ? 'Close menu' : 'Open menu'}
             className="inline-flex items-center justify-center rounded-md p-2 text-text-secondary hover:bg-surface-light md:hidden"
           >
             <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">

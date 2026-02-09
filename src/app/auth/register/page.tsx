@@ -66,7 +66,9 @@ export default function RegisterPage() {
     })
 
     if (playerError) {
-      setError(playerError.message)
+      // Clean up orphaned auth user to prevent inconsistent state
+      await supabase.auth.signOut()
+      setError(`Registration failed: ${playerError.message}. Please try again.`)
       setLoading(false)
       return
     }

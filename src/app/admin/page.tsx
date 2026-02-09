@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { TournamentStatusBadge } from '@/components/ui/Badge'
 import { Card } from '@/components/ui/Card'
 import SeedButton from './SeedButton'
+import { DeleteTournamentButton } from './DeleteTournamentButton'
 import type { Tournament } from '@/lib/types'
 
 export default async function AdminPage() {
@@ -87,6 +88,7 @@ export default async function AdminPage() {
                 >
                   View Public
                 </Link>
+                <DeleteTournamentButton slug={t.slug} name={t.name} />
               </div>
             </Card>
           ))}

@@ -12,17 +12,18 @@ export default async function PostPage({
   const { slug, 'post-slug': postSlug } = await params
   const supabase = await createClient()
 
-  const { data: tournament } = await supabase
+  const { data: tournament, error: tournamentErr } = await supabase
     .from('tournaments')
     .select('*')
     .eq('slug', slug)
     .single()
 
+  if (tournamentErr) console.error('Failed to fetch tournament:', tournamentErr.message)
   if (!tournament) notFound()
 
   const t = tournament as Tournament
 
-  const { data: post } = await supabase
+  const { data: post, error: postErr } = await supabase
     .from('posts')
     .select('*')
     .eq('tournament_id', t.id)
@@ -30,6 +31,7 @@ export default async function PostPage({
     .eq('is_published', true)
     .single()
 
+  if (postErr) console.error('Failed to fetch post:', postErr.message)
   if (!post) notFound()
 
   return (

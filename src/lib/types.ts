@@ -93,6 +93,21 @@ export interface KnockoutMatch {
   winner_team_id: string | null
   points_value: number
   sort_order: number
+  scheduled_at: string | null
+  venue: string | null
+}
+
+export interface GroupMatch {
+  id: string
+  group_id: string
+  home_team_id: string | null
+  away_team_id: string | null
+  match_number: number | null
+  scheduled_at: string | null
+  venue: string | null
+  home_score: number | null
+  away_score: number | null
+  sort_order: number
 }
 
 export interface Player {
@@ -206,6 +221,8 @@ export type GroupTeamInsert = Omit<GroupTeam, 'id'> & { id?: string }
 
 export type KnockoutMatchInsert = Omit<KnockoutMatch, 'id'> & { id?: string }
 
+export type GroupMatchInsert = Omit<GroupMatch, 'id'> & { id?: string }
+
 export type PlayerInsert = Omit<Player, 'id' | 'created_at'> & {
   id?: string
   created_at?: string
@@ -251,6 +268,7 @@ export type GroupUpdate = Partial<Omit<Group, 'id'>>
 export type TeamUpdate = Partial<Omit<Team, 'id'>>
 export type GroupTeamUpdate = Partial<Omit<GroupTeam, 'id'>>
 export type KnockoutMatchUpdate = Partial<Omit<KnockoutMatch, 'id'>>
+export type GroupMatchUpdate = Partial<Omit<GroupMatch, 'id'>>
 export type PlayerUpdate = Partial<Omit<Player, 'id'>>
 export type TournamentEntryUpdate = Partial<Omit<TournamentEntry, 'id' | 'total_points'>>
 export type GroupPredictionUpdate = Partial<Omit<GroupPrediction, 'id'>>
@@ -332,7 +350,7 @@ export interface LeaderboardEntry {
   tiebreaker_diff: number | null
   group_stage_rank: number | null
   overall_rank: number | null
-  payment_status: PaymentStatus
+  payment_status?: PaymentStatus
 }
 
 export interface PredictionSummary {
@@ -493,6 +511,66 @@ export interface Database {
           },
         ]
       }
+      group_matches: {
+        Row: {
+          id: string
+          group_id: string
+          home_team_id: string | null
+          away_team_id: string | null
+          match_number: number | null
+          scheduled_at: string | null
+          venue: string | null
+          home_score: number | null
+          away_score: number | null
+          sort_order: number
+        }
+        Insert: {
+          id?: string
+          group_id: string
+          home_team_id?: string | null
+          away_team_id?: string | null
+          match_number?: number | null
+          scheduled_at?: string | null
+          venue?: string | null
+          home_score?: number | null
+          away_score?: number | null
+          sort_order?: number
+        }
+        Update: {
+          group_id?: string
+          home_team_id?: string | null
+          away_team_id?: string | null
+          match_number?: number | null
+          scheduled_at?: string | null
+          venue?: string | null
+          home_score?: number | null
+          away_score?: number | null
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'group_matches_group_id_fkey'
+            columns: ['group_id']
+            isOneToOne: false
+            referencedRelation: 'groups'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'group_matches_home_team_id_fkey'
+            columns: ['home_team_id']
+            isOneToOne: false
+            referencedRelation: 'teams'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'group_matches_away_team_id_fkey'
+            columns: ['away_team_id']
+            isOneToOne: false
+            referencedRelation: 'teams'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       knockout_matches: {
         Row: {
           id: string
@@ -507,6 +585,8 @@ export interface Database {
           winner_team_id: string | null
           points_value: number
           sort_order: number
+          scheduled_at: string | null
+          venue: string | null
         }
         Insert: {
           id?: string
@@ -521,6 +601,8 @@ export interface Database {
           winner_team_id?: string | null
           points_value: number
           sort_order: number
+          scheduled_at?: string | null
+          venue?: string | null
         }
         Update: {
           tournament_id?: string
@@ -534,6 +616,8 @@ export interface Database {
           winner_team_id?: string | null
           points_value?: number
           sort_order?: number
+          scheduled_at?: string | null
+          venue?: string | null
         }
         Relationships: [
           {
@@ -1000,7 +1084,9 @@ export interface Database {
         ]
       }
     }
+    // eslint-disable-next-line @typescript-eslint/no-empty-object-type
     Views: {}
+    // eslint-disable-next-line @typescript-eslint/no-empty-object-type
     Functions: {}
   }
 }

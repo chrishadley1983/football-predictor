@@ -8,22 +8,25 @@ export default async function PostsPage({ params }: { params: Promise<{ slug: st
   const { slug } = await params
   const supabase = await createClient()
 
-  const { data: tournament } = await supabase
+  const { data: tournament, error: tournamentErr } = await supabase
     .from('tournaments')
     .select('*')
     .eq('slug', slug)
     .single()
 
+  if (tournamentErr) console.error('Failed to fetch tournament:', tournamentErr.message)
   if (!tournament) notFound()
 
   const t = tournament as Tournament
 
-  const { data: posts } = await supabase
+  const { data: posts, error: postsErr } = await supabase
     .from('posts')
     .select('*')
     .eq('tournament_id', t.id)
     .eq('is_published', true)
     .order('published_at', { ascending: false })
+
+  if (postsErr) console.error('Failed to fetch posts:', postsErr.message)
 
   return (
     <div className="space-y-6">
@@ -45,7 +48,7 @@ export default async function PostsPage({ params }: { params: Promise<{ slug: st
                 <span>{formatDate(post.published_at)}</span>
               </div>
               <p className="mt-2 line-clamp-2 text-sm text-text-secondary">
-                {post.content.slice(0, 200)}...
+                {post.content.length > 200 ? `${post.content.slice(0, 200)}...` : post.content}
               </p>
             </Link>
           ))}

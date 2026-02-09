@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { requireAdmin } from '@/lib/auth'
 import { calculateAllScores } from '@/lib/scoring'
 
@@ -11,7 +11,7 @@ export async function POST(
   try {
     await requireAdmin()
     const { slug } = await params
-    const supabase = await createClient()
+    const supabase = createAdminClient()
 
     // Get tournament
     const { data: tournament } = await supabase
