@@ -15,6 +15,7 @@ export default function EnterTournamentPage() {
   const [entering, setEntering] = useState(false)
   const [error, setError] = useState('')
   const [alreadyEntered, setAlreadyEntered] = useState(false)
+  const [hasPredictions, setHasPredictions] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -45,7 +46,15 @@ export default function EnterTournamentPage() {
             .eq('player_id', player.id)
             .single()
 
-          if (entry) setAlreadyEntered(true)
+          if (entry) {
+            setAlreadyEntered(true)
+            // Check if they have any group predictions
+            const { count } = await supabase
+              .from('group_predictions')
+              .select('id', { count: 'exact', head: true })
+              .eq('entry_id', entry.id)
+            if (count && count > 0) setHasPredictions(true)
+          }
         }
       }
 
@@ -118,14 +127,17 @@ export default function EnterTournamentPage() {
           {alreadyEntered ? (
             <div className="space-y-3">
               <div className="rounded-md bg-green-accent/10 p-3 text-center text-sm text-green-accent">
-                You are already entered in this tournament.
+                You are registered for this tournament.
+                {!hasPredictions && (
+                  <span className="mt-1 block text-yellow-accent">You haven&apos;t submitted any predictions yet.</span>
+                )}
               </div>
               <Button
                 onClick={() => router.push(`/tournament/${slug}/predict/groups`)}
                 className="w-full"
                 size="lg"
               >
-                Edit Group Predictions
+                {hasPredictions ? 'Edit Group Predictions' : 'Make Group Predictions'}
               </Button>
               <Button
                 onClick={() => router.push(`/tournament/${slug}/predict/knockout`)}
@@ -133,7 +145,7 @@ export default function EnterTournamentPage() {
                 className="w-full"
                 size="lg"
               >
-                Edit Knockout Predictions
+                {hasPredictions ? 'Edit Knockout Predictions' : 'Make Knockout Predictions'}
               </Button>
             </div>
           ) : (
