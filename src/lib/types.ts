@@ -54,6 +54,7 @@ export interface Tournament {
   group_stage_deadline: string | null
   knockout_stage_deadline: string | null
   status: TournamentStatus
+  third_place_qualifiers_count: number | null
   created_at: string
   updated_at: string
 }
@@ -390,6 +391,7 @@ export interface Database {
           group_stage_deadline: string | null
           knockout_stage_deadline: string | null
           status: TournamentStatus
+          third_place_qualifiers_count: number | null
           created_at: string
           updated_at: string
         }
@@ -406,6 +408,7 @@ export interface Database {
           group_stage_deadline?: string | null
           knockout_stage_deadline?: string | null
           status?: TournamentStatus
+          third_place_qualifiers_count?: number | null
           created_at?: string
           updated_at?: string
         }
@@ -421,6 +424,7 @@ export interface Database {
           group_stage_deadline?: string | null
           knockout_stage_deadline?: string | null
           status?: TournamentStatus
+          third_place_qualifiers_count?: number | null
           created_at?: string
           updated_at?: string
         }

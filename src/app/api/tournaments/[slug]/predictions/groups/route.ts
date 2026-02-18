@@ -117,9 +117,19 @@ export async function POST(
       return NextResponse.json({ error: 'predictions must be an array' }, { status: 400 })
     }
 
+    const hasThirdPlaceFeature = !!(tournament as Record<string, unknown>).third_place_qualifiers_count
+
     // Validate all predictions have required fields
     for (const pred of predictions) {
-      if (!pred.group_id || !pred.predicted_1st || !pred.predicted_2nd || !pred.predicted_3rd) {
+      if (!pred.group_id || !pred.predicted_1st || !pred.predicted_2nd) {
+        return NextResponse.json(
+          { error: '1st and 2nd positions are required for each group' },
+          { status: 400 }
+        )
+      }
+
+      // For standard tournaments, 3rd is always required
+      if (!hasThirdPlaceFeature && !pred.predicted_3rd) {
         return NextResponse.json(
           { error: 'All three positions (1st, 2nd, 3rd) are required for each group' },
           { status: 400 }
@@ -127,7 +137,7 @@ export async function POST(
       }
 
       // Validate no duplicate team IDs within a prediction
-      const teamIds = [pred.predicted_1st, pred.predicted_2nd, pred.predicted_3rd]
+      const teamIds = [pred.predicted_1st, pred.predicted_2nd, pred.predicted_3rd].filter(Boolean)
       if (new Set(teamIds).size !== teamIds.length) {
         return NextResponse.json(
           { error: 'Each team can only be predicted once per group' },
@@ -173,7 +183,7 @@ export async function POST(
           .update({
             predicted_1st: pred.predicted_1st,
             predicted_2nd: pred.predicted_2nd,
-            predicted_3rd: pred.predicted_3rd,
+            predicted_3rd: pred.predicted_3rd ?? null,
           })
           .eq('id', existing.id)
 
@@ -189,7 +199,7 @@ export async function POST(
             group_id: pred.group_id,
             predicted_1st: pred.predicted_1st,
             predicted_2nd: pred.predicted_2nd,
-            predicted_3rd: pred.predicted_3rd,
+            predicted_3rd: pred.predicted_3rd ?? null,
             points_earned: 0,
           })
 

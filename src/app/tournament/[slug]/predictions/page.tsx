@@ -115,6 +115,7 @@ export default async function PredictionsPage({ params }: { params: Promise<{ sl
         predictions={predictions}
         groups={(groups as GroupWithTeams[]) ?? []}
         results={(groupResults as GroupResult[]) ?? []}
+        thirdPlaceQualifiersCount={(tournament as Record<string, unknown>).third_place_qualifiers_count as number | null}
       />
     </div>
   )

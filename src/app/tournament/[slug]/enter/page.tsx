@@ -116,8 +116,25 @@ export default function EnterTournamentPage() {
           </div>
 
           {alreadyEntered ? (
-            <div className="rounded-md bg-green-accent/10 p-3 text-center text-sm text-green-accent">
-              You are already entered in this tournament.
+            <div className="space-y-3">
+              <div className="rounded-md bg-green-accent/10 p-3 text-center text-sm text-green-accent">
+                You are already entered in this tournament.
+              </div>
+              <Button
+                onClick={() => router.push(`/tournament/${slug}/predict/groups`)}
+                className="w-full"
+                size="lg"
+              >
+                Edit Group Predictions
+              </Button>
+              <Button
+                onClick={() => router.push(`/tournament/${slug}/predict/knockout`)}
+                variant="secondary"
+                className="w-full"
+                size="lg"
+              >
+                Edit Knockout Predictions
+              </Button>
             </div>
           ) : (
             <Button onClick={handleEnter} loading={entering} className="w-full" size="lg">

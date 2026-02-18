@@ -12,9 +12,13 @@ interface GroupPredictionCardProps {
   onPredict: (predicted_1st: string, predicted_2nd: string, predicted_3rd: string | null) => void
   readonly?: boolean
   results?: GroupResult[]
+  thirdPlaceQualifies?: boolean
+  onThirdPlaceToggle?: (checked: boolean) => void
+  canToggleThirdPlace?: boolean
 }
 
-export function GroupPredictionCard({ group, prediction, onPredict, readonly, results }: GroupPredictionCardProps) {
+export function GroupPredictionCard({ group, prediction, onPredict, readonly, results, thirdPlaceQualifies, onThirdPlaceToggle, canToggleThirdPlace }: GroupPredictionCardProps) {
+  const hasThirdPlaceFeature = thirdPlaceQualifies !== undefined
   const teams = group.group_teams.map((gt) => gt.team)
 
   const [first, setFirst] = useState(prediction?.predicted_1st ?? '')
@@ -56,7 +60,9 @@ export function GroupPredictionCard({ group, prediction, onPredict, readonly, re
     return 'ring-2 ring-red-accent' // did not qualify
   }
 
-  const hasAllRequired = first && second && third
+  const hasAllRequired = hasThirdPlaceFeature
+    ? first && second && (thirdPlaceQualifies ? !!third : true)
+    : first && second && third
   const changed =
     first !== (prediction?.predicted_1st ?? '') ||
     second !== (prediction?.predicted_2nd ?? '') ||
@@ -104,15 +110,33 @@ export function GroupPredictionCard({ group, prediction, onPredict, readonly, re
           />
         </div>
 
+        {hasThirdPlaceFeature && (
+          <label className="flex items-center gap-2 rounded bg-surface-light px-3 py-2 text-xs">
+            <input
+              type="checkbox"
+              checked={thirdPlaceQualifies}
+              onChange={(e) => {
+                if (onThirdPlaceToggle) {
+                  onThirdPlaceToggle(e.target.checked)
+                  if (!e.target.checked) setThird('')
+                }
+              }}
+              disabled={readonly || (!thirdPlaceQualifies && !canToggleThirdPlace)}
+              className="h-4 w-4 rounded border-border-custom accent-green-accent"
+            />
+            <span className="text-text-secondary">3rd place qualifies for knockouts</span>
+          </label>
+        )}
+
         <div className={getStatusColor(third, 3)}>
           <Select
             label="3rd Place"
             id={`${group.id}-3rd`}
-            placeholder="Select team..."
+            placeholder={hasThirdPlaceFeature && !thirdPlaceQualifies ? 'Not qualifying...' : 'Select team...'}
             value={third}
             onChange={(e) => setThird(e.target.value)}
             options={getAvailableOptions([first, second].filter(Boolean))}
-            disabled={readonly}
+            disabled={readonly || (hasThirdPlaceFeature && !thirdPlaceQualifies)}
           />
         </div>
 
@@ -120,7 +144,7 @@ export function GroupPredictionCard({ group, prediction, onPredict, readonly, re
           <Button
             size="sm"
             disabled={!hasAllRequired || !changed}
-            onClick={() => onPredict(first, second, third || null)}
+            onClick={() => onPredict(first, second, (hasThirdPlaceFeature && !thirdPlaceQualifies) ? null : (third || null))}
             className="w-full"
           >
             {prediction ? 'Update Prediction' : 'Save Prediction'}

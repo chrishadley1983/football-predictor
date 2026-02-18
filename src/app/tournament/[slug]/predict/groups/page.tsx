@@ -21,6 +21,7 @@ export default function GroupPredictionPage() {
   const [predictions, setPredictions] = useState<GroupPrediction[]>([])
   const [results, setResults] = useState<GroupResult[]>([])
   const [tiebreaker, setTiebreaker] = useState('')
+  const [thirdPlaceSelections, setThirdPlaceSelections] = useState<Record<string, boolean>>({})
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -81,7 +82,17 @@ export default function GroupPredictionPage() {
         .select('*')
         .eq('entry_id', entryData.id)
 
-      if (preds) setPredictions(preds)
+      if (preds) {
+        setPredictions(preds)
+        // Initialize third place selections from existing predictions
+        if (data.third_place_qualifiers_count) {
+          const selections: Record<string, boolean> = {}
+          for (const p of preds) {
+            selections[p.group_id] = p.predicted_3rd !== null
+          }
+          setThirdPlaceSelections(selections)
+        }
+      }
 
       // Fetch group results if available
       const groupIds = data.groups?.map((g: GroupWithTeams) => g.id) ?? []
@@ -192,6 +203,9 @@ export default function GroupPredictionPage() {
   if (error && !tournament) return <p className="py-12 text-center text-red-accent">{error}</p>
 
   const groups = tournament?.groups ?? []
+  const thirdPlaceCount = tournament?.third_place_qualifiers_count ?? null
+  const selectedCount = Object.values(thirdPlaceSelections).filter(Boolean).length
+  const limitReached = thirdPlaceCount !== null && selectedCount >= thirdPlaceCount
 
   return (
     <div className="space-y-6">
@@ -217,6 +231,13 @@ export default function GroupPredictionPage() {
         <div className="rounded-md bg-green-accent/10 p-3 text-sm text-green-accent">{successMsg}</div>
       )}
 
+      {thirdPlaceCount !== null && (
+        <div className={`rounded-md p-3 text-sm font-medium ${limitReached ? 'bg-green-accent/10 text-green-accent' : 'bg-yellow-accent/10 text-yellow-accent'}`}>
+          3rd place qualifiers selected: {selectedCount} / {thirdPlaceCount}
+          {!limitReached && ` — select ${thirdPlaceCount - selectedCount} more`}
+        </div>
+      )}
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {groups.map((group) => (
           <GroupPredictionCard
@@ -226,6 +247,13 @@ export default function GroupPredictionPage() {
             onPredict={(first, second, third) => handlePrediction(group.id, first, second, third)}
             readonly={isReadonly}
             results={results.filter((r) => r.group_id === group.id)}
+            {...(thirdPlaceCount !== null ? {
+              thirdPlaceQualifies: !!thirdPlaceSelections[group.id],
+              onThirdPlaceToggle: (checked: boolean) => {
+                setThirdPlaceSelections((prev) => ({ ...prev, [group.id]: checked }))
+              },
+              canToggleThirdPlace: !limitReached,
+            } : {})}
           />
         ))}
       </div>

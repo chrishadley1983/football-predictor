@@ -8,9 +8,11 @@ interface PredictionGridProps {
   predictions: PredictionSummary[]
   groups: GroupWithTeams[]
   results?: GroupResult[]
+  thirdPlaceQualifiersCount?: number | null
 }
 
-export function PredictionGrid({ predictions, groups, results = [] }: PredictionGridProps) {
+export function PredictionGrid({ predictions, groups, results = [], thirdPlaceQualifiersCount }: PredictionGridProps) {
+  const hasThirdPlaceFeature = !!thirdPlaceQualifiersCount
   // Build result lookup: team_id -> { qualified, final_position }
   const resultMap = new Map<string, { qualified: boolean; final_position: number }>()
   for (const r of results) {
@@ -91,12 +93,16 @@ export function PredictionGrid({ predictions, groups, results = [] }: Prediction
                     : pos === 2
                     ? gp?.predicted_2nd
                     : gp?.predicted_3rd
+                  const isNullThird = pos === 3 && hasThirdPlaceFeature && !teamId
                   return (
                     <td
                       key={`${p.entry_id}-${group.id}-${pos}`}
-                      className={cn('px-2 py-1 text-center font-mono', getCellColor(teamId ?? null, pos))}
+                      className={cn(
+                        'px-2 py-1 text-center font-mono',
+                        isNullThird ? 'bg-surface-light/50 text-text-muted' : getCellColor(teamId ?? null, pos)
+                      )}
                     >
-                      {getTeamCode(teamId ?? null)}
+                      {isNullThird ? '-' : getTeamCode(teamId ?? null)}
                     </td>
                   )
                 })}

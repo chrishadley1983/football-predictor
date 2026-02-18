@@ -70,8 +70,12 @@ export default function ResultsPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug])
 
-  async function handleSetGroupResult(groupId: string, teamId: string, position: number) {
+  const thirdPlaceCount = tournament?.third_place_qualifiers_count ?? null
+
+  async function handleSetGroupResult(groupId: string, teamId: string, position: number, qualifiedOverride?: boolean) {
     setError('')
+    // For tournaments with 3rd place qualifiers, position 3 qualification is manually toggled
+    const qualified = qualifiedOverride !== undefined ? qualifiedOverride : position <= 2
     const res = await fetch(`/api/admin/tournaments/${slug}/game-result`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -80,7 +84,7 @@ export default function ResultsPage() {
         group_id: groupId,
         team_id: teamId,
         final_position: position,
-        qualified: position <= 2,
+        qualified,
       }),
     })
     if (!res.ok) {
@@ -272,6 +276,17 @@ export default function ResultsPage() {
                           <option value="3">3rd</option>
                           <option value="4">4th</option>
                         </select>
+                        {result && result.final_position === 3 && thirdPlaceCount !== null && (
+                          <label className="flex items-center gap-1 text-xs">
+                            <input
+                              type="checkbox"
+                              checked={result.qualified}
+                              onChange={(e) => handleSetGroupResult(group.id, gt.team.id, 3, e.target.checked)}
+                              className="h-3 w-3 accent-green-accent"
+                            />
+                            <span className="text-text-muted">Qual?</span>
+                          </label>
+                        )}
                         {result && (
                           <span className={`text-xs font-medium ${result.qualified ? 'text-green-accent' : 'text-text-muted'}`}>
                             {result.qualified ? 'Qualified' : 'Eliminated'}

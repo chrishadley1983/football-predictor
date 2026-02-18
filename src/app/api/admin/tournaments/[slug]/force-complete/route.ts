@@ -38,7 +38,8 @@ export async function POST(
           { status: 400 }
         )
       }
-      return forceCompleteGroupStage(admin, tournament.id, slug)
+      const thirdPlaceCount = (tournament as Record<string, unknown>).third_place_qualifiers_count as number | null
+      return forceCompleteGroupStage(admin, tournament.id, slug, thirdPlaceCount)
     } else if (body.phase === 'knockout_round') {
       if (!body.round) {
         return NextResponse.json({ error: 'round is required for knockout_round phase' }, { status: 400 })
@@ -63,7 +64,8 @@ export async function POST(
 async function forceCompleteGroupStage(
   admin: ReturnType<typeof createAdminClient>,
   tournamentId: string,
-  slug: string
+  slug: string,
+  thirdPlaceQualifiersCount: number | null = null
 ) {
   // Get all groups with their teams
   const { data: groups } = await admin
@@ -79,6 +81,18 @@ async function forceCompleteGroupStage(
 
   if (!groups || groups.length === 0) {
     return NextResponse.json({ error: 'No groups found' }, { status: 400 })
+  }
+
+  // If tournament has third_place_qualifiers_count, randomly select which groups' 3rd place qualifies
+  let thirdPlaceQualifyingGroups: Set<string> = new Set()
+  if (thirdPlaceQualifiersCount && thirdPlaceQualifiersCount > 0) {
+    const groupIds = groups.map((g) => g.id)
+    const shuffledGroups = [...groupIds]
+    for (let i = shuffledGroups.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffledGroups[i], shuffledGroups[j]] = [shuffledGroups[j], shuffledGroups[i]]
+    }
+    thirdPlaceQualifyingGroups = new Set(shuffledGroups.slice(0, thirdPlaceQualifiersCount))
   }
 
   // For each group, randomly assign positions and mark top 2 as qualified
@@ -108,7 +122,7 @@ async function forceCompleteGroupStage(
       group_id: group.id,
       team_id: teamId,
       final_position: index + 1,
-      qualified: index < 2, // Top 2 qualify
+      qualified: index < 2 || (index === 2 && thirdPlaceQualifyingGroups.has(group.id)),
     }))
 
     const { error } = await admin.from('group_results').insert(results)
@@ -197,8 +211,8 @@ function resolveGroupSource(
   source: string,
   groupResults: Record<string, Record<number, string>>
 ): string | null {
-  // Source format: "1A" means 1st place of Group A, "2B" means 2nd place of Group B
-  const match = source.match(/^(\d+)([A-H])$/)
+  // Source format: "1A" means 1st place of Group A, "2B" means 2nd place of Group B, "3C" means 3rd of Group C
+  const match = source.match(/^(\d+)([A-L])$/)
   if (!match) return null
 
   const position = parseInt(match[1], 10)
