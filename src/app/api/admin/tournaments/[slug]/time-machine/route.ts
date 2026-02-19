@@ -227,7 +227,7 @@ async function seedEntries(
       const { data: newPlayer, error } = await admin
         .from('players')
         .insert({
-          auth_user_id: crypto.randomUUID(),
+          auth_user_id: null,
           display_name: testPlayer.display_name,
           nickname: testPlayer.nickname,
           email: testPlayer.email,

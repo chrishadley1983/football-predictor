@@ -58,7 +58,7 @@ export async function POST(
         const { data: newPlayer, error: playerErr } = await admin
           .from('players')
           .insert({
-            auth_user_id: crypto.randomUUID(),
+            auth_user_id: null,
             display_name: testPlayer.display_name,
             nickname: testPlayer.nickname,
             email: testPlayer.email,
