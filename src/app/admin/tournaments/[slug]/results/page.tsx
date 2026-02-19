@@ -14,6 +14,7 @@ interface TournamentData extends Tournament {
 }
 
 const KNOCKOUT_ROUNDS: { key: KnockoutRound; label: string }[] = [
+  { key: 'round_of_32', label: 'Round of 32' },
   { key: 'round_of_16', label: 'Round of 16' },
   { key: 'quarter_final', label: 'Quarter Finals' },
   { key: 'semi_final', label: 'Semi Finals' },
