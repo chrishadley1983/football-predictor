@@ -71,6 +71,12 @@ export default async function AdminPage() {
                   Results & Simulate
                 </Link>
                 <Link
+                  href={`/admin/tournaments/${t.slug}/testing`}
+                  className="rounded bg-purple-500/20 px-3 py-1 text-xs font-medium text-purple-400 hover:bg-purple-500/30"
+                >
+                  Testing
+                </Link>
+                <Link
                   href={`/admin/tournaments/${t.slug}/entries`}
                   className="rounded bg-surface-light px-3 py-1 text-xs font-medium text-text-secondary hover:bg-border-custom"
                 >

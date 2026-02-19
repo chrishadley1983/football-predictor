@@ -244,6 +244,12 @@ export default function ManageTournamentPage() {
           >
             Results & Simulate
           </a>
+          <a
+            href={`/admin/tournaments/${slug}/testing`}
+            className="rounded-md bg-purple-500/20 px-4 py-2 text-sm font-medium text-purple-400 hover:bg-purple-500/30"
+          >
+            Testing
+          </a>
         </div>
       </div>
 
