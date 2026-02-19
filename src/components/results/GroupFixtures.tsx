@@ -16,11 +16,13 @@ export function GroupFixtures({ groupName, matches }: GroupFixturesProps) {
             key={match.id}
             className="flex items-center gap-3 rounded bg-surface-light px-3 py-2 text-sm"
           >
-            {/* Date & Venue */}
-            <div className="hidden w-28 shrink-0 text-xs text-text-muted sm:block">
-              <div>{match.scheduled_at ? formatDate(match.scheduled_at, { day: 'numeric', month: 'short', year: undefined }) : 'TBC'}</div>
-              {match.venue && <div className="truncate">{match.venue}</div>}
-            </div>
+            {/* Date & Venue — only shown when data exists */}
+            {(match.scheduled_at || match.venue) && (
+              <div className="hidden w-28 shrink-0 text-xs text-text-muted sm:block">
+                {match.scheduled_at && <div>{formatDate(match.scheduled_at, { day: 'numeric', month: 'short', year: undefined })}</div>}
+                {match.venue && <div className="truncate">{match.venue}</div>}
+              </div>
+            )}
 
             {/* Home team */}
             <div className="flex flex-1 items-center justify-end gap-1.5">

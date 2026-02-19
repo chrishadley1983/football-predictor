@@ -92,7 +92,10 @@ export async function POST(
       .upsert({ tournament_id: tournamentId, total_group_stage_goals: totalGoals }, { onConflict: 'tournament_id' })
     log.push(`Total goals: ${totalGoals}`)
 
-    await admin.from('tournaments').update({ status: 'knockout_closed' }).eq('id', tournamentId)
+    // Set status based on target phase: knockout_open if staying at group stage,
+    // knockout_closed once we start completing knockout rounds
+    const postGroupStatus = targetPhaseIndex === 0 ? 'knockout_open' : 'knockout_closed'
+    await admin.from('tournaments').update({ status: postGroupStatus }).eq('id', tournamentId)
 
     // Seed knockout predictions for matches with populated teams
     await seedKnockoutPredictions(admin, tournamentId)

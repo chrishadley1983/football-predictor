@@ -113,32 +113,34 @@ export function KnockoutBracket({ matches, predictions = [], onPrediction, reado
 
   // Desktop: bracket view with left -> final <- right
   const desktopView = (
-    <div className="hidden items-center justify-center gap-6 overflow-x-auto md:flex">
-      {/* Left side */}
-      <div className="flex items-center gap-6">
-        {leftRounds.map((r) => (
-          <div key={r.round}>{renderRound(r.matches)}</div>
-        ))}
-      </div>
-
-      {/* Final */}
-      {finalMatch && (
-        <div className="flex flex-col items-center">
-          <div className="mb-2 text-sm font-bold text-gold">Final</div>
-          <BracketMatch
-            match={finalMatch}
-            prediction={predictionMap[finalMatch.id]}
-            onSelectWinner={onPrediction}
-            readonly={readonly}
-          />
+    <div className="hidden overflow-x-auto pb-2 md:block">
+      <div className="mx-auto flex w-max items-center gap-6 px-4">
+        {/* Left side */}
+        <div className="flex items-center gap-6">
+          {leftRounds.map((r) => (
+            <div key={r.round}>{renderRound(r.matches)}</div>
+          ))}
         </div>
-      )}
 
-      {/* Right side (reversed round order to mirror bracket) */}
-      <div className="flex items-center gap-6">
-        {[...rightRounds].reverse().map((r) => (
-          <div key={r.round}>{renderRound(r.matches)}</div>
-        ))}
+        {/* Final */}
+        {finalMatch && (
+          <div className="flex flex-col items-center">
+            <div className="mb-2 text-sm font-bold text-gold">Final</div>
+            <BracketMatch
+              match={finalMatch}
+              prediction={predictionMap[finalMatch.id]}
+              onSelectWinner={onPrediction}
+              readonly={readonly}
+            />
+          </div>
+        )}
+
+        {/* Right side (reversed round order to mirror bracket) */}
+        <div className="flex items-center gap-6">
+          {[...rightRounds].reverse().map((r) => (
+            <div key={r.round}>{renderRound(r.matches)}</div>
+          ))}
+        </div>
       </div>
     </div>
   )
