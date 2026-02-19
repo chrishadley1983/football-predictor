@@ -82,10 +82,10 @@ export default async function ResultsPage({ params }: { params: Promise<{ slug: 
   const hasKnockoutTeams = knockoutMatches.some((m) => m.home_team_id || m.away_team_id)
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div>
         <h1 className="font-heading text-2xl font-bold text-foreground">{t.name} — Results</h1>
-        <p className="mt-1 text-sm text-text-secondary">
+        <p className="text-sm text-text-secondary">
           Tournament standings, fixtures, and bracket results
         </p>
       </div>
@@ -93,8 +93,8 @@ export default async function ResultsPage({ params }: { params: Promise<{ slug: 
       {/* Group Standings */}
       {hasGroupResults && (
         <section>
-          <h2 className="mb-4 font-heading text-lg font-semibold text-foreground">Group Standings</h2>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <h2 className="mb-3 border-b border-border-custom pb-2 font-heading text-lg font-semibold text-gold">Group Standings</h2>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {groups.map((group) => (
               <GroupResultsCard
                 key={group.id}
@@ -109,8 +109,8 @@ export default async function ResultsPage({ params }: { params: Promise<{ slug: 
       {/* Group Fixtures */}
       {hasGroupMatches && (
         <section>
-          <h2 className="mb-4 font-heading text-lg font-semibold text-foreground">Group Fixtures</h2>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <h2 className="mb-3 border-b border-border-custom pb-2 font-heading text-lg font-semibold text-gold">Group Fixtures</h2>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {groups.map((group) => {
               const matches = matchesByGroup.get(group.id) ?? []
               if (matches.length === 0) return null
@@ -128,8 +128,8 @@ export default async function ResultsPage({ params }: { params: Promise<{ slug: 
 
       {/* Knockout Bracket */}
       {hasKnockoutTeams && (
-        <section>
-          <h2 className="mb-4 font-heading text-lg font-semibold text-foreground">Knockout Bracket</h2>
+        <section className="pb-8">
+          <h2 className="mb-3 border-b border-border-custom pb-2 font-heading text-lg font-semibold text-gold">Knockout Bracket</h2>
           <KnockoutBracket matches={knockoutMatches} readonly />
         </section>
       )}

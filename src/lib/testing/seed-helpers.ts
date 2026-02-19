@@ -218,13 +218,13 @@ export async function forceCompleteGroupStageLogic(
 }
 
 /**
- * Generate random scores for group matches. Higher-positioned teams
- * (lower final_position) get a slight scoring bias so scores roughly
- * align with the group standings.
+ * Generate group match fixtures (round-robin) and random scores.
+ * Creates group_matches rows if they don't exist, then populates scores.
+ * Higher-positioned teams (lower final_position) get a slight scoring bias.
  */
 async function generateGroupMatchScores(
   admin: AdminClient,
-  groups: { id: string; name: string }[]
+  groups: { id: string; name: string; group_teams: { team_id: string }[] }[]
 ): Promise<void> {
   for (const group of groups) {
     // Get group results to know team positions
@@ -240,7 +240,36 @@ async function generateGroupMatchScores(
       }
     }
 
-    // Get group matches
+    // Check if group matches already exist
+    const { data: existing } = await admin
+      .from('group_matches')
+      .select('id')
+      .eq('group_id', group.id)
+      .limit(1)
+
+    // Create round-robin fixtures if none exist
+    if (!existing || existing.length === 0) {
+      const teamIds = group.group_teams.map((gt) => gt.team_id)
+      const fixtures: { group_id: string; home_team_id: string; away_team_id: string; match_number: number; sort_order: number }[] = []
+      let matchNum = 1
+      for (let i = 0; i < teamIds.length; i++) {
+        for (let j = i + 1; j < teamIds.length; j++) {
+          fixtures.push({
+            group_id: group.id,
+            home_team_id: teamIds[i],
+            away_team_id: teamIds[j],
+            match_number: matchNum,
+            sort_order: matchNum,
+          })
+          matchNum++
+        }
+      }
+      if (fixtures.length > 0) {
+        await admin.from('group_matches').insert(fixtures)
+      }
+    }
+
+    // Fetch all matches (including newly created ones) and set scores
     const { data: matches } = await admin
       .from('group_matches')
       .select('id, home_team_id, away_team_id')
