@@ -87,6 +87,9 @@ export function Navbar() {
                 <Link href={`/tournament/${tournamentSlug}`} className={linkClass(pathname === `/tournament/${tournamentSlug}`)}>
                   Overview
                 </Link>
+                <Link href={`/tournament/${tournamentSlug}/results`} className={linkClass(pathname.includes('/results'))}>
+                  Results
+                </Link>
                 <Link href={`/tournament/${tournamentSlug}/leaderboard`} className={linkClass(pathname.includes('/leaderboard'))}>
                   Leaderboard
                 </Link>
@@ -170,6 +173,9 @@ export function Navbar() {
               <>
                 <Link href={`/tournament/${tournamentSlug}`} className={mobileLinkClass} onClick={() => setMenuOpen(false)}>
                   Overview
+                </Link>
+                <Link href={`/tournament/${tournamentSlug}/results`} className={mobileLinkClass} onClick={() => setMenuOpen(false)}>
+                  Results
                 </Link>
                 <Link href={`/tournament/${tournamentSlug}/leaderboard`} className={mobileLinkClass} onClick={() => setMenuOpen(false)}>
                   Leaderboard

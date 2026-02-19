@@ -297,6 +297,11 @@ export interface TournamentWithConfig extends Tournament {
   knockout_round_config: KnockoutRoundConfig[]
 }
 
+export interface GroupMatchWithTeams extends GroupMatch {
+  home_team: Team | null
+  away_team: Team | null
+}
+
 export interface KnockoutMatchWithTeams extends KnockoutMatch {
   home_team: Team | null
   away_team: Team | null

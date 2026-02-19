@@ -201,6 +201,9 @@ export async function forceCompleteGroupStageLogic(
     }
   }
 
+  // Generate group match scores
+  await generateGroupMatchScores(admin, groups)
+
   // Build result lookup for bracket population
   const groupResultsByLetter = await buildGroupResultsLookup(admin, groups)
 
@@ -211,6 +214,58 @@ export async function forceCompleteGroupStageLogic(
     success: true,
     thirdPlaceQualifyingGroups,
     groupResults: groupResultsByLetter,
+  }
+}
+
+/**
+ * Generate random scores for group matches. Higher-positioned teams
+ * (lower final_position) get a slight scoring bias so scores roughly
+ * align with the group standings.
+ */
+async function generateGroupMatchScores(
+  admin: AdminClient,
+  groups: { id: string; name: string }[]
+): Promise<void> {
+  for (const group of groups) {
+    // Get group results to know team positions
+    const { data: results } = await admin
+      .from('group_results')
+      .select('team_id, final_position')
+      .eq('group_id', group.id)
+
+    const positionMap = new Map<string, number>()
+    if (results) {
+      for (const r of results) {
+        positionMap.set(r.team_id, r.final_position)
+      }
+    }
+
+    // Get group matches
+    const { data: matches } = await admin
+      .from('group_matches')
+      .select('id, home_team_id, away_team_id')
+      .eq('group_id', group.id)
+
+    if (!matches) continue
+
+    for (const match of matches) {
+      if (!match.home_team_id || !match.away_team_id) continue
+
+      const homePos = positionMap.get(match.home_team_id) ?? 3
+      const awayPos = positionMap.get(match.away_team_id) ?? 3
+
+      // Better-positioned team (lower number) gets a higher max score
+      const homeMax = homePos <= awayPos ? 3 : 2
+      const awayMax = awayPos <= homePos ? 3 : 2
+
+      const homeScore = Math.floor(Math.random() * (homeMax + 1))
+      const awayScore = Math.floor(Math.random() * (awayMax + 1))
+
+      await admin
+        .from('group_matches')
+        .update({ home_score: homeScore, away_score: awayScore })
+        .eq('id', match.id)
+    }
   }
 }
 

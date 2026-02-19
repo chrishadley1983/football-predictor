@@ -139,6 +139,15 @@ export default async function TournamentPage({ params }: { params: Promise<{ slu
           </Link>
         )}
 
+        <Link href={`/tournament/${slug}/results`}>
+          <Card className="transition-all hover:border-gold/30">
+            <div className="text-center">
+              <h3 className="font-semibold text-foreground">Results</h3>
+              <p className="mt-1 text-sm text-text-secondary">Standings, fixtures & bracket</p>
+            </div>
+          </Card>
+        </Link>
+
         <Link href={`/tournament/${slug}/leaderboard`}>
           <Card className="transition-all hover:border-gold/30">
             <div className="text-center">
