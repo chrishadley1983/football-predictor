@@ -62,8 +62,9 @@ function shuffle<T>(arr: T[]): T[] {
  */
 export function generateGroupPrediction(
   teamIds: string[],
-  archetype: Archetype
-): { predicted_1st: string; predicted_2nd: string; predicted_3rd: string } {
+  archetype: Archetype,
+  includeThird: boolean = true
+): { predicted_1st: string; predicted_2nd: string; predicted_3rd: string | null } {
   const accuracy = archetype === 'expert' ? 0.7 : archetype === 'average' ? 0.5 : 0.3
 
   // Start with seeded order
@@ -81,7 +82,7 @@ export function generateGroupPrediction(
   return {
     predicted_1st: pick(0),
     predicted_2nd: pick(0),
-    predicted_3rd: pick(0),
+    predicted_3rd: includeThird ? pick(0) : null,
   }
 }
 

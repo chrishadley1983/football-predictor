@@ -94,6 +94,9 @@ export function PredictionGrid({ predictions, groups, results = [], thirdPlaceQu
                     ? gp?.predicted_2nd
                     : gp?.predicted_3rd
                   const isNullThird = pos === 3 && hasThirdPlaceFeature && !teamId
+                  const result = teamId ? resultMap.get(teamId) : undefined
+                  const isCorrectPosButNQ = pos === 3 && !!teamId && !!result
+                    && result.final_position === 3 && !result.qualified
                   return (
                     <td
                       key={`${p.entry_id}-${group.id}-${pos}`}
@@ -102,7 +105,12 @@ export function PredictionGrid({ predictions, groups, results = [], thirdPlaceQu
                         isNullThird ? 'bg-surface-light/50 text-text-muted' : getCellColor(teamId ?? null, pos)
                       )}
                     >
-                      {isNullThird ? '-' : getTeamCode(teamId ?? null)}
+                      {isNullThird ? '-' : (
+                        <>
+                          {getTeamCode(teamId ?? null)}
+                          {isCorrectPosButNQ && <span className="ml-0.5 text-[9px] opacity-70">NQ</span>}
+                        </>
+                      )}
                     </td>
                   )
                 })}

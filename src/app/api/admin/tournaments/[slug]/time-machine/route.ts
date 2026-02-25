@@ -199,10 +199,27 @@ async function resetTestData(
   return { entries_deleted: entryIds.length }
 }
 
+function shuffle<T>(arr: T[]): T[] {
+  const a = [...arr]
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
+}
+
 async function seedEntries(
   admin: ReturnType<typeof createAdminClient>,
   tournamentId: string
 ) {
+  const { data: tournament } = await admin
+    .from('tournaments')
+    .select('third_place_qualifiers_count')
+    .eq('id', tournamentId)
+    .single()
+
+  const thirdPlaceCount = tournament?.third_place_qualifiers_count ?? null
+
   const { data: groups } = await admin
     .from('groups')
     .select(`id, name, group_teams ( team_id, seed_position )`)
@@ -273,6 +290,11 @@ async function seedEntries(
       entriesCreated++
     }
 
+    // Each player randomly picks which groups to predict 3rd place for
+    const thirdPlaceGroupIds = thirdPlaceCount
+      ? new Set(shuffle(groups.map((g) => g.id)).slice(0, thirdPlaceCount))
+      : null // null = all groups get 3rd (standard tournament)
+
     for (const group of groups) {
       const { data: existingPred } = await admin
         .from('group_predictions')
@@ -287,7 +309,8 @@ async function seedEntries(
         .sort((a, b) => (a.seed_position ?? 99) - (b.seed_position ?? 99))
         .map((gt) => gt.team_id)
 
-      const prediction = generateGroupPrediction(sortedTeams, testPlayer.archetype)
+      const includeThird = thirdPlaceGroupIds ? thirdPlaceGroupIds.has(group.id) : true
+      const prediction = generateGroupPrediction(sortedTeams, testPlayer.archetype, includeThird)
 
       await admin.from('group_predictions').insert({
         entry_id: entryId,
