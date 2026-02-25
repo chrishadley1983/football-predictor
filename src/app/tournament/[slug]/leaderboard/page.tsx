@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentPlayer } from '@/lib/auth'
 import { LeaderboardTable } from '@/components/leaderboard/LeaderboardTable'
+import { BadgeLegend } from '@/components/leaderboard/BadgeLegend'
 import type { Tournament, LeaderboardEntry, PlayerAchievement } from '@/lib/types'
 
 export default async function LeaderboardPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -77,6 +78,11 @@ export default async function LeaderboardPage({ params }: { params: Promise<{ sl
 
   const currentPlayer = await getCurrentPlayer()
 
+  // Collect earned badge types for the legend
+  const earnedBadgeTypes = [...new Set(
+    (achievements ?? []).map((a: PlayerAchievement) => a.badge_type)
+  )]
+
   return (
     <div className="space-y-6">
       <div>
@@ -90,6 +96,10 @@ export default async function LeaderboardPage({ params }: { params: Promise<{ sl
         entries={entries}
         currentPlayerId={currentPlayer?.id}
       />
+
+      {earnedBadgeTypes.length > 0 && (
+        <BadgeLegend earnedBadgeTypes={earnedBadgeTypes} />
+      )}
     </div>
   )
 }
