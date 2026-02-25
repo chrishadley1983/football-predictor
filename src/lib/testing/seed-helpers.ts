@@ -174,31 +174,57 @@ export async function forceCompleteGroupStageLogic(
     throw new Error('No groups found')
   }
 
-  // Select which groups' 3rd place qualifies
-  let thirdPlaceQualifyingGroups: Set<string> = new Set()
-  if (thirdPlaceQualifiersCount && thirdPlaceQualifiersCount > 0) {
-    const shuffledGroups = shuffle(groups.map((g) => g.id))
-    thirdPlaceQualifyingGroups = new Set(shuffledGroups.slice(0, thirdPlaceQualifiersCount))
-  }
-
-  // Generate match scores first, then derive positions from actual results
+  // Generate match scores first, then derive everything from actual results
   await generateGroupMatchScores(admin, groups)
 
-  // Derive positions from match results
+  // Derive positions from match results and collect 3rd-place stats
+  const thirdPlaceTeams: { groupId: string; teamId: string; pts: number; gd: number; gf: number }[] = []
+  const groupStandings = new Map<string, { teamId: string; position: number }[]>()
+
   for (const group of groups) {
     const teamIds = group.group_teams.map((gt: { team_id: string }) => gt.team_id)
-
-    // Delete existing results
-    await admin.from('group_results').delete().eq('group_id', group.id)
-
-    // Calculate standings from match scores
     const standings = await calculateGroupStandings(admin, group.id, teamIds)
 
-    const results = standings.map((teamId, index) => ({
+    groupStandings.set(group.id, standings.map((s, i) => ({ teamId: s.teamId, position: i + 1 })))
+
+    // Collect 3rd-place team stats for cross-group comparison
+    if (standings.length >= 3) {
+      const third = standings[2]
+      thirdPlaceTeams.push({
+        groupId: group.id,
+        teamId: third.teamId,
+        pts: third.pts,
+        gd: third.gf - third.ga,
+        gf: third.gf,
+      })
+    }
+  }
+
+  // Determine which 3rd-place teams qualify based on actual stats
+  let thirdPlaceQualifyingGroups: Set<string> = new Set()
+  if (thirdPlaceQualifiersCount && thirdPlaceQualifiersCount > 0) {
+    // Rank 3rd-place teams: points DESC, goal diff DESC, goals for DESC
+    thirdPlaceTeams.sort((a, b) => {
+      if (b.pts !== a.pts) return b.pts - a.pts
+      if (b.gd !== a.gd) return b.gd - a.gd
+      if (b.gf !== a.gf) return b.gf - a.gf
+      return Math.random() - 0.5 // random tiebreak
+    })
+    thirdPlaceQualifyingGroups = new Set(
+      thirdPlaceTeams.slice(0, thirdPlaceQualifiersCount).map((t) => t.groupId)
+    )
+  }
+
+  // Insert group results with correct qualified flags
+  for (const group of groups) {
+    await admin.from('group_results').delete().eq('group_id', group.id)
+
+    const standings = groupStandings.get(group.id)!
+    const results = standings.map(({ teamId, position }) => ({
       group_id: group.id,
       team_id: teamId,
-      final_position: index + 1,
-      qualified: index < 2 || (index === 2 && thirdPlaceQualifyingGroups.has(group.id)),
+      final_position: position,
+      qualified: position <= 2 || (position === 3 && thirdPlaceQualifyingGroups.has(group.id)),
     }))
 
     const { error } = await admin.from('group_results').insert(results)
@@ -283,13 +309,13 @@ async function generateGroupMatchScores(
 
 /**
  * Calculate group standings from match results.
- * Returns team IDs sorted by: points DESC, goal diff DESC, goals for DESC, then random tiebreak.
+ * Returns teams sorted by: points DESC, goal diff DESC, goals for DESC, then random tiebreak.
  */
 async function calculateGroupStandings(
   admin: AdminClient,
   groupId: string,
   teamIds: string[]
-): Promise<string[]> {
+): Promise<{ teamId: string; pts: number; gf: number; ga: number }[]> {
   const { data: matches } = await admin
     .from('group_matches')
     .select('home_team_id, away_team_id, home_score, away_score')
@@ -322,16 +348,16 @@ async function calculateGroupStandings(
   }
 
   // Sort: points DESC, goal diff DESC, goals for DESC, random tiebreak
-  return teamIds.sort((a, b) => {
-    const sa = stats.get(a)!
-    const sb = stats.get(b)!
-    if (sb.pts !== sa.pts) return sb.pts - sa.pts
-    const gdA = sa.gf - sa.ga
-    const gdB = sb.gf - sb.ga
-    if (gdB !== gdA) return gdB - gdA
-    if (sb.gf !== sa.gf) return sb.gf - sa.gf
-    return Math.random() - 0.5 // random tiebreak
-  })
+  return teamIds
+    .map((id) => ({ teamId: id, ...stats.get(id)! }))
+    .sort((a, b) => {
+      if (b.pts !== a.pts) return b.pts - a.pts
+      const gdA = a.gf - a.ga
+      const gdB = b.gf - b.ga
+      if (gdB !== gdA) return gdB - gdA
+      if (b.gf !== a.gf) return b.gf - a.gf
+      return Math.random() - 0.5 // random tiebreak
+    })
 }
 
 /**
