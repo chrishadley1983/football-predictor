@@ -37,6 +37,18 @@ export type PrizeType =
 
 export type BracketSide = 'left' | 'right'
 
+export type BadgeType =
+  | 'perfect_group'
+  | 'early_bird'
+  | 'last_minute'
+  | 'lone_wolf'
+  | 'hive_mind'
+  | 'crystal_ball'
+  | 'giant_killer'
+  | 'hot_streak'
+  | 'dead_heat'
+  | 'contrarian'
+
 // ============================================================================
 // Database row types (match column names exactly from spec)
 // ============================================================================
@@ -194,6 +206,15 @@ export interface Post {
   published_at: string
   is_published: boolean
   created_at: string
+}
+
+export interface PlayerAchievement {
+  id: string
+  tournament_id: string
+  entry_id: string
+  badge_type: BadgeType
+  description: string
+  earned_at: string
 }
 
 export interface KnockoutRoundConfig {
@@ -358,6 +379,7 @@ export interface LeaderboardEntry {
   group_stage_rank: number | null
   overall_rank: number | null
   payment_status?: PaymentStatus
+  badges?: PlayerAchievement[]
 }
 
 export interface PredictionSummary {
@@ -1054,6 +1076,47 @@ export interface Database {
             columns: ['tournament_id']
             isOneToOne: false
             referencedRelation: 'tournaments'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      player_achievements: {
+        Row: {
+          id: string
+          tournament_id: string
+          entry_id: string
+          badge_type: BadgeType
+          description: string
+          earned_at: string
+        }
+        Insert: {
+          id?: string
+          tournament_id: string
+          entry_id: string
+          badge_type: BadgeType
+          description?: string
+          earned_at?: string
+        }
+        Update: {
+          tournament_id?: string
+          entry_id?: string
+          badge_type?: BadgeType
+          description?: string
+          earned_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'player_achievements_tournament_id_fkey'
+            columns: ['tournament_id']
+            isOneToOne: false
+            referencedRelation: 'tournaments'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'player_achievements_entry_id_fkey'
+            columns: ['entry_id']
+            isOneToOne: false
+            referencedRelation: 'tournament_entries'
             referencedColumns: ['id']
           },
         ]

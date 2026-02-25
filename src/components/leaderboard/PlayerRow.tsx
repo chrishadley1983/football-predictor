@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { PlayerAvatar } from '@/components/ui/PlayerAvatar'
+import { BADGE_INFO } from '@/lib/badge-info'
 import type { LeaderboardEntry } from '@/lib/types'
 
 interface PlayerRowProps {
@@ -30,6 +31,22 @@ export function PlayerRow({ entry, isCurrentUser, rank }: PlayerRowProps) {
           <div className="flex items-center gap-2">
             <PlayerAvatar avatarUrl={entry.avatar_url} displayName={entry.display_name} size="sm" />
             {entry.display_name}
+            {entry.badges && entry.badges.length > 0 && (
+              <span className="flex gap-0.5" data-testid="player-badges">
+                {entry.badges.map((badge) => {
+                  const info = BADGE_INFO[badge.badge_type]
+                  return (
+                    <span
+                      key={badge.badge_type}
+                      title={`${info?.name ?? badge.badge_type}: ${badge.description}`}
+                      className="cursor-help text-sm"
+                    >
+                      {info?.emoji ?? '🏅'}
+                    </span>
+                  )
+                })}
+              </span>
+            )}
           </div>
         </td>
         <td className="hidden whitespace-nowrap px-3 py-2 text-sm text-text-secondary sm:table-cell">

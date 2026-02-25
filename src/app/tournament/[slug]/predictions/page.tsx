@@ -16,6 +16,7 @@ import type {
   KnockoutPrediction,
   KnockoutMatch,
   Player,
+  PlayerAchievement,
   TournamentEntry,
 } from '@/lib/types'
 
@@ -204,6 +205,12 @@ export default async function PredictionsPage({
     }
   })
 
+  // Fetch achievements for this tournament
+  const { data: achievements } = await supabase
+    .from('player_achievements')
+    .select('*')
+    .eq('tournament_id', t.id)
+
   return (
     <div className="space-y-6">
       <h1 className="font-heading text-2xl font-bold text-foreground">
@@ -221,6 +228,7 @@ export default async function PredictionsPage({
         }
         knockoutMatches={knockoutMatches}
         knockoutVisible={knockoutVisible}
+        achievements={(achievements ?? []) as PlayerAchievement[]}
       />
       <PredictionGrid
         predictions={predictions}
