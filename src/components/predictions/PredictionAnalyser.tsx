@@ -3,11 +3,13 @@
 import { Fragment, useState, useMemo } from 'react'
 import { cn } from '@/lib/utils'
 import { PlayerAvatar } from '@/components/ui/PlayerAvatar'
+import { BADGE_INFO } from '@/lib/badge-info'
 import type {
   PredictionSummary,
   GroupWithTeams,
   GroupResult,
   Player,
+  PlayerAchievement,
   KnockoutMatch,
   KnockoutRound,
 } from '@/lib/types'
@@ -33,6 +35,7 @@ interface PredictionAnalyserProps {
   thirdPlaceQualifiersCount?: number | null
   knockoutMatches?: KnockoutMatch[]
   knockoutVisible?: boolean
+  achievements?: PlayerAchievement[]
 }
 
 const ROUND_ORDER: KnockoutRound[] = [
@@ -60,6 +63,7 @@ export function PredictionAnalyser({
   thirdPlaceQualifiersCount,
   knockoutMatches = [],
   knockoutVisible = false,
+  achievements = [],
 }: PredictionAnalyserProps) {
   const [isOpen, setIsOpen] = useState(true)
 
@@ -144,6 +148,16 @@ export function PredictionAnalyser({
   const isSolo = !!playerA && !playerB
   const samePlayer = !!playerAId && !!playerBId && playerAId === playerBId
   const showComparison = (isSolo || isH2H) && !samePlayer
+
+  // Build achievements lookup by entry_id
+  const achievementsByEntry = useMemo(() => {
+    const map = new Map<string, PlayerAchievement[]>()
+    for (const a of achievements) {
+      if (!map.has(a.entry_id)) map.set(a.entry_id, [])
+      map.get(a.entry_id)!.push(a)
+    }
+    return map
+  }, [achievements])
 
   function getPlayerName(entry: EntryInfo): string {
     return entry.player.nickname ?? entry.player.display_name
@@ -280,6 +294,22 @@ export function PredictionAnalyser({
                         #{entryA.overall_rank}
                       </span>
                     )}
+                    {(achievementsByEntry.get(entryA.entry_id) ?? []).length > 0 && (
+                      <span className="flex gap-0.5" data-testid="analyser-badges-a">
+                        {achievementsByEntry.get(entryA.entry_id)!.map((badge) => {
+                          const info = BADGE_INFO[badge.badge_type]
+                          return (
+                            <span
+                              key={badge.badge_type}
+                              title={`${info?.name ?? badge.badge_type}: ${badge.description}`}
+                              className="cursor-help text-sm"
+                            >
+                              {info?.emoji ?? '🏅'}
+                            </span>
+                          )
+                        })}
+                      </span>
+                    )}
                   </div>
                   <div className="grid grid-cols-4 gap-2 text-xs">
                     <div>
@@ -323,6 +353,22 @@ export function PredictionAnalyser({
                     {entryB.overall_rank != null && (
                       <span className="text-xs text-gold">
                         #{entryB.overall_rank}
+                      </span>
+                    )}
+                    {(achievementsByEntry.get(entryB.entry_id) ?? []).length > 0 && (
+                      <span className="flex gap-0.5" data-testid="analyser-badges-b">
+                        {achievementsByEntry.get(entryB.entry_id)!.map((badge) => {
+                          const info = BADGE_INFO[badge.badge_type]
+                          return (
+                            <span
+                              key={badge.badge_type}
+                              title={`${info?.name ?? badge.badge_type}: ${badge.description}`}
+                              className="cursor-help text-sm"
+                            >
+                              {info?.emoji ?? '🏅'}
+                            </span>
+                          )
+                        })}
                       </span>
                     )}
                   </div>

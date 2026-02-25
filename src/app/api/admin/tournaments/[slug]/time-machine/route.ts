@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { calculateAllScores } from '@/lib/scoring'
+import { calculateAchievements } from '@/lib/achievements'
 import {
   TEST_PLAYERS,
   TEST_EMAIL_DOMAIN,
@@ -140,6 +141,10 @@ export async function POST(
     await calculateAllScores(tournamentId)
     log.push('Scores calculated')
 
+    // Calculate achievements
+    await calculateAchievements(tournamentId)
+    log.push('Achievements calculated')
+
     // Get leaderboard preview
     const leaderboard = await getTopLeaderboard(admin, tournamentId, 5)
 
@@ -189,6 +194,7 @@ async function resetTestData(
   }
 
   await admin.from('honours').delete().eq('tournament_id', tournamentId)
+  await admin.from('player_achievements').delete().eq('tournament_id', tournamentId)
   await admin.from('tournament_stats').update({ total_group_stage_goals: null }).eq('tournament_id', tournamentId)
 
   // Reset knockout matches

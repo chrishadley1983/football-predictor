@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentPlayer } from '@/lib/auth'
 import { LeaderboardTable } from '@/components/leaderboard/LeaderboardTable'
-import type { Tournament, LeaderboardEntry } from '@/lib/types'
+import type { Tournament, LeaderboardEntry, PlayerAchievement } from '@/lib/types'
 
 export default async function LeaderboardPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
@@ -44,6 +44,18 @@ export default async function LeaderboardPage({ params }: { params: Promise<{ sl
 
   if (entriesErr) console.error('Failed to fetch leaderboard:', entriesErr.message)
 
+  // Fetch achievements for this tournament
+  const { data: achievements } = await supabase
+    .from('player_achievements')
+    .select('*')
+    .eq('tournament_id', t.id)
+
+  const achievementsByEntry = new Map<string, PlayerAchievement[]>()
+  for (const a of (achievements ?? []) as PlayerAchievement[]) {
+    if (!achievementsByEntry.has(a.entry_id)) achievementsByEntry.set(a.entry_id, [])
+    achievementsByEntry.get(a.entry_id)!.push(a)
+  }
+
   const entries: LeaderboardEntry[] = (rawEntries ?? []).map((e) => {
     const player = e.player as unknown as { id: string; display_name: string; nickname: string | null; avatar_url: string | null }
     return {
@@ -59,6 +71,7 @@ export default async function LeaderboardPage({ params }: { params: Promise<{ sl
       tiebreaker_diff: e.tiebreaker_diff,
       group_stage_rank: e.group_stage_rank,
       overall_rank: e.overall_rank,
+      badges: achievementsByEntry.get(e.id) ?? [],
     }
   })
 
