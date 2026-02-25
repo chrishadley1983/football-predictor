@@ -181,15 +181,20 @@ export async function forceCompleteGroupStageLogic(
     thirdPlaceQualifyingGroups = new Set(shuffledGroups.slice(0, thirdPlaceQualifiersCount))
   }
 
-  // For each group, randomly assign positions
+  // Generate match scores first, then derive positions from actual results
+  await generateGroupMatchScores(admin, groups)
+
+  // Derive positions from match results
   for (const group of groups) {
     const teamIds = group.group_teams.map((gt: { team_id: string }) => gt.team_id)
 
     // Delete existing results
     await admin.from('group_results').delete().eq('group_id', group.id)
 
-    const shuffled = shuffle(teamIds)
-    const results = shuffled.map((teamId, index) => ({
+    // Calculate standings from match scores
+    const standings = await calculateGroupStandings(admin, group.id, teamIds)
+
+    const results = standings.map((teamId, index) => ({
       group_id: group.id,
       team_id: teamId,
       final_position: index + 1,
@@ -201,9 +206,6 @@ export async function forceCompleteGroupStageLogic(
       throw new Error(`Failed to insert results for ${group.name}: ${error.message}`)
     }
   }
-
-  // Generate group match scores
-  await generateGroupMatchScores(admin, groups)
 
   // Build result lookup for bracket population
   const groupResultsByLetter = await buildGroupResultsLookup(admin, groups)
@@ -220,27 +222,14 @@ export async function forceCompleteGroupStageLogic(
 
 /**
  * Generate group match fixtures (round-robin) and random scores.
- * Creates group_matches rows if they don't exist, then populates scores.
- * Higher-positioned teams (lower final_position) get a slight scoring bias.
+ * Creates group_matches rows if they don't exist, then populates random scores.
+ * Positions are derived from these scores afterwards (not pre-assigned).
  */
 async function generateGroupMatchScores(
   admin: AdminClient,
   groups: { id: string; name: string; group_teams: { team_id: string }[] }[]
 ): Promise<void> {
   for (const group of groups) {
-    // Get group results to know team positions
-    const { data: results } = await admin
-      .from('group_results')
-      .select('team_id, final_position')
-      .eq('group_id', group.id)
-
-    const positionMap = new Map<string, number>()
-    if (results) {
-      for (const r of results) {
-        positionMap.set(r.team_id, r.final_position)
-      }
-    }
-
     // Check if group matches already exist
     const { data: existing } = await admin
       .from('group_matches')
@@ -270,7 +259,7 @@ async function generateGroupMatchScores(
       }
     }
 
-    // Fetch all matches (including newly created ones) and set scores
+    // Fetch all matches and set random scores
     const { data: matches } = await admin
       .from('group_matches')
       .select('id, home_team_id, away_team_id')
@@ -281,15 +270,8 @@ async function generateGroupMatchScores(
     for (const match of matches) {
       if (!match.home_team_id || !match.away_team_id) continue
 
-      const homePos = positionMap.get(match.home_team_id) ?? 3
-      const awayPos = positionMap.get(match.away_team_id) ?? 3
-
-      // Better-positioned team (lower number) gets a higher max score
-      const homeMax = homePos <= awayPos ? 3 : 2
-      const awayMax = awayPos <= homePos ? 3 : 2
-
-      const homeScore = Math.floor(Math.random() * (homeMax + 1))
-      const awayScore = Math.floor(Math.random() * (awayMax + 1))
+      const homeScore = Math.floor(Math.random() * 4) // 0-3
+      const awayScore = Math.floor(Math.random() * 4) // 0-3
 
       await admin
         .from('group_matches')
@@ -297,6 +279,59 @@ async function generateGroupMatchScores(
         .eq('id', match.id)
     }
   }
+}
+
+/**
+ * Calculate group standings from match results.
+ * Returns team IDs sorted by: points DESC, goal diff DESC, goals for DESC, then random tiebreak.
+ */
+async function calculateGroupStandings(
+  admin: AdminClient,
+  groupId: string,
+  teamIds: string[]
+): Promise<string[]> {
+  const { data: matches } = await admin
+    .from('group_matches')
+    .select('home_team_id, away_team_id, home_score, away_score')
+    .eq('group_id', groupId)
+
+  // Accumulate stats per team
+  const stats = new Map<string, { pts: number; gf: number; ga: number }>()
+  for (const id of teamIds) {
+    stats.set(id, { pts: 0, gf: 0, ga: 0 })
+  }
+
+  for (const m of matches ?? []) {
+    if (m.home_score === null || m.away_score === null || !m.home_team_id || !m.away_team_id) continue
+    const home = stats.get(m.home_team_id)!
+    const away = stats.get(m.away_team_id)!
+
+    home.gf += m.home_score
+    home.ga += m.away_score
+    away.gf += m.away_score
+    away.ga += m.home_score
+
+    if (m.home_score > m.away_score) {
+      home.pts += 3
+    } else if (m.home_score === m.away_score) {
+      home.pts += 1
+      away.pts += 1
+    } else {
+      away.pts += 3
+    }
+  }
+
+  // Sort: points DESC, goal diff DESC, goals for DESC, random tiebreak
+  return teamIds.sort((a, b) => {
+    const sa = stats.get(a)!
+    const sb = stats.get(b)!
+    if (sb.pts !== sa.pts) return sb.pts - sa.pts
+    const gdA = sa.gf - sa.ga
+    const gdB = sb.gf - sb.ga
+    if (gdB !== gdA) return gdB - gdA
+    if (sb.gf !== sa.gf) return sb.gf - sa.gf
+    return Math.random() - 0.5 // random tiebreak
+  })
 }
 
 /**
