@@ -85,8 +85,21 @@ export async function POST(
     await forceCompleteGroupStageLogic(admin, tournamentId, tournament.third_place_qualifiers_count)
     log.push('Group stage completed')
 
-    // Set total goals
-    const totalGoals = Math.floor(Math.random() * 91) + 80
+    // Calculate total goals from actual match scores
+    const { data: groupIds } = await admin
+      .from('groups')
+      .select('id')
+      .eq('tournament_id', tournamentId)
+
+    const { data: allMatches } = await admin
+      .from('group_matches')
+      .select('home_score, away_score')
+      .in('group_id', (groupIds ?? []).map((g) => g.id))
+
+    const totalGoals = (allMatches ?? []).reduce(
+      (sum, m) => sum + (m.home_score ?? 0) + (m.away_score ?? 0),
+      0
+    )
     await admin
       .from('tournament_stats')
       .upsert({ tournament_id: tournamentId, total_group_stage_goals: totalGoals }, { onConflict: 'tournament_id' })
