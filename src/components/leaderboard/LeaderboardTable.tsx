@@ -71,7 +71,7 @@ export function LeaderboardTable({ entries, currentPlayerId }: LeaderboardTableP
               Player
             </th>
             <th className="hidden whitespace-nowrap px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-text-muted sm:table-cell">
-              Nickname
+              Name
             </th>
             <th className={headerClass('group_stage_points')} onClick={() => handleSort('group_stage_points')}>
               Group{sortIndicator('group_stage_points')}

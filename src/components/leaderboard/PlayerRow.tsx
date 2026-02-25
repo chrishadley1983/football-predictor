@@ -14,6 +14,7 @@ interface PlayerRowProps {
 
 export function PlayerRow({ entry, isCurrentUser, rank }: PlayerRowProps) {
   const [expanded, setExpanded] = useState(false)
+  const primaryName = entry.nickname ?? entry.display_name
 
   return (
     <>
@@ -30,7 +31,7 @@ export function PlayerRow({ entry, isCurrentUser, rank }: PlayerRowProps) {
         <td className="whitespace-nowrap px-3 py-2 text-sm text-foreground">
           <div className="flex items-center gap-2">
             <PlayerAvatar avatarUrl={entry.avatar_url} displayName={entry.display_name} size="sm" />
-            {entry.display_name}
+            {primaryName}
             {entry.badges && entry.badges.length > 0 && (
               <span className="flex gap-0.5" data-testid="player-badges">
                 {entry.badges.map((badge) => {
@@ -50,7 +51,7 @@ export function PlayerRow({ entry, isCurrentUser, rank }: PlayerRowProps) {
           </div>
         </td>
         <td className="hidden whitespace-nowrap px-3 py-2 text-sm text-text-secondary sm:table-cell">
-          {entry.nickname ?? '-'}
+          {entry.display_name}
         </td>
         <td className="whitespace-nowrap px-3 py-2 text-center text-sm text-text-secondary">
           {entry.group_stage_points}
@@ -72,6 +73,11 @@ export function PlayerRow({ entry, isCurrentUser, rank }: PlayerRowProps) {
         <tr className={cn(isCurrentUser && 'bg-gold/5')}>
           <td colSpan={7} className="px-3 py-3 text-xs text-text-secondary">
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {entry.nickname && (
+                <div>
+                  <span className="font-medium">Name:</span> {entry.display_name}
+                </div>
+              )}
               <div>
                 <span className="font-medium">Group Pts:</span> {entry.group_stage_points}
               </div>
