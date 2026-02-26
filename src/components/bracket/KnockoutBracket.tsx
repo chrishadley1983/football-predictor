@@ -9,9 +9,10 @@ interface KnockoutBracketProps {
   predictions?: KnockoutPrediction[]
   onPrediction?: (matchId: string, teamId: string) => void
   readonly?: boolean
+  goldenTicketMatchId?: string | null
 }
 
-export function KnockoutBracket({ matches, predictions = [], onPrediction, readonly = false }: KnockoutBracketProps) {
+export function KnockoutBracket({ matches, predictions = [], onPrediction, readonly = false, goldenTicketMatchId }: KnockoutBracketProps) {
   const predictionMap = useMemo(() => {
     const map: Record<string, KnockoutPrediction> = {}
     for (const p of predictions) {
@@ -81,6 +82,7 @@ export function KnockoutBracket({ matches, predictions = [], onPrediction, reado
             prediction={predictionMap[m.id]}
             onSelectWinner={onPrediction}
             readonly={readonly}
+            goldenTicketUsed={goldenTicketMatchId === m.id}
           />
         ))}
       </div>
@@ -103,6 +105,7 @@ export function KnockoutBracket({ matches, predictions = [], onPrediction, reado
                 prediction={predictionMap[m.id]}
                 onSelectWinner={onPrediction}
                 readonly={readonly}
+                goldenTicketUsed={goldenTicketMatchId === m.id}
               />
             ))}
           </div>
@@ -131,6 +134,7 @@ export function KnockoutBracket({ matches, predictions = [], onPrediction, reado
               prediction={predictionMap[finalMatch.id]}
               onSelectWinner={onPrediction}
               readonly={readonly}
+              goldenTicketUsed={goldenTicketMatchId === finalMatch.id}
             />
           </div>
         )}

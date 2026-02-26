@@ -4,9 +4,11 @@ import { useState, useEffect, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { KnockoutBracket } from '@/components/bracket/KnockoutBracket'
+import { GoldenTicketModal } from '@/components/bracket/GoldenTicketModal'
 import { Button } from '@/components/ui/Button'
 import { getDeadlineStatus } from '@/lib/utils'
-import type { Tournament, KnockoutMatchWithTeams, KnockoutPrediction } from '@/lib/types'
+import type { Tournament, KnockoutMatchWithTeams, KnockoutPrediction, GoldenTicket } from '@/lib/types'
+import type { EligibleSwap } from '@/lib/golden-ticket'
 
 interface TournamentData extends Tournament {
   knockout_matches: KnockoutMatchWithTeams[]
@@ -23,6 +25,12 @@ export default function KnockoutPredictionPage() {
   const [successMsg, setSuccessMsg] = useState('')
   // Track unsaved changes: matchId -> teamId
   const [pendingPredictions, setPendingPredictions] = useState<Record<string, string>>({})
+  // Golden ticket state
+  const [goldenTicketUsed, setGoldenTicketUsed] = useState(false)
+  const [goldenTicketWindowOpen, setGoldenTicketWindowOpen] = useState(false)
+  const [eligibleSwaps, setEligibleSwaps] = useState<EligibleSwap[]>([])
+  const [showGoldenTicketModal, setShowGoldenTicketModal] = useState(false)
+  const [goldenTicket, setGoldenTicket] = useState<GoldenTicket | null>(null)
 
   useEffect(() => {
     async function load() {
@@ -77,6 +85,21 @@ export default function KnockoutPredictionPage() {
         .eq('entry_id', entry.id)
 
       if (preds) setPredictions(preds)
+
+      // Fetch golden ticket state
+      try {
+        const gtRes = await fetch(`/api/tournaments/${slug}/golden-ticket`)
+        if (gtRes.ok) {
+          const gtData = await gtRes.json()
+          setGoldenTicketUsed(gtData.hasUsedTicket)
+          setGoldenTicketWindowOpen(gtData.window?.isOpen ?? false)
+          setEligibleSwaps(gtData.eligibleSwaps ?? [])
+          if (gtData.ticketDetails) setGoldenTicket(gtData.ticketDetails)
+        }
+      } catch {
+        // Golden ticket fetch failed — not critical
+      }
+
       setLoading(false)
     }
     load()
@@ -176,7 +199,51 @@ export default function KnockoutPredictionPage() {
         predictions={predictions}
         onPrediction={handlePrediction}
         readonly={isReadonly}
+        goldenTicketMatchId={goldenTicket?.original_match_id}
       />
+
+      {/* Golden Ticket */}
+      {goldenTicketWindowOpen && !goldenTicketUsed && eligibleSwaps.length > 0 && (
+        <div className="rounded-xl border-2 border-gold bg-gold/10 p-4 text-center">
+          <p className="mb-2 text-sm text-foreground">
+            🎫 Your golden ticket is available! One of your predicted teams has been eliminated.
+          </p>
+          <Button
+            onClick={() => setShowGoldenTicketModal(true)}
+            className="bg-gold text-surface hover:bg-gold/90 font-bold"
+          >
+            🎫 Play Golden Ticket
+          </Button>
+        </div>
+      )}
+
+      {goldenTicketUsed && goldenTicket && (
+        <div className="rounded-xl border border-gold/30 bg-gold/5 p-3 text-center text-sm text-text-muted">
+          🎫 Golden ticket played — swapped{' '}
+          <span className="text-red-accent line-through">
+            {(goldenTicket as GoldenTicket & { original_team?: { code: string } }).original_team?.code ?? '?'}
+          </span>{' '}
+          for{' '}
+          <span className="font-medium text-green-accent">
+            {(goldenTicket as GoldenTicket & { new_team?: { code: string } }).new_team?.code ?? '?'}
+          </span>
+        </div>
+      )}
+
+      {showGoldenTicketModal && (
+        <GoldenTicketModal
+          slug={slug}
+          eligibleSwaps={eligibleSwaps}
+          onClose={() => setShowGoldenTicketModal(false)}
+          onSuccess={() => {
+            setShowGoldenTicketModal(false)
+            setGoldenTicketUsed(true)
+            setGoldenTicketWindowOpen(false)
+            // Reload predictions to reflect the swap
+            window.location.reload()
+          }}
+        />
+      )}
 
       {!isReadonly && (
         <div className="flex items-center justify-between rounded-xl border border-border-custom bg-surface p-4">

@@ -10,6 +10,7 @@ import type {
   GroupResult,
   Player,
   PlayerAchievement,
+  GoldenTicket,
   KnockoutMatch,
   KnockoutRound,
 } from '@/lib/types'
@@ -36,6 +37,7 @@ interface PredictionAnalyserProps {
   knockoutMatches?: KnockoutMatch[]
   knockoutVisible?: boolean
   achievements?: PlayerAchievement[]
+  goldenTickets?: GoldenTicket[]
 }
 
 const ROUND_ORDER: KnockoutRound[] = [
@@ -64,6 +66,7 @@ export function PredictionAnalyser({
   knockoutMatches = [],
   knockoutVisible = false,
   achievements = [],
+  goldenTickets = [],
 }: PredictionAnalyserProps) {
   const [isOpen, setIsOpen] = useState(true)
 
@@ -194,6 +197,20 @@ export function PredictionAnalyser({
     }
     return map
   }, [achievements])
+
+  // Build golden ticket lookup: entry_id -> match_id -> GoldenTicket
+  const goldenTicketByEntryMatch = useMemo(() => {
+    const map = new Map<string, Map<string, GoldenTicket>>()
+    for (const ticket of goldenTickets) {
+      if (!map.has(ticket.entry_id)) map.set(ticket.entry_id, new Map())
+      map.get(ticket.entry_id)!.set(ticket.original_match_id, ticket)
+    }
+    return map
+  }, [goldenTickets])
+
+  function getGoldenTicketForMatch(entryId: string, matchId: string): GoldenTicket | undefined {
+    return goldenTicketByEntryMatch.get(entryId)?.get(matchId)
+  }
 
   function getPlayerName(entry: EntryInfo): string {
     return entry.player.nickname ?? entry.player.display_name
@@ -746,9 +763,14 @@ export function PredictionAnalyser({
                                     )
                                   )}
                                 >
-                                  {predA
-                                    ? getTeamCode(predA.predicted_winner_id)
-                                    : '-'}
+                                  {predA ? (
+                                    <>
+                                      {getGoldenTicketForMatch(playerAId, match.id) && (
+                                        <span title="Golden ticket used" className="mr-0.5">🎫</span>
+                                      )}
+                                      {getTeamCode(predA.predicted_winner_id)}
+                                    </>
+                                  ) : '-'}
                                 </td>
                                 <td className="px-2 py-1 text-center font-mono text-foreground bg-surface-light/30">
                                   {match.winner_team_id ? (
@@ -773,9 +795,14 @@ export function PredictionAnalyser({
                                       )
                                     )}
                                   >
-                                    {predB
-                                      ? getTeamCode(predB.predicted_winner_id)
-                                      : '-'}
+                                    {predB ? (
+                                      <>
+                                        {getGoldenTicketForMatch(playerBId, match.id) && (
+                                          <span title="Golden ticket used" className="mr-0.5">🎫</span>
+                                        )}
+                                        {getTeamCode(predB.predicted_winner_id)}
+                                      </>
+                                    ) : '-'}
                                   </td>
                                 )}
                               </tr>

@@ -12,6 +12,7 @@ import {
   forceCompleteGroupStageLogic,
   forceCompleteKnockoutRoundLogic,
   getExistingKnockoutRounds,
+  processAIGoldenTickets,
 } from '@/lib/testing/seed-helpers'
 import type { KnockoutRound } from '@/lib/types'
 
@@ -128,6 +129,14 @@ export async function POST(
         const result = await forceCompleteKnockoutRoundLogic(admin, tournamentId, round)
         log.push(`${round}: ${result.decidedCount} matches decided`)
 
+        // Process AI golden tickets after each round (except the final)
+        if (round !== 'final') {
+          const ticketsPlayed = await processAIGoldenTickets(admin, tournamentId, round)
+          if (ticketsPlayed > 0) {
+            log.push(`Golden tickets: ${ticketsPlayed} played after ${round}`)
+          }
+        }
+
         if (phase === 'completed') {
           await admin.from('tournaments').update({ status: 'completed' }).eq('id', tournamentId)
           log.push('Tournament completed')
@@ -182,6 +191,7 @@ async function resetTestData(
   const groupIds = (groups ?? []).map((g) => g.id)
 
   if (entryIds.length > 0) {
+    await admin.from('golden_tickets').delete().in('entry_id', entryIds)
     await admin.from('knockout_predictions').delete().in('entry_id', entryIds)
     await admin.from('group_predictions').delete().in('entry_id', entryIds)
     await admin.from('tournament_entries').delete().eq('tournament_id', tournamentId)

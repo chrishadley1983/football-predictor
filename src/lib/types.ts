@@ -48,6 +48,7 @@ export type BadgeType =
   | 'hot_streak'
   | 'dead_heat'
   | 'contrarian'
+  | 'golden_touch'
 
 export type PunditKey = 'neverill' | 'bright' | 'meane' | 'scaragher'
 
@@ -242,6 +243,23 @@ export interface KnockoutRoundConfig {
   sort_order: number
 }
 
+export interface GoldenTicket {
+  id: string
+  entry_id: string
+  tournament_id: string
+  original_match_id: string
+  original_team_id: string
+  new_team_id: string
+  played_after_round: KnockoutRound
+  played_at: string
+}
+
+export interface GoldenTicketWithDetails extends GoldenTicket {
+  original_team: Team
+  new_team: Team
+  original_match: KnockoutMatch
+}
+
 // ============================================================================
 // Insert types (omit generated/default fields)
 // ============================================================================
@@ -298,6 +316,11 @@ export type PostInsert = Omit<Post, 'id' | 'created_at'> & {
 
 export type KnockoutRoundConfigInsert = Omit<KnockoutRoundConfig, 'id'> & { id?: string }
 
+export type GoldenTicketInsert = Omit<GoldenTicket, 'id' | 'played_at'> & {
+  id?: string
+  played_at?: string
+}
+
 // ============================================================================
 // Update types (all fields optional except id)
 // ============================================================================
@@ -317,6 +340,7 @@ export type TournamentStatsUpdate = Partial<Omit<TournamentStats, 'id'>>
 export type HonoursUpdate = Partial<Omit<Honours, 'id'>>
 export type PostUpdate = Partial<Omit<Post, 'id'>>
 export type KnockoutRoundConfigUpdate = Partial<Omit<KnockoutRoundConfig, 'id'>>
+export type GoldenTicketUpdate = Partial<Omit<GoldenTicket, 'id'>>
 
 // ============================================================================
 // Composite / helper types
@@ -1133,6 +1157,74 @@ export interface Database {
             columns: ['entry_id']
             isOneToOne: false
             referencedRelation: 'tournament_entries'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      golden_tickets: {
+        Row: {
+          id: string
+          entry_id: string
+          tournament_id: string
+          original_match_id: string
+          original_team_id: string
+          new_team_id: string
+          played_after_round: string
+          played_at: string
+        }
+        Insert: {
+          id?: string
+          entry_id: string
+          tournament_id: string
+          original_match_id: string
+          original_team_id: string
+          new_team_id: string
+          played_after_round: string
+          played_at?: string
+        }
+        Update: {
+          entry_id?: string
+          tournament_id?: string
+          original_match_id?: string
+          original_team_id?: string
+          new_team_id?: string
+          played_after_round?: string
+          played_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'golden_tickets_entry_id_fkey'
+            columns: ['entry_id']
+            isOneToOne: true
+            referencedRelation: 'tournament_entries'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'golden_tickets_tournament_id_fkey'
+            columns: ['tournament_id']
+            isOneToOne: false
+            referencedRelation: 'tournaments'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'golden_tickets_original_match_id_fkey'
+            columns: ['original_match_id']
+            isOneToOne: false
+            referencedRelation: 'knockout_matches'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'golden_tickets_original_team_id_fkey'
+            columns: ['original_team_id']
+            isOneToOne: false
+            referencedRelation: 'teams'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'golden_tickets_new_team_id_fkey'
+            columns: ['new_team_id']
+            isOneToOne: false
+            referencedRelation: 'teams'
             referencedColumns: ['id']
           },
         ]

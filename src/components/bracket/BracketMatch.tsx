@@ -9,9 +9,10 @@ interface BracketMatchProps {
   prediction?: KnockoutPrediction
   onSelectWinner?: (matchId: string, teamId: string) => void
   readonly?: boolean
+  goldenTicketUsed?: boolean
 }
 
-export function BracketMatch({ match, prediction, onSelectWinner, readonly }: BracketMatchProps) {
+export function BracketMatch({ match, prediction, onSelectWinner, readonly, goldenTicketUsed }: BracketMatchProps) {
   const actualWinner = match.winner_team_id
   const predictedWinner = prediction?.predicted_winner_id
 
@@ -38,6 +39,7 @@ export function BracketMatch({ match, prediction, onSelectWinner, readonly }: Br
   return (
     <div className="flex w-36 flex-col gap-0.5 rounded-xl border border-border-custom bg-surface p-1 sm:w-40">
       <div className="mb-0.5 text-center text-[10px] text-text-muted">
+        {goldenTicketUsed && <span title="Golden ticket used on this match">🎫 </span>}
         {match.round.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())} #{match.match_number}
       </div>
       <BracketTeam

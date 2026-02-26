@@ -16,6 +16,7 @@ export const BADGE_INFO: Record<
   hot_streak: { emoji: '\uD83D\uDD25', name: 'Hot Streak', hint: '5+ correct knockout picks in a row' },
   dead_heat: { emoji: '\uD83C\uDFAF', name: 'Dead Heat', hint: 'Tiebreaker within 5 goals' },
   contrarian: { emoji: '\uD83E\uDD84', name: 'Contrarian', hint: 'Most unique predictions overall' },
+  golden_touch: { emoji: '\uD83C\uDFAB', name: 'Golden Touch', hint: 'Golden ticket pick won their match' },
 }
 
 /** Ordered list for rendering legends */
@@ -30,4 +31,5 @@ export const BADGE_ORDER = [
   'hot_streak',
   'dead_heat',
   'contrarian',
+  'golden_touch',
 ] as const

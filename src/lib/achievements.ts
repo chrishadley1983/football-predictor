@@ -386,6 +386,24 @@ export async function calculateAchievements(tournamentId: string): Promise<void>
         })
       }
     }
+
+    // Golden Touch: golden ticket new team won their match
+    const { data: goldenTickets } = await admin
+      .from('golden_tickets')
+      .select('*')
+      .eq('tournament_id', tournamentId)
+
+    for (const ticket of goldenTickets ?? []) {
+      const match = decidedMatches.find((m) => m.id === ticket.original_match_id)
+      if (match && match.winner_team_id === ticket.new_team_id) {
+        badges.push({
+          tournament_id: tournamentId,
+          entry_id: ticket.entry_id,
+          badge_type: 'golden_touch',
+          description: 'Golden ticket pick won their match',
+        })
+      }
+    }
   }
 
   // =============================================

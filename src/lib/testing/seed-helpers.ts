@@ -1,5 +1,6 @@
 import 'server-only'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getGoldenTicketWindow, getEligibleSwaps, applyGoldenTicket } from '@/lib/golden-ticket'
 import type { KnockoutRound } from '@/lib/types'
 
 // ============================================================================
@@ -716,4 +717,96 @@ export async function getExistingKnockoutRounds(
 
   const roundSet = new Set(matches.map((m) => m.round))
   return KNOCKOUT_ROUNDS_ORDER.filter((r) => roundSet.has(r))
+}
+
+// ============================================================================
+// AI Golden Ticket Processing
+// ============================================================================
+
+/**
+ * Process golden tickets for AI test players after a knockout round completes.
+ * Each archetype has a different probability of using their ticket:
+ * - Expert: 90% (strategic, always looking for advantage)
+ * - Average: 60% (sometimes remembers)
+ * - Wildcard: 40% (often forgets or doesn't bother)
+ *
+ * Returns the number of tickets played.
+ */
+export async function processAIGoldenTickets(
+  admin: AdminClient,
+  tournamentId: string,
+  completedRound: KnockoutRound
+): Promise<number> {
+  // Can't play golden ticket after the final
+  if (completedRound === 'final') return 0
+
+  const window = await getGoldenTicketWindow(admin, tournamentId)
+  if (!window.isOpen || !window.nextRound || !window.completedRound) return 0
+
+  // Get all entries with their player emails (to find archetypes)
+  const { data: entries } = await admin
+    .from('tournament_entries')
+    .select('id, player:players!tournament_entries_player_id_fkey ( email )')
+    .eq('tournament_id', tournamentId)
+
+  if (!entries || entries.length === 0) return 0
+
+  let ticketsPlayed = 0
+
+  for (const entry of entries) {
+    const email = (entry.player as { email: string } | null)?.email ?? ''
+    const testPlayer = TEST_PLAYERS.find((p) => p.email === email)
+    if (!testPlayer) continue // skip non-test players
+
+    // Check if they've already used their ticket
+    const { data: existingTicket } = await admin
+      .from('golden_tickets')
+      .select('id')
+      .eq('entry_id', entry.id)
+      .maybeSingle()
+
+    if (existingTicket) continue // already used
+
+    // Get eligible swaps
+    const swaps = await getEligibleSwaps(
+      admin,
+      tournamentId,
+      entry.id,
+      window.nextRound,
+      window.completedRound
+    )
+
+    if (swaps.length === 0) continue // no eliminated predictions to fix
+
+    // Decide whether to use the golden ticket based on archetype
+    const useChance = testPlayer.archetype === 'expert' ? 0.9
+      : testPlayer.archetype === 'average' ? 0.6
+      : 0.4 // wildcard
+
+    if (Math.random() >= useChance) continue // decided not to use it
+
+    // Pick the first eligible swap (highest bracket position)
+    const swap = swaps[0]
+
+    // Pick a replacement team: experts pick the "better" team (home), wildcards pick randomly
+    const availableTeams = swap.available_teams.filter((t) => t.id !== swap.eliminated_team_id)
+    if (availableTeams.length === 0) continue
+
+    const newTeam = testPlayer.archetype === 'wildcard'
+      ? availableTeams[Math.floor(Math.random() * availableTeams.length)]
+      : availableTeams[0] // experts/average pick first available
+
+    await applyGoldenTicket(
+      admin,
+      tournamentId,
+      entry.id,
+      swap.match_id,
+      newTeam.id,
+      window.completedRound
+    )
+
+    ticketsPlayed++
+  }
+
+  return ticketsPlayed
 }

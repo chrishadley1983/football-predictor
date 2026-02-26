@@ -5,6 +5,7 @@ import { PredictionGrid } from '@/components/predictions/PredictionGrid'
 import { PredictionAnalyser } from '@/components/predictions/PredictionAnalyser'
 import type { EntryInfo } from '@/components/predictions/PredictionAnalyser'
 import { getDeadlineStatus } from '@/lib/utils'
+import { GoldenTicketSummary } from '@/components/bracket/GoldenTicketSummary'
 import type {
   Tournament,
   GroupWithTeams,
@@ -15,6 +16,7 @@ import type {
   Team,
   KnockoutPrediction,
   KnockoutMatch,
+  GoldenTicketWithDetails,
   Player,
   PlayerAchievement,
   TournamentEntry,
@@ -135,6 +137,22 @@ export default async function PredictionsPage({
     knockoutMatches = (koMatches ?? []) as KnockoutMatch[]
   }
 
+  // Fetch golden tickets for this tournament
+  let goldenTickets: GoldenTicketWithDetails[] = []
+  if (knockoutVisible) {
+    const { data: gtData } = await supabase
+      .from('golden_tickets')
+      .select(`
+        *,
+        original_team:teams!golden_tickets_original_team_id_fkey (*),
+        new_team:teams!golden_tickets_new_team_id_fkey (*),
+        original_match:knockout_matches!golden_tickets_original_match_id_fkey (*)
+      `)
+      .eq('tournament_id', t.id)
+
+    goldenTickets = (gtData ?? []) as unknown as GoldenTicketWithDetails[]
+  }
+
   // Build team lookup
   const teamMap = new Map<string, Team>()
   for (const g of (groups as GroupWithTeams[]) ?? []) {
@@ -229,7 +247,11 @@ export default async function PredictionsPage({
         knockoutMatches={knockoutMatches}
         knockoutVisible={knockoutVisible}
         achievements={(achievements ?? []) as PlayerAchievement[]}
+        goldenTickets={goldenTickets}
       />
+      {knockoutVisible && goldenTickets.length > 0 && (
+        <GoldenTicketSummary tickets={goldenTickets} entries={entryInfos} />
+      )}
       <PredictionGrid
         predictions={predictions}
         groups={((groups as GroupWithTeams[]) ?? [])}
