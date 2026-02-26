@@ -617,11 +617,21 @@ export async function forceCompleteKnockoutRoundLogic(
 
     if (!match.home_team_id || !match.away_team_id) continue
 
+    // Generate random scores (winner gets higher score, or wins on penalties)
+    let homeScore = Math.floor(Math.random() * 4) // 0-3
+    let awayScore = Math.floor(Math.random() * 4) // 0-3
     const winnerId = Math.random() < 0.5 ? match.home_team_id : match.away_team_id
+
+    // Ensure winner has equal or higher score (draws go to penalties/ET)
+    if (winnerId === match.home_team_id && homeScore < awayScore) {
+      homeScore = awayScore // draw that home wins on penalties
+    } else if (winnerId === match.away_team_id && awayScore < homeScore) {
+      awayScore = homeScore // draw that away wins on penalties
+    }
 
     const { error } = await admin
       .from('knockout_matches')
-      .update({ winner_team_id: winnerId })
+      .update({ winner_team_id: winnerId, home_score: homeScore, away_score: awayScore })
       .eq('id', match.id)
 
     if (error) {

@@ -107,6 +107,8 @@ export interface KnockoutMatch {
   away_source: string | null
   home_team_id: string | null
   away_team_id: string | null
+  home_score: number | null
+  away_score: number | null
   winner_team_id: string | null
   points_value: number
   sort_order: number

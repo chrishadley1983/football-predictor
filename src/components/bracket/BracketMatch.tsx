@@ -33,6 +33,7 @@ export function BracketMatch({ match, prediction, onSelectWinner, readonly }: Br
   }
 
   const canInteract = !readonly && !actualWinner && match.home_team && match.away_team
+  const isDecided = !!actualWinner
 
   return (
     <div className="flex w-36 flex-col gap-0.5 rounded-xl border border-border-custom bg-surface p-1 sm:w-40">
@@ -41,15 +42,21 @@ export function BracketMatch({ match, prediction, onSelectWinner, readonly }: Br
       </div>
       <BracketTeam
         team={match.home_team}
+        score={match.home_score}
         selected={predictedWinner === match.home_team_id}
         correct={getHomeCorrectness()}
+        isWinner={isDecided && actualWinner === match.home_team_id}
+        isLoser={isDecided && !!match.home_team_id && actualWinner !== match.home_team_id}
         clickable={!!canInteract}
         onClick={() => match.home_team_id && onSelectWinner?.(match.id, match.home_team_id)}
       />
       <BracketTeam
         team={match.away_team}
+        score={match.away_score}
         selected={predictedWinner === match.away_team_id}
         correct={getAwayCorrectness()}
+        isWinner={isDecided && actualWinner === match.away_team_id}
+        isLoser={isDecided && !!match.away_team_id && actualWinner !== match.away_team_id}
         clickable={!!canInteract}
         onClick={() => match.away_team_id && onSelectWinner?.(match.id, match.away_team_id)}
       />

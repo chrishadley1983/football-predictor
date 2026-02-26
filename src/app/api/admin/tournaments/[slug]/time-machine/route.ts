@@ -203,7 +203,7 @@ async function resetTestData(
 
   if (knockoutMatches) {
     for (const match of knockoutMatches) {
-      const updateFields: Record<string, null> = { winner_team_id: null }
+      const updateFields: Record<string, null> = { winner_team_id: null, home_score: null, away_score: null }
       if (match.home_source) updateFields.home_team_id = null
       if (match.away_source) updateFields.away_team_id = null
       await admin.from('knockout_matches').update(updateFields).eq('id', match.id)

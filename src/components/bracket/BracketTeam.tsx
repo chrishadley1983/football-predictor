@@ -5,13 +5,16 @@ import type { Team } from '@/lib/types'
 
 interface BracketTeamProps {
   team: Team | null
+  score?: number | null
   selected?: boolean
   correct?: boolean | null  // true=correct, false=incorrect, null=pending
+  isWinner?: boolean
+  isLoser?: boolean
   clickable?: boolean
   onClick?: () => void
 }
 
-export function BracketTeam({ team, selected, correct, clickable, onClick }: BracketTeamProps) {
+export function BracketTeam({ team, score, selected, correct, isWinner, isLoser, clickable, onClick }: BracketTeamProps) {
   if (!team) {
     return (
       <div className="flex h-8 items-center gap-2 rounded border border-dashed border-border-custom bg-surface-light px-2 text-xs text-text-muted">
@@ -37,12 +40,24 @@ export function BracketTeam({ team, selected, correct, clickable, onClick }: Bra
       className={cn(
         'flex h-8 w-full items-center gap-2 rounded border px-2 text-xs font-medium transition-colors',
         colorClass,
+        isLoser && 'opacity-40',
+        isWinner && 'font-bold',
         clickable && 'cursor-pointer hover:border-gold hover:bg-gold/10',
         !clickable && 'cursor-default'
       )}
     >
       {team.flag_emoji && <span className="text-sm">{team.flag_emoji}</span>}
-      <span className="truncate text-foreground">{team.code}</span>
+      <span className={cn('truncate', isLoser ? 'text-text-muted' : 'text-foreground')}>
+        {team.code}
+      </span>
+      {score !== null && score !== undefined && (
+        <span className={cn(
+          'ml-auto tabular-nums',
+          isWinner ? 'text-foreground font-bold' : 'text-text-muted'
+        )}>
+          {score}
+        </span>
+      )}
     </button>
   )
 }
