@@ -45,7 +45,21 @@ export default async function ChatPage({ params }: { params: Promise<{ slug: str
           {t.name} &mdash; Chat
         </h1>
       </div>
-      <ChatRoom tournamentId={t.id} currentPlayerId={currentPlayerId} isAdmin={isAdmin} />
+      {!user ? (
+        <div className="rounded-xl border border-border-custom bg-surface p-8 text-center">
+          <p className="text-sm text-text-secondary">
+            You need to be logged in to view the chat.
+          </p>
+          <Link
+            href="/login"
+            className="mt-3 inline-block rounded-lg bg-gold px-4 py-2 text-sm font-medium text-background hover:bg-gold/90"
+          >
+            Log in
+          </Link>
+        </div>
+      ) : (
+        <ChatRoom tournamentId={t.id} currentPlayerId={currentPlayerId} isAdmin={isAdmin} />
+      )}
     </div>
   )
 }
