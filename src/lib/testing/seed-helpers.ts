@@ -152,6 +152,57 @@ export function resolveGroupSource(
 }
 
 /**
+ * Check if a set of qualifying 3rd-place groups produces a solvable bracket assignment.
+ * Uses backtracking to verify that each composite slot (e.g., 3C/D/E) can be filled
+ * with a unique qualifying team.
+ */
+function isBracketSolvable(
+  qualifyingGroupIds: string[],
+  groups: { id: string; name: string }[],
+  thirdByGroup: Map<string, { groupId: string; teamId: string }>,
+  compositeSources: string[]
+): boolean {
+  const qualifyingSet = new Set(qualifyingGroupIds)
+
+  // Map qualifying group letters to team IDs
+  const qualifyingLetters = new Set<string>()
+  for (const group of groups) {
+    if (qualifyingSet.has(group.id)) {
+      qualifyingLetters.add(group.name.replace('Group ', ''))
+    }
+  }
+
+  // Build slot candidates
+  const slots = compositeSources.map((source) => {
+    const match = source.match(/^(\d+)([A-L](?:\/[A-L])+)$/)
+    const letters = match ? match[2].split('/') : []
+    return letters
+      .filter((l) => qualifyingLetters.has(l))
+      .map((l) => thirdByGroup.get(l)?.teamId)
+      .filter((id): id is string => !!id)
+  })
+
+  // Sort most-constrained first
+  const indices = slots.map((_, i) => i)
+  indices.sort((a, b) => slots[a].length - slots[b].length)
+
+  const used = new Set<string>()
+  function solve(i: number): boolean {
+    if (i === indices.length) return true
+    const slotIdx = indices[i]
+    for (const teamId of slots[slotIdx]) {
+      if (used.has(teamId)) continue
+      used.add(teamId)
+      if (solve(i + 1)) return true
+      used.delete(teamId)
+    }
+    return false
+  }
+
+  return solve(0)
+}
+
+/**
  * Force-complete group stage: randomly assign positions, mark qualifiers,
  * then populate knockout bracket from group results.
  */
@@ -210,9 +261,53 @@ export async function forceCompleteGroupStageLogic(
       if (b.gf !== a.gf) return b.gf - a.gf
       return Math.random() - 0.5 // random tiebreak
     })
-    thirdPlaceQualifyingGroups = new Set(
-      thirdPlaceTeams.slice(0, thirdPlaceQualifiersCount).map((t) => t.groupId)
-    )
+
+    // Fetch bracket composite sources to validate solvability
+    const { data: koMatches } = await admin
+      .from('knockout_matches')
+      .select('home_source, away_source')
+      .eq('tournament_id', tournamentId)
+
+    const compositeSources: string[] = []
+    for (const m of koMatches ?? []) {
+      if (m.home_source && /^\d+[A-L](?:\/[A-L])+$/.test(m.home_source))
+        compositeSources.push(m.home_source)
+      if (m.away_source && /^\d+[A-L](?:\/[A-L])+$/.test(m.away_source))
+        compositeSources.push(m.away_source)
+    }
+
+    // Build group letter -> team mapping for 3rd-place teams
+    const thirdByGroup = new Map<string, { groupId: string; teamId: string }>()
+    for (const t of thirdPlaceTeams) {
+      const group = groups.find((g) => g.id === t.groupId)
+      if (group) {
+        const letter = group.name.replace('Group ', '')
+        thirdByGroup.set(letter, { groupId: t.groupId, teamId: t.teamId })
+      }
+    }
+
+    // Select qualifying groups with bracket solvability validation
+    // Start with top N by ranking, then swap boundary teams if unsolvable
+    const ranked = thirdPlaceTeams.map((t) => t.groupId)
+    let qualifyingIds = ranked.slice(0, thirdPlaceQualifiersCount)
+    const nonQualifying = ranked.slice(thirdPlaceQualifiersCount)
+
+    if (!isBracketSolvable(qualifyingIds, groups, thirdByGroup, compositeSources)) {
+      // Try swapping boundary teams until solvable
+      let solved = false
+      for (let swapOut = qualifyingIds.length - 1; swapOut >= 0 && !solved; swapOut--) {
+        for (let swapIn = 0; swapIn < nonQualifying.length && !solved; swapIn++) {
+          const candidate = [...qualifyingIds]
+          candidate[swapOut] = nonQualifying[swapIn]
+          if (isBracketSolvable(candidate, groups, thirdByGroup, compositeSources)) {
+            qualifyingIds = candidate
+            solved = true
+          }
+        }
+      }
+    }
+
+    thirdPlaceQualifyingGroups = new Set(qualifyingIds)
   }
 
   // Insert group results with correct qualified flags
