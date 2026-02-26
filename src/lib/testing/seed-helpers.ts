@@ -411,94 +411,85 @@ export async function populateKnockoutFromGroupResults(
 
   if (!matches) return
 
-  // Track which 3rd-place team IDs have already been assigned to a slot
-  const usedThirdPlaceTeams = new Set<string>()
-
-  // Helper: resolve a composite source while respecting already-used teams
-  function resolveCompositeExclusive(source: string): string | null {
-    const compositeMatch = source.match(/^(\d+)([A-L](?:\/[A-L])+)$/)
-    if (!compositeMatch) return null
-
-    const position = parseInt(compositeMatch[1], 10)
-    const letters = compositeMatch[2].split('/')
-    for (const letter of letters) {
-      const teamId = groupResults[letter]?.[position]
-      if (teamId && !usedThirdPlaceTeams.has(teamId)) {
-        usedThirdPlaceTeams.add(teamId)
-        return teamId
-      }
-    }
-    return null
+  // Separate sources into simple and composite
+  interface SourceSlot {
+    matchId: string
+    field: 'home_team_id' | 'away_team_id'
+    source: string
   }
-
-  // Separate matches into simple-source and composite-source groups
-  const simpleMatches: typeof matches = []
-  const compositeMatches: typeof matches = []
+  const simpleSlots: SourceSlot[] = []
+  const compositeSlots: SourceSlot[] = []
+  const isComposite = (s: string) => /^\d+[A-L](?:\/[A-L])+$/.test(s)
 
   for (const match of matches) {
-    const hasComposite =
-      (match.home_source && /^\d+[A-L](?:\/[A-L])+$/.test(match.home_source)) ||
-      (match.away_source && /^\d+[A-L](?:\/[A-L])+$/.test(match.away_source))
-    if (hasComposite) {
-      compositeMatches.push(match)
-    } else {
-      simpleMatches.push(match)
+    for (const [sourceField, teamField] of [
+      ['home_source', 'home_team_id'],
+      ['away_source', 'away_team_id'],
+    ] as const) {
+      const source = match[sourceField]
+      if (!source) continue
+      const slot: SourceSlot = { matchId: match.id, field: teamField, source }
+      if (isComposite(source)) {
+        compositeSlots.push(slot)
+      } else {
+        simpleSlots.push(slot)
+      }
     }
   }
 
   // Pass 1: Resolve simple sources (1A, 2B, etc.) — no duplicate risk
-  for (const match of simpleMatches) {
-    const updateFields: Record<string, string> = {}
-
-    if (match.home_source) {
-      const homeTeamId = resolveGroupSource(match.home_source, groupResults)
-      if (homeTeamId) updateFields.home_team_id = homeTeamId
-    }
-    if (match.away_source) {
-      const awayTeamId = resolveGroupSource(match.away_source, groupResults)
-      if (awayTeamId) updateFields.away_team_id = awayTeamId
-    }
-
-    if (Object.keys(updateFields).length > 0) {
+  for (const slot of simpleSlots) {
+    const teamId = resolveGroupSource(slot.source, groupResults)
+    if (teamId) {
       await admin
         .from('knockout_matches')
-        .update(updateFields)
-        .eq('id', match.id)
+        .update({ [slot.field]: teamId })
+        .eq('id', slot.matchId)
     }
   }
 
-  // Pass 2: Resolve composite sources (3C/D/E, etc.) with deduplication
-  // Sort by match_number so assignment order is deterministic
-  compositeMatches.sort((a, b) => a.match_number - b.match_number)
-
-  for (const match of compositeMatches) {
-    const updateFields: Record<string, string> = {}
-
-    if (match.home_source) {
-      if (/^\d+[A-L](?:\/[A-L])+$/.test(match.home_source)) {
-        const teamId = resolveCompositeExclusive(match.home_source)
-        if (teamId) updateFields.home_team_id = teamId
-      } else {
-        const teamId = resolveGroupSource(match.home_source, groupResults)
-        if (teamId) updateFields.home_team_id = teamId
-      }
+  // Pass 2: Resolve composite sources (3C/D/E, etc.) using backtracking
+  // to find a valid assignment where each 3rd-place team is used exactly once
+  const slotCandidates = compositeSlots.map((slot) => {
+    const compositeMatch = slot.source.match(/^(\d+)([A-L](?:\/[A-L])+)$/)
+    const position = compositeMatch ? parseInt(compositeMatch[1], 10) : 3
+    const letters = compositeMatch ? compositeMatch[2].split('/') : []
+    return {
+      ...slot,
+      candidates: letters
+        .map((letter) => groupResults[letter]?.[position])
+        .filter((id): id is string => !!id),
     }
-    if (match.away_source) {
-      if (/^\d+[A-L](?:\/[A-L])+$/.test(match.away_source)) {
-        const teamId = resolveCompositeExclusive(match.away_source)
-        if (teamId) updateFields.away_team_id = teamId
-      } else {
-        const teamId = resolveGroupSource(match.away_source, groupResults)
-        if (teamId) updateFields.away_team_id = teamId
-      }
-    }
+  })
 
-    if (Object.keys(updateFields).length > 0) {
-      await admin
-        .from('knockout_matches')
-        .update(updateFields)
-        .eq('id', match.id)
+  // Sort most-constrained first for efficient backtracking
+  slotCandidates.sort((a, b) => a.candidates.length - b.candidates.length)
+
+  const assignment = new Map<number, string>() // slot index -> teamId
+  const usedTeams = new Set<string>()
+
+  function backtrack(index: number): boolean {
+    if (index === slotCandidates.length) return true
+    for (const teamId of slotCandidates[index].candidates) {
+      if (usedTeams.has(teamId)) continue
+      usedTeams.add(teamId)
+      assignment.set(index, teamId)
+      if (backtrack(index + 1)) return true
+      usedTeams.delete(teamId)
+      assignment.delete(index)
     }
+    return false
+  }
+
+  backtrack(0)
+
+  // Apply the assignment
+  for (const [index, teamId] of assignment) {
+    const slot = slotCandidates[index]
+    await admin
+      .from('knockout_matches')
+      .update({ [slot.field]: teamId })
+      .eq('id', slot.matchId)
   }
 }
 
