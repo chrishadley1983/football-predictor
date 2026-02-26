@@ -751,9 +751,16 @@ export function PredictionAnalyser({
                                     : '-'}
                                 </td>
                                 <td className="px-2 py-1 text-center font-mono text-foreground bg-surface-light/30">
-                                  {match.winner_team_id
-                                    ? getTeamCode(match.winner_team_id)
-                                    : '-'}
+                                  {match.winner_team_id ? (
+                                    <>
+                                      {getTeamCode(match.winner_team_id)}
+                                      {match.home_score !== null && match.away_score !== null && (
+                                        <span className="ml-1 text-[9px] text-text-muted">
+                                          ({match.home_score}-{match.away_score})
+                                        </span>
+                                      )}
+                                    </>
+                                  ) : '-'}
                                 </td>
                                 {isH2H && (
                                   <td
