@@ -166,6 +166,18 @@ export async function calculateKnockoutScores(tournamentId: string): Promise<voi
   if (predsErr) throw new Error(`Failed to fetch knockout predictions: ${predsErr.message}`)
   if (!predictions || predictions.length === 0) return
 
+  // Fetch golden tickets so we can award 0 points on the golden ticket match itself
+  const { data: goldenTickets } = await admin
+    .from('golden_tickets')
+    .select('entry_id, original_match_id')
+    .eq('tournament_id', tournamentId)
+
+  // Build lookup: "entryId:matchId" -> true for golden ticket matches
+  const goldenTicketMatches = new Set<string>()
+  for (const gt of goldenTickets ?? []) {
+    goldenTicketMatches.add(`${gt.entry_id}:${gt.original_match_id}`)
+  }
+
   // Score each prediction and batch update
   const knockoutUpdates: PromiseLike<unknown>[] = []
   const knockoutPointsByEntry: Record<string, number> = {}
@@ -177,8 +189,10 @@ export async function calculateKnockoutScores(tournamentId: string): Promise<voi
       continue
     }
 
+    // Golden ticket match scores 0 — points only count from the next round onwards
+    const isGoldenTicketMatch = goldenTicketMatches.has(`${pred.entry_id}:${pred.match_id}`)
     const isCorrect = pred.predicted_winner_id === match.winner_team_id
-    const pointsEarned = isCorrect ? match.points_value : 0
+    const pointsEarned = isGoldenTicketMatch ? 0 : isCorrect ? match.points_value : 0
 
     knockoutUpdates.push(
       admin

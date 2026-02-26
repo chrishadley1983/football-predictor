@@ -226,8 +226,8 @@ export async function applyGoldenTicket(
     .update({ predicted_winner_id: newTeamId })
     .eq('id', currentPred.id)
 
-  // 2. Cascade downstream: replace old team with new team in all future predictions
-  await cascadeDownstream(admin, tournamentId, entryId, targetMatch.match_number, oldTeamId, newTeamId)
+  // 2. Cascade downstream: force new team as prediction for all future matches in this bracket branch
+  await cascadeDownstream(admin, tournamentId, entryId, targetMatch.match_number, newTeamId)
 
   // 3. Insert the golden ticket audit record
   await admin.from('golden_tickets').insert({
@@ -243,13 +243,15 @@ export async function applyGoldenTicket(
 /**
  * Recursively cascade a team swap through downstream matches.
  * Follows the W{matchNumber} references in home_source/away_source.
+ * Forces newTeamId as the prediction for ALL downstream matches in this
+ * bracket branch — the golden ticket pick is carried forward as the
+ * player's selection for every subsequent round.
  */
 async function cascadeDownstream(
   admin: AdminClient,
   tournamentId: string,
   entryId: string,
   matchNumber: number,
-  oldTeamId: string,
   newTeamId: string
 ): Promise<void> {
   const winnerSource = `W${matchNumber}`
@@ -274,15 +276,15 @@ async function cascadeDownstream(
 
     if (!pred) continue
 
-    // Only update if the player predicted the old (eliminated) team
-    if (pred.predicted_winner_id === oldTeamId) {
+    // Always set newTeamId — the golden ticket pick carries forward
+    if (pred.predicted_winner_id !== newTeamId) {
       await admin
         .from('knockout_predictions')
         .update({ predicted_winner_id: newTeamId })
         .eq('id', pred.id)
-
-      // Continue cascading from this match
-      await cascadeDownstream(admin, tournamentId, entryId, downstream.match_number, oldTeamId, newTeamId)
     }
+
+    // Continue cascading from this match
+    await cascadeDownstream(admin, tournamentId, entryId, downstream.match_number, newTeamId)
   }
 }
