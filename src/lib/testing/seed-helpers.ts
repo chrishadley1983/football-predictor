@@ -362,6 +362,8 @@ async function calculateGroupStandings(
 
 /**
  * Build lookup: group letter -> { position -> team_id }
+ * Only includes 3rd-place teams that qualified (to prevent non-qualifiers
+ * appearing in R32 composite slots like 3A/D/E).
  */
 async function buildGroupResultsLookup(
   admin: AdminClient,
@@ -373,12 +375,14 @@ async function buildGroupResultsLookup(
     const letter = group.name.replace('Group ', '')
     const { data: results } = await admin
       .from('group_results')
-      .select('team_id, final_position')
+      .select('team_id, final_position, qualified')
       .eq('group_id', group.id)
 
     if (results) {
       groupResultsByLetter[letter] = {}
       for (const r of results) {
+        // Only include 3rd-place teams that qualified
+        if (r.final_position === 3 && !r.qualified) continue
         groupResultsByLetter[letter][r.final_position] = r.team_id
       }
     }
@@ -389,6 +393,11 @@ async function buildGroupResultsLookup(
 
 /**
  * Populate knockout matches from group results using home_source/away_source.
+ *
+ * Composite 3rd-place sources (e.g., "3C/D/E") are resolved in a coordinated
+ * pass to ensure each qualifying 3rd-place team is assigned to exactly one slot.
+ * Without this, the same team could be picked by multiple slots that share a
+ * group letter (e.g., South Africa 3rd in Group A matched by both "3A/D/E" and "3A/B/C").
  */
 export async function populateKnockoutFromGroupResults(
   admin: AdminClient,
@@ -397,12 +406,48 @@ export async function populateKnockoutFromGroupResults(
 ): Promise<void> {
   const { data: matches } = await admin
     .from('knockout_matches')
-    .select('id, home_source, away_source')
+    .select('id, match_number, home_source, away_source')
     .eq('tournament_id', tournamentId)
 
   if (!matches) return
 
+  // Track which 3rd-place team IDs have already been assigned to a slot
+  const usedThirdPlaceTeams = new Set<string>()
+
+  // Helper: resolve a composite source while respecting already-used teams
+  function resolveCompositeExclusive(source: string): string | null {
+    const compositeMatch = source.match(/^(\d+)([A-L](?:\/[A-L])+)$/)
+    if (!compositeMatch) return null
+
+    const position = parseInt(compositeMatch[1], 10)
+    const letters = compositeMatch[2].split('/')
+    for (const letter of letters) {
+      const teamId = groupResults[letter]?.[position]
+      if (teamId && !usedThirdPlaceTeams.has(teamId)) {
+        usedThirdPlaceTeams.add(teamId)
+        return teamId
+      }
+    }
+    return null
+  }
+
+  // Separate matches into simple-source and composite-source groups
+  const simpleMatches: typeof matches = []
+  const compositeMatches: typeof matches = []
+
   for (const match of matches) {
+    const hasComposite =
+      (match.home_source && /^\d+[A-L](?:\/[A-L])+$/.test(match.home_source)) ||
+      (match.away_source && /^\d+[A-L](?:\/[A-L])+$/.test(match.away_source))
+    if (hasComposite) {
+      compositeMatches.push(match)
+    } else {
+      simpleMatches.push(match)
+    }
+  }
+
+  // Pass 1: Resolve simple sources (1A, 2B, etc.) — no duplicate risk
+  for (const match of simpleMatches) {
     const updateFields: Record<string, string> = {}
 
     if (match.home_source) {
@@ -412,6 +457,40 @@ export async function populateKnockoutFromGroupResults(
     if (match.away_source) {
       const awayTeamId = resolveGroupSource(match.away_source, groupResults)
       if (awayTeamId) updateFields.away_team_id = awayTeamId
+    }
+
+    if (Object.keys(updateFields).length > 0) {
+      await admin
+        .from('knockout_matches')
+        .update(updateFields)
+        .eq('id', match.id)
+    }
+  }
+
+  // Pass 2: Resolve composite sources (3C/D/E, etc.) with deduplication
+  // Sort by match_number so assignment order is deterministic
+  compositeMatches.sort((a, b) => a.match_number - b.match_number)
+
+  for (const match of compositeMatches) {
+    const updateFields: Record<string, string> = {}
+
+    if (match.home_source) {
+      if (/^\d+[A-L](?:\/[A-L])+$/.test(match.home_source)) {
+        const teamId = resolveCompositeExclusive(match.home_source)
+        if (teamId) updateFields.home_team_id = teamId
+      } else {
+        const teamId = resolveGroupSource(match.home_source, groupResults)
+        if (teamId) updateFields.home_team_id = teamId
+      }
+    }
+    if (match.away_source) {
+      if (/^\d+[A-L](?:\/[A-L])+$/.test(match.away_source)) {
+        const teamId = resolveCompositeExclusive(match.away_source)
+        if (teamId) updateFields.away_team_id = teamId
+      } else {
+        const teamId = resolveGroupSource(match.away_source, groupResults)
+        if (teamId) updateFields.away_team_id = teamId
+      }
     }
 
     if (Object.keys(updateFields).length > 0) {
