@@ -70,7 +70,7 @@ export function PredictionGrid({
     actualWinnerId: string | null,
     impossible?: boolean
   ): string {
-    if (impossible) return 'bg-surface-light/50 text-text-muted line-through'
+    if (impossible) return 'bg-gray-700/40 text-gray-500 line-through'
     if (!predictedWinnerId || !actualWinnerId) return 'bg-surface-light'
     if (predictedWinnerId === actualWinnerId)
       return 'bg-green-accent/20 text-green-accent'
