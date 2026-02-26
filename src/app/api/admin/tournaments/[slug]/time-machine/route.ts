@@ -343,15 +343,15 @@ async function seedEntries(
 }
 
 /**
- * Seed knockout predictions from the full pool of qualified teams.
+ * Seed knockout predictions by tracing each player's bracket tree.
  *
- * Real players submit knockout predictions before the bracket is fully known,
- * so they pick from all qualifying teams — not just the two in each match.
- * This means some picks will inevitably become "impossible" when the team
- * gets knocked out in an earlier round.
+ * Players predict at the end of the group stage when R32 matchups are known.
+ * They trace the bracket: predict R32 winners, then use THOSE predictions as
+ * the two teams for each R16 match, pick a winner, and so on through the Final.
  *
- * For R32 (where both teams are known): picks one of the two teams.
- * For later rounds: picks from all qualified teams, weighted by archetype.
+ * This creates realistic data where later-round picks are always teams the player
+ * predicted to win in earlier rounds. Some will become "impossible" when the
+ * team actually loses in an earlier round.
  */
 async function seedKnockoutPredictions(
   admin: ReturnType<typeof createAdminClient>,
@@ -364,29 +364,18 @@ async function seedKnockoutPredictions(
 
   if (!entries || entries.length === 0) return
 
-  // Get ALL knockout matches (including those without teams yet)
+  // Get ALL knockout matches with sources
   const { data: matches } = await admin
     .from('knockout_matches')
-    .select('id, round, match_number, home_team_id, away_team_id')
+    .select('id, round, match_number, home_team_id, away_team_id, home_source, away_source')
     .eq('tournament_id', tournamentId)
     .order('sort_order')
 
   if (!matches || matches.length === 0) return
 
-  // Build pool of all qualified teams
-  const { data: groupIds } = await admin
-    .from('groups')
-    .select('id')
-    .eq('tournament_id', tournamentId)
-
-  const { data: qualifiedResults } = await admin
-    .from('group_results')
-    .select('team_id')
-    .in('group_id', (groupIds ?? []).map((g) => g.id))
-    .eq('qualified', true)
-
-  const qualifiedPool = (qualifiedResults ?? []).map((r) => r.team_id)
-  if (qualifiedPool.length === 0) return
+  // Build match lookup by match_number
+  const matchByNumber = new Map<number, typeof matches[0]>()
+  for (const m of matches) matchByNumber.set(m.match_number, m)
 
   const entryIds = entries.map((e) => e.id)
   const { data: existingPreds } = await admin
@@ -410,33 +399,42 @@ async function seedKnockoutPredictions(
     const player = TEST_PLAYERS.find((p) => p.email === email)
     const archetype = player?.archetype ?? 'average' as const
 
+    // Track this player's predicted winner per match_number
+    const playerPredictions = new Map<number, string>()
+
+    // Process matches in sort_order (R32 first, then R16, QF, SF, Final)
     for (const match of matches) {
       const key = `${entry.id}:${match.id}`
       if (existingSet.has(key)) continue
 
-      let predictedWinnerId: string
+      let homeTeam: string | null = null
+      let awayTeam: string | null = null
 
-      if (match.home_team_id && match.away_team_id && match.round === 'round_of_32') {
-        // R32: both teams are known, pick between them (realistic)
-        predictedWinnerId = generateKnockoutPrediction(
-          match.home_team_id,
-          match.away_team_id,
-          archetype
-        )
+      if (match.round === 'round_of_32') {
+        // R32: actual teams are known from the bracket
+        homeTeam = match.home_team_id
+        awayTeam = match.away_team_id
       } else {
-        // Later rounds: pick from qualified pool
-        // Expert: favour top-seeded teams (first half of pool)
-        // Average: random from pool
-        // Wildcard: favour underdogs (second half of pool)
-        const poolSize = qualifiedPool.length
-        const pickIndex =
-          archetype === 'expert'
-            ? Math.floor(Math.random() * Math.ceil(poolSize * 0.5)) // top half
-            : archetype === 'wildcard'
-              ? Math.floor(poolSize * 0.5 + Math.random() * Math.floor(poolSize * 0.5)) // bottom half
-              : Math.floor(Math.random() * poolSize) // full random
-        predictedWinnerId = qualifiedPool[pickIndex]
+        // Later rounds: resolve from this player's own predicted winners
+        // home_source/away_source are like "W1", "W17" etc.
+        if (match.home_source) {
+          const srcMatch = match.home_source.match(/^W(\d+)$/)
+          if (srcMatch) {
+            homeTeam = playerPredictions.get(parseInt(srcMatch[1], 10)) ?? null
+          }
+        }
+        if (match.away_source) {
+          const srcMatch = match.away_source.match(/^W(\d+)$/)
+          if (srcMatch) {
+            awayTeam = playerPredictions.get(parseInt(srcMatch[1], 10)) ?? null
+          }
+        }
       }
+
+      if (!homeTeam || !awayTeam) continue
+
+      const predictedWinnerId = generateKnockoutPrediction(homeTeam, awayTeam, archetype)
+      playerPredictions.set(match.match_number, predictedWinnerId)
 
       inserts.push({
         entry_id: entry.id,
