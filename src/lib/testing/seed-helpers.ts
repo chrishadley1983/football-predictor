@@ -767,16 +767,15 @@ export async function processAIGoldenTickets(
 
     if (existingTicket) continue // already used
 
-    // Get eligible swaps
+    // Get eligible swaps (wrong predictions in the completed round)
     const swaps = await getEligibleSwaps(
       admin,
       tournamentId,
       entry.id,
-      window.nextRound,
       window.completedRound
     )
 
-    if (swaps.length === 0) continue // no eliminated predictions to fix
+    if (swaps.length === 0) continue // all predictions were correct — no swap needed
 
     // Decide whether to use the golden ticket based on archetype
     const useChance = testPlayer.archetype === 'expert' ? 0.9
@@ -785,23 +784,19 @@ export async function processAIGoldenTickets(
 
     if (Math.random() >= useChance) continue // decided not to use it
 
-    // Pick the first eligible swap (highest bracket position)
-    const swap = swaps[0]
+    // Pick which wrong prediction to fix: experts pick first (highest bracket),
+    // wildcards pick randomly
+    const swap = testPlayer.archetype === 'wildcard'
+      ? swaps[Math.floor(Math.random() * swaps.length)]
+      : swaps[0]
 
-    // Pick a replacement team: experts pick the "better" team (home), wildcards pick randomly
-    const availableTeams = swap.available_teams.filter((t) => t.id !== swap.eliminated_team_id)
-    if (availableTeams.length === 0) continue
-
-    const newTeam = testPlayer.archetype === 'wildcard'
-      ? availableTeams[Math.floor(Math.random() * availableTeams.length)]
-      : availableTeams[0] // experts/average pick first available
-
+    // Apply — the swap target is always the actual winner (automatic)
     await applyGoldenTicket(
       admin,
       tournamentId,
       entry.id,
       swap.match_id,
-      newTeam.id,
+      swap.winner_team_id,
       window.completedRound
     )
 

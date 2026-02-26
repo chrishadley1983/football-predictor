@@ -14,19 +14,18 @@ interface GoldenTicketModalProps {
 
 export function GoldenTicketModal({ slug, eligibleSwaps, onSuccess, onClose }: GoldenTicketModalProps) {
   const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null)
-  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
 
   async function handleConfirm() {
-    if (!selectedMatchId || !selectedTeamId) return
+    if (!selectedMatchId) return
     setSubmitting(true)
     setError('')
 
     const res = await fetch(`/api/tournaments/${slug}/golden-ticket`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ match_id: selectedMatchId, new_team_id: selectedTeamId }),
+      body: JSON.stringify({ match_id: selectedMatchId }),
     })
 
     if (!res.ok) {
@@ -39,6 +38,8 @@ export function GoldenTicketModal({ slug, eligibleSwaps, onSuccess, onClose }: G
     onSuccess()
   }
 
+  const selectedSwap = eligibleSwaps.find((s) => s.match_id === selectedMatchId)
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
       <div className="w-full max-w-md rounded-2xl border border-gold/30 bg-surface shadow-2xl">
@@ -49,18 +50,19 @@ export function GoldenTicketModal({ slug, eligibleSwaps, onSuccess, onClose }: G
             <h2 className="font-heading text-xl font-bold text-gold">Golden Ticket</h2>
           </div>
           <p className="mt-1 text-sm text-text-muted">
-            Swap one eliminated prediction for a surviving team
+            Fix a wrong prediction — swap to the actual winner. No points for that match,
+            but the winner carries forward through the rest of the tournament.
           </p>
         </div>
 
         {/* Body */}
         <div className="space-y-4 px-5 py-4">
           {eligibleSwaps.length === 0 ? (
-            <p className="text-sm text-text-muted">No eligible swaps available.</p>
+            <p className="text-sm text-text-muted">No wrong predictions to fix.</p>
           ) : (
             <>
               <p className="text-xs text-text-muted">
-                Select a match and pick your new team. This change cascades through all later rounds.
+                Pick which wrong prediction to fix. The winner becomes your pick for all later rounds.
               </p>
 
               {eligibleSwaps.map((swap) => {
@@ -74,43 +76,25 @@ export function GoldenTicketModal({ slug, eligibleSwaps, onSuccess, onClose }: G
                         ? 'border-gold bg-gold/10'
                         : 'border-border-custom hover:border-gold/50'
                     )}
-                    onClick={() => {
-                      setSelectedMatchId(swap.match_id)
-                      setSelectedTeamId(null)
-                    }}
+                    onClick={() => setSelectedMatchId(swap.match_id)}
                   >
-                    {/* Match header */}
-                    <div className="flex items-center justify-between mb-2">
+                    {/* Match info */}
+                    <div className="flex items-center justify-between mb-1">
                       <span className="text-xs text-text-muted">
                         {swap.match.round.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())} #{swap.match.match_number}
                       </span>
-                      <span className="text-xs text-red-accent line-through">
-                        {swap.eliminated_team.flag_emoji} {swap.eliminated_team.code}
-                      </span>
                     </div>
 
-                    {/* Team selection */}
-                    {isSelected && (
-                      <div className="flex gap-2 mt-2">
-                        {swap.available_teams.map((team) => (
-                          <button
-                            key={team.id}
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setSelectedTeamId(team.id)
-                            }}
-                            className={cn(
-                              'flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-colors',
-                              selectedTeamId === team.id
-                                ? 'border-gold bg-gold/20 text-gold'
-                                : 'border-border-custom text-foreground hover:border-gold/50'
-                            )}
-                          >
-                            {team.flag_emoji} {team.code}
-                          </button>
-                        ))}
-                      </div>
-                    )}
+                    {/* Your wrong pick → actual winner */}
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-red-accent line-through">
+                        {swap.wrong_team.flag_emoji} {swap.wrong_team.code}
+                      </span>
+                      <span className="text-text-muted">→</span>
+                      <span className="text-green-accent font-medium">
+                        {swap.winner_team.flag_emoji} {swap.winner_team.code}
+                      </span>
+                    </div>
                   </div>
                 )
               })}
@@ -124,6 +108,11 @@ export function GoldenTicketModal({ slug, eligibleSwaps, onSuccess, onClose }: G
           {/* Warning */}
           <div className="rounded-md bg-yellow-accent/10 p-2 text-xs text-yellow-accent">
             This is irreversible. You can only use the golden ticket once per tournament.
+            {selectedSwap && (
+              <span className="block mt-1">
+                No points for this match — {selectedSwap.winner_team.code} will score from the next round onwards.
+              </span>
+            )}
           </div>
         </div>
 
@@ -135,7 +124,7 @@ export function GoldenTicketModal({ slug, eligibleSwaps, onSuccess, onClose }: G
           <Button
             onClick={handleConfirm}
             loading={submitting}
-            disabled={!selectedMatchId || !selectedTeamId}
+            disabled={!selectedMatchId}
             className="flex-1 bg-gold text-surface hover:bg-gold/90"
           >
             🎫 Play Golden Ticket

@@ -68,43 +68,31 @@ export async function getGoldenTicketWindow(
 // ============================================================================
 
 export interface EligibleSwap {
+  /** The completed-round match where the player predicted wrong */
   match_id: string
   match: KnockoutMatch
-  eliminated_team_id: string
-  eliminated_team: Team
-  available_teams: Team[]
+  /** The team the player predicted (the loser) */
+  wrong_team_id: string
+  wrong_team: Team
+  /** The actual winner of this match (the automatic swap target) */
+  winner_team_id: string
+  winner_team: Team
 }
 
 /**
- * Find matches in the next round where the player's predicted team was eliminated.
- * Returns the eligible swaps with the available replacement teams.
+ * Find matches in the completed round where the player's prediction was wrong.
+ * The golden ticket lets the player retroactively fix a wrong prediction by
+ * swapping to the actual winner. No points for that match; the winner then
+ * cascades through all downstream predictions.
  */
 export async function getEligibleSwaps(
   admin: AdminClient,
   tournamentId: string,
   entryId: string,
-  nextRound: KnockoutRound,
   completedRound: KnockoutRound
 ): Promise<EligibleSwap[]> {
-  // Get all matches in the completed round to find eliminated teams
+  // Get all decided matches in the completed round with team details
   const { data: completedMatches } = await admin
-    .from('knockout_matches')
-    .select('id, home_team_id, away_team_id, winner_team_id')
-    .eq('tournament_id', tournamentId)
-    .eq('round', completedRound)
-
-  if (!completedMatches) return []
-
-  // Build set of eliminated team IDs (teams that lost in the completed round)
-  const eliminatedTeams = new Set<string>()
-  for (const m of completedMatches) {
-    if (!m.winner_team_id) continue
-    const loserId = m.home_team_id === m.winner_team_id ? m.away_team_id : m.home_team_id
-    if (loserId) eliminatedTeams.add(loserId)
-  }
-
-  // Get matches in the next round with team details
-  const { data: nextMatches } = await admin
     .from('knockout_matches')
     .select(`
       *,
@@ -112,70 +100,52 @@ export async function getEligibleSwaps(
       away_team:teams!knockout_matches_away_team_id_fkey (*)
     `)
     .eq('tournament_id', tournamentId)
-    .eq('round', nextRound)
+    .eq('round', completedRound)
+    .not('winner_team_id', 'is', null)
     .order('sort_order')
 
-  if (!nextMatches) return []
+  if (!completedMatches || completedMatches.length === 0) return []
 
-  // Get player's predictions for the next round matches
-  const nextMatchIds = nextMatches.map((m) => m.id)
+  // Get player's predictions for these matches
+  const matchIds = completedMatches.map((m) => m.id)
   const { data: predictions } = await admin
     .from('knockout_predictions')
     .select('match_id, predicted_winner_id')
     .eq('entry_id', entryId)
-    .in('match_id', nextMatchIds)
+    .in('match_id', matchIds)
 
   if (!predictions) return []
 
   const predByMatch = new Map(predictions.map((p) => [p.match_id, p.predicted_winner_id]))
 
-  // Collect all eliminated team IDs we need to look up
-  const eliminatedTeamIdsNeeded = new Set<string>()
-  for (const match of nextMatches) {
-    const predictedWinnerId = predByMatch.get(match.id)
-    if (predictedWinnerId && eliminatedTeams.has(predictedWinnerId)) {
-      eliminatedTeamIdsNeeded.add(predictedWinnerId)
-    }
-  }
-
-  // Fetch eliminated team details (they won't be in the next-round matches since they lost)
-  let eliminatedTeamMap = new Map<string, Team>()
-  if (eliminatedTeamIdsNeeded.size > 0) {
-    const { data: elimTeams } = await admin
-      .from('teams')
-      .select('*')
-      .in('id', [...eliminatedTeamIdsNeeded])
-
-    eliminatedTeamMap = new Map((elimTeams ?? []).map((t) => [t.id, t as Team]))
-  }
-
   const swaps: EligibleSwap[] = []
 
-  for (const match of nextMatches) {
+  for (const match of completedMatches) {
     const predictedWinnerId = predByMatch.get(match.id)
     if (!predictedWinnerId) continue
 
-    // Check if the player's predicted winner was eliminated in the completed round
-    if (!eliminatedTeams.has(predictedWinnerId)) continue
+    // Only eligible if the player predicted wrong
+    if (predictedWinnerId === match.winner_team_id) continue
 
-    const eliminatedTeam = eliminatedTeamMap.get(predictedWinnerId)
-    if (!eliminatedTeam) continue
-
-    // The available teams are whoever IS in the next-round match (the actual survivors)
+    // Identify the wrong team and the actual winner
     const homeTeam = match.home_team as Team | null
     const awayTeam = match.away_team as Team | null
-    const actualTeams: Team[] = []
-    if (homeTeam) actualTeams.push(homeTeam)
-    if (awayTeam) actualTeams.push(awayTeam)
+    const wrongTeam = predictedWinnerId === homeTeam?.id ? homeTeam
+      : predictedWinnerId === awayTeam?.id ? awayTeam
+      : null
+    const winnerTeam = match.winner_team_id === homeTeam?.id ? homeTeam
+      : match.winner_team_id === awayTeam?.id ? awayTeam
+      : null
 
-    if (actualTeams.length === 0) continue
+    if (!wrongTeam || !winnerTeam) continue
 
     swaps.push({
       match_id: match.id,
       match: match as unknown as KnockoutMatch,
-      eliminated_team_id: predictedWinnerId,
-      eliminated_team: eliminatedTeam,
-      available_teams: actualTeams,
+      wrong_team_id: predictedWinnerId,
+      wrong_team: wrongTeam,
+      winner_team_id: match.winner_team_id!,
+      winner_team: winnerTeam,
     })
   }
 
@@ -187,8 +157,9 @@ export async function getEligibleSwaps(
 // ============================================================================
 
 /**
- * Apply a golden ticket: update the prediction for the target match and cascade
- * the change through all downstream matches in the player's bracket.
+ * Apply a golden ticket: retroactively fix a wrong prediction in the completed
+ * round by swapping to the actual winner. The winner then cascades through all
+ * downstream matches. The golden ticket match itself scores 0 points.
  */
 export async function applyGoldenTicket(
   admin: AdminClient,

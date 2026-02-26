@@ -387,20 +387,30 @@ export async function calculateAchievements(tournamentId: string): Promise<void>
       }
     }
 
-    // Golden Touch: golden ticket new team won their match
+    // Golden Touch: golden ticket new team won their NEXT match (downstream)
+    // The golden ticket match itself always has the new team as winner (by definition),
+    // so we check if the new team won in the first downstream match.
     const { data: goldenTickets } = await admin
       .from('golden_tickets')
       .select('*')
       .eq('tournament_id', tournamentId)
 
     for (const ticket of goldenTickets ?? []) {
-      const match = decidedMatches.find((m) => m.id === ticket.original_match_id)
-      if (match && match.winner_team_id === ticket.new_team_id) {
+      const ticketMatch = matches.find((m) => m.id === ticket.original_match_id)
+      if (!ticketMatch) continue
+
+      // Find the next match downstream (fed by the winner of the ticket match)
+      const winnerSource = `W${ticketMatch.match_number}`
+      const downstreamMatch = decidedMatches.find(
+        (m) => m.home_source === winnerSource || m.away_source === winnerSource
+      )
+
+      if (downstreamMatch && downstreamMatch.winner_team_id === ticket.new_team_id) {
         badges.push({
           tournament_id: tournamentId,
           entry_id: ticket.entry_id,
           badge_type: 'golden_touch',
-          description: 'Golden ticket pick won their match',
+          description: 'Golden ticket pick won their next match',
         })
       }
     }
