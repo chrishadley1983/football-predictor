@@ -583,9 +583,9 @@ export function PredictionAnalyser({
                                   </>
                                 )}
                               </td>
-                              {/* Actual Result */}
+                              {/* Actual Result — only show qualifiers (the 32 teams advancing) */}
                               <td className="px-2 py-1 text-center font-mono text-foreground bg-surface-light/30">
-                                {actualTeam
+                                {actualTeam && actualTeam.qualified
                                   ? getTeamCode(actualTeam.team_id)
                                   : '-'}
                               </td>
