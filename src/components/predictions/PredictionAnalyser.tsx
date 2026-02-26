@@ -739,11 +739,13 @@ export function PredictionAnalyser({
                               playerB?.knockout_predictions.find(
                                 (kp) => kp.match_id === match.id
                               )
-                            const impossibleA = isImpossiblePick(
+                            const goldenTicketA = getGoldenTicketForMatch(playerAId, match.id)
+                            const goldenTicketB = getGoldenTicketForMatch(playerBId, match.id)
+                            const impossibleA = !goldenTicketA && isImpossiblePick(
                               predA?.predicted_winner_id ?? null,
                               match.round
                             )
-                            const impossibleB = isImpossiblePick(
+                            const impossibleB = !goldenTicketB && isImpossiblePick(
                               predB?.predicted_winner_id ?? null,
                               match.round
                             )
@@ -765,7 +767,7 @@ export function PredictionAnalyser({
                                 >
                                   {predA ? (
                                     <>
-                                      {getGoldenTicketForMatch(playerAId, match.id) && (
+                                      {goldenTicketA && (
                                         <span title="Golden ticket used" className="mr-0.5">🎫</span>
                                       )}
                                       {getTeamCode(predA.predicted_winner_id)}
@@ -797,7 +799,7 @@ export function PredictionAnalyser({
                                   >
                                     {predB ? (
                                       <>
-                                        {getGoldenTicketForMatch(playerBId, match.id) && (
+                                        {goldenTicketB && (
                                           <span title="Golden ticket used" className="mr-0.5">🎫</span>
                                         )}
                                         {getTeamCode(predB.predicted_winner_id)}
