@@ -62,7 +62,7 @@ Collect 10-15 real headlines/stories total. These will be woven into the snippet
 
 ## Step 3: Generate Snippets
 
-Using the tournament context above, generate **exactly 60 snippets** — 15 per pundit. Each pundit has a distinct personality:
+Using the tournament context and news from above, generate **approximately 90 snippets** — about 22-23 per pundit. Each pundit has a distinct personality:
 
 ### Gary Neverill (key: `neverill`) — "The Analyst"
 - Overthinks everything, turns everything into tactical breakdowns
@@ -92,13 +92,13 @@ Using the tournament context above, generate **exactly 60 snippets** — 15 per 
 - Gets LOUDER as point develops, uses Scouse expressions
 - Catchphrases: "No but LISTEN right...", "I'll tell ya what...", "That's boss that", "People will say... and they'd be WRONG"
 
-### Content Mix Per Pundit (15 snippets each):
-- ~3 about the leaderboard (who's rising, falling, streaking)
-- ~3 about player predictions (bold picks, who looks smart/foolish)
-- ~3 reacting to match results
-- ~2 reacting to chat messages
-- ~2 about real World Cup / football news from Step 2 (reference actual headlines, players, managers, incidents)
-- ~2 random society observations based on real trending stories from Step 2 (reference actual news, viral moments, weather, transport) — delivered entirely in character voice
+### Content Mix Per Pundit (22-23 snippets each):
+- ~4 about the leaderboard (who's rising, falling, streaking)
+- ~4 about player predictions (bold picks, who looks smart/foolish)
+- ~4 reacting to match results
+- ~3 reacting to chat messages
+- ~4 about real World Cup / football news from Step 2 (reference actual headlines, players, managers, incidents)
+- ~3 random society observations based on real trending stories from Step 2 (reference actual news, viral moments, weather, transport) — delivered entirely in character voice
 
 ### Rules:
 - 1-3 sentences per snippet, punchy and sharp
