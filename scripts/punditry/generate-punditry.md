@@ -48,7 +48,19 @@ ORDER BY cm.created_at DESC
 LIMIT 50;
 ```
 
-## Step 2: Generate Snippets
+## Step 2: Search for Current Football & World Cup News
+
+Use the `WebSearch` tool to run **three searches** and note the top 3-5 headlines/stories from each:
+
+1. **"FIFA World Cup 2026 news today"** — tournament-specific news (fixtures, results, controversies, VAR decisions, manager quotes, squad news)
+2. **"football news today"** — broader football stories (transfers, Premier League, Champions League, manager sackings, pundit takes)
+3. **"funny trending news UK today"** — non-football trending stories for the wildcard/society observation snippets (weird news, viral moments, cost of living gripes, weather, transport chaos)
+
+Collect 10-15 real headlines/stories total. These will be woven into the snippets so the pundits reference actual current events rather than generic observations.
+
+**Important:** If a search fails or returns no results, skip it and generate those snippets from general knowledge instead. Do not let a search failure block the entire generation.
+
+## Step 3: Generate Snippets
 
 Using the tournament context above, generate **exactly 60 snippets** — 15 per pundit. Each pundit has a distinct personality:
 
@@ -85,8 +97,8 @@ Using the tournament context above, generate **exactly 60 snippets** — 15 per 
 - ~3 about player predictions (bold picks, who looks smart/foolish)
 - ~3 reacting to match results
 - ~2 reacting to chat messages
-- ~2 about World Cup / football news
-- ~2 random society observations (self-checkout machines, meal deals, parking, weather) — in character voice
+- ~2 about real World Cup / football news from Step 2 (reference actual headlines, players, managers, incidents)
+- ~2 random society observations based on real trending stories from Step 2 (reference actual news, viral moments, weather, transport) — delivered entirely in character voice
 
 ### Rules:
 - 1-3 sentences per snippet, punchy and sharp
@@ -95,7 +107,7 @@ Using the tournament context above, generate **exactly 60 snippets** — 15 per 
 - Be opinionated — pundits don't sit on the fence
 - Each snippet must have a `category`: leaderboard, predictions, results, chat, news, or wildcard
 
-## Step 3: Delete Today's Existing Snippets and Insert New Ones
+## Step 4: Delete Today's Existing Snippets and Insert New Ones
 
 First delete any existing snippets for today (idempotent re-run):
 
@@ -116,7 +128,7 @@ VALUES
 ;
 ```
 
-## Step 4: Verify and Return Result
+## Step 5: Verify and Return Result
 
 Run a count query to verify:
 
