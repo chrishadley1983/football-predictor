@@ -1,75 +1,112 @@
-# Deploy Generate Punditry — GCP Cloud Function + Scheduler
+# Punditry System — Deployment Guide
 
-## Prerequisites
+## Architecture
 
-1. Google Cloud CLI (`gcloud`) installed and authenticated
-2. A GCP project with billing enabled
-3. APIs enabled: Cloud Functions, Cloud Scheduler, Secret Manager
+```
+Windows Task Scheduler (05:00 UTC daily)
+  └── PowerShell → Claude Code CLI (OAuth)
+        ├── Reads tournament context from Supabase (MCP)
+        ├── Generates 60 snippets (15 per pundit)
+        └── Inserts into Supabase (MCP)
+
+Cloud Scheduler (05:30 UTC daily)
+  └── Cloud Function (verify-punditry)
+        ├── Checks Supabase for today's snippets
+        └── Sends Discord notification (success / error)
+```
+
+## Part 1: Local Generation (Windows Task Scheduler)
+
+### Install the scheduled task
+
+```powershell
+cd "C:\Users\Chris Hadley\Football Prediction Game\scripts\punditry"
+
+# Install (disabled by default)
+.\Install-ScheduledTask.ps1
+
+# Install and enable immediately
+.\Install-ScheduledTask.ps1 -Enable
+```
+
+### Run manually
+
+```powershell
+# Via Task Scheduler
+Start-ScheduledTask -TaskName 'Punditry-DailyGeneration' -TaskPath '\Football Predictor\'
+
+# Or directly
+.\Invoke-PunditryGeneration.ps1
+```
+
+### View task status
+
+```powershell
+Get-ScheduledTask -TaskPath '\Football Predictor\'
+```
+
+## Part 2: GCP Verification (Cloud Scheduler + Cloud Function)
+
+### Prerequisites
 
 ```powershell
 gcloud services enable cloudfunctions.googleapis.com cloudscheduler.googleapis.com secretmanager.googleapis.com run.googleapis.com cloudbuild.googleapis.com
 ```
 
-## 1. Store Secrets in Secret Manager
+### Store secrets (if not already done)
 
 ```powershell
+# Supabase credentials
 echo -n "https://modjoikyuhqzouxvieua.supabase.co" | gcloud secrets create SUPABASE_URL --data-file=-
 echo -n "YOUR_SERVICE_ROLE_KEY" | gcloud secrets create SUPABASE_SERVICE_ROLE_KEY --data-file=-
-echo -n "YOUR_ANTHROPIC_API_KEY" | gcloud secrets create ANTHROPIC_API_KEY --data-file=-
+
+# Discord webhook for notifications
+echo -n "YOUR_DISCORD_WEBHOOK_URL" | gcloud secrets create DISCORD_WEBHOOK_URL --data-file=-
 ```
 
-## 2. Deploy the Cloud Function
+### Deploy the Cloud Function
 
 ```powershell
-cd gcp/generate-punditry
+cd "C:\Users\Chris Hadley\Football Prediction Game\gcp\generate-punditry"
 npm install
 npm run deploy
 ```
 
-This deploys a Gen 2 Cloud Function to `europe-west2` with:
-- 300s timeout (4 API calls × ~30s each + overhead)
-- 256MB memory
-- Secrets injected from Secret Manager
-- `TOURNAMENT_SLUG=world-cup-2026` as env var
-- HTTP trigger (no public access — only Cloud Scheduler)
-
-## 3. Create the Cloud Scheduler Job (05:30 UTC daily)
+### Create the Cloud Scheduler job (05:30 UTC)
 
 ```powershell
-# Get the function URL
-$FUNCTION_URL = gcloud functions describe generate-punditry --gen2 --region europe-west2 --format "value(serviceConfig.uri)"
+$FUNCTION_URL = gcloud functions describe verify-punditry --gen2 --region europe-west2 --format "value(serviceConfig.uri)"
 
-# Create scheduler job
-gcloud scheduler jobs create http generate-punditry-daily --location europe-west2 --schedule "30 5 * * *" --uri $FUNCTION_URL --http-method POST --oidc-service-account-email (gcloud iam service-accounts list --format "value(email)" --filter "displayName:Default compute service account") --time-zone "UTC"
+gcloud scheduler jobs create http verify-punditry-daily --location europe-west2 --schedule "30 5 * * *" --uri $FUNCTION_URL --http-method POST --oidc-service-account-email (gcloud iam service-accounts list --format "value(email)" --filter "displayName:Default compute service account") --time-zone "UTC"
 ```
 
-The cron expression `30 5 * * *` runs at **05:30 UTC every day**.
-
-## 4. Test It
+### Test manually
 
 ```powershell
-# Trigger manually
-gcloud scheduler jobs run generate-punditry-daily --location europe-west2
-
-# Check logs
-gcloud functions logs read generate-punditry --gen2 --region europe-west2 --limit 50
+gcloud scheduler jobs run verify-punditry-daily --location europe-west2
+gcloud functions logs read verify-punditry --gen2 --region europe-west2 --limit 20
 ```
 
-## Architecture
+## Discord Notifications
 
-```
-Cloud Scheduler (05:30 UTC daily)
-  └── Cloud Function (generate-punditry)
-        ├── Reads tournament context from Supabase
-        ├── Calls Claude API (4 pundits × 15 snippets)
-        └── Inserts 60 snippets into Supabase
-              └── Vercel app reads snippets (no API key needed)
-```
+**Success (green):**
+> Punditry Generation Complete
+> 60 snippets generated for World Cup 2026
+> Neverill: 15 | Bright: 15 | Meane: 15 | Scaragher: 15
 
-## Updating Tournament Slug
+**Error (red):**
+> Punditry Generation Issue
+> No snippets found for today. Local generation may have failed.
+> Action Required: Check local Task Scheduler logs or run generation manually.
 
-When a new tournament starts:
+## Updating Tournament
+
+When a new tournament starts, update both:
 
 ```powershell
-gcloud functions deploy generate-punditry --gen2 --region europe-west2 --update-env-vars TOURNAMENT_SLUG=new-tournament-slug
+# Update GCP function env var
+gcloud functions deploy verify-punditry --gen2 --region europe-west2 --update-env-vars TOURNAMENT_SLUG=new-slug
+
+# Update the prompt file: scripts/punditry/generate-punditry.md
+# Change the tournament slug in the SQL queries
 ```
