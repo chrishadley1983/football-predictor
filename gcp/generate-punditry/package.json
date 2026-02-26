@@ -1,14 +1,15 @@
 {
   "name": "generate-punditry",
   "version": "1.0.0",
-  "description": "GCP Cloud Function to trigger daily AI punditry generation",
+  "description": "GCP Cloud Function — generates daily AI punditry snippets via Claude API and inserts into Supabase",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
-    "deploy": "gcloud functions deploy generate-punditry --runtime nodejs20 --trigger-http --allow-unauthenticated --entry-point generatePunditry --set-env-vars VERCEL_URL=$VERCEL_URL,CRON_SECRET=$CRON_SECRET,TOURNAMENT_SLUG=$TOURNAMENT_SLUG"
+    "deploy": "npm run build && gcloud functions deploy generate-punditry --gen2 --runtime nodejs20 --trigger-http --no-allow-unauthenticated --entry-point generatePunditry --region europe-west2 --timeout 300s --memory 256MB --set-secrets SUPABASE_URL=SUPABASE_URL:latest,SUPABASE_SERVICE_ROLE_KEY=SUPABASE_SERVICE_ROLE_KEY:latest,ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest --set-env-vars TOURNAMENT_SLUG=world-cup-2026"
   },
   "dependencies": {
-    "@google-cloud/functions-framework": "^3.0.0"
+    "@google-cloud/functions-framework": "^3.0.0",
+    "@supabase/supabase-js": "^2.49.0"
   },
   "devDependencies": {
     "typescript": "^5.0.0",
