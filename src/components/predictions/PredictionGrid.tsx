@@ -1,17 +1,49 @@
 'use client'
 
+import { Fragment, useMemo } from 'react'
 import { cn } from '@/lib/utils'
 import { PlayerAvatar } from '@/components/ui/PlayerAvatar'
-import type { PredictionSummary, GroupWithTeams, GroupResult } from '@/lib/types'
+import type {
+  PredictionSummary,
+  GroupWithTeams,
+  GroupResult,
+  KnockoutMatch,
+  KnockoutRound,
+} from '@/lib/types'
+
+const ROUND_ORDER: KnockoutRound[] = [
+  'round_of_32',
+  'round_of_16',
+  'quarter_final',
+  'semi_final',
+  'final',
+]
+
+const ROUND_NAMES: Record<string, string> = {
+  round_of_32: 'Round of 32',
+  round_of_16: 'Round of 16',
+  quarter_final: 'Quarter Finals',
+  semi_final: 'Semi Finals',
+  final: 'Final',
+}
 
 interface PredictionGridProps {
   predictions: PredictionSummary[]
   groups: GroupWithTeams[]
   results?: GroupResult[]
   thirdPlaceQualifiersCount?: number | null
+  knockoutMatches?: KnockoutMatch[]
+  knockoutVisible?: boolean
 }
 
-export function PredictionGrid({ predictions, groups, results = [], thirdPlaceQualifiersCount }: PredictionGridProps) {
+export function PredictionGrid({
+  predictions,
+  groups,
+  results = [],
+  thirdPlaceQualifiersCount,
+  knockoutMatches = [],
+  knockoutVisible = false,
+}: PredictionGridProps) {
   const hasThirdPlaceFeature = !!thirdPlaceQualifiersCount
   // Build result lookup: team_id -> { qualified, final_position }
   const resultMap = new Map<string, { qualified: boolean; final_position: number }>()
@@ -33,7 +65,19 @@ export function PredictionGrid({ predictions, groups, results = [], thirdPlaceQu
     return 'bg-red-accent/20 text-red-accent' // not qualified
   }
 
-  // Find team code by id across all groups
+  function getKnockoutCellColor(
+    predictedWinnerId: string | null,
+    actualWinnerId: string | null,
+    impossible?: boolean
+  ): string {
+    if (impossible) return 'bg-surface-light/50 text-text-muted line-through'
+    if (!predictedWinnerId || !actualWinnerId) return 'bg-surface-light'
+    if (predictedWinnerId === actualWinnerId)
+      return 'bg-green-accent/20 text-green-accent'
+    return 'bg-red-accent/20 text-red-accent'
+  }
+
+  // Find team code by id across all groups, also check knockout match teams
   function getTeamCode(teamId: string | null): string {
     if (!teamId) return '-'
     for (const g of groups) {
@@ -42,6 +86,54 @@ export function PredictionGrid({ predictions, groups, results = [], thirdPlaceQu
       }
     }
     return '?'
+  }
+
+  // Group knockout matches by round
+  const knockoutByRound = useMemo(() => {
+    const map = new Map<string, KnockoutMatch[]>()
+    for (const match of knockoutMatches) {
+      if (!match.home_team_id || !match.away_team_id) continue
+      const existing = map.get(match.round) ?? []
+      existing.push(match)
+      map.set(match.round, existing)
+    }
+    for (const [, matches] of map) {
+      matches.sort((a, b) => a.sort_order - b.sort_order)
+    }
+    return map
+  }, [knockoutMatches])
+
+  // Build eliminated teams lookup for impossible pick detection
+  const eliminatedBeforeRound = useMemo(() => {
+    const eliminated = new Map<string, number>()
+    for (const match of knockoutMatches) {
+      if (!match.winner_team_id) continue
+      const loserId =
+        match.home_team_id === match.winner_team_id
+          ? match.away_team_id
+          : match.home_team_id
+      if (loserId) {
+        const roundIdx = ROUND_ORDER.indexOf(match.round)
+        if (roundIdx >= 0) {
+          const existing = eliminated.get(loserId)
+          if (existing === undefined || roundIdx < existing) {
+            eliminated.set(loserId, roundIdx)
+          }
+        }
+      }
+    }
+    return eliminated
+  }, [knockoutMatches])
+
+  function isImpossiblePick(
+    predictedWinnerId: string | null,
+    matchRound: KnockoutRound
+  ): boolean {
+    if (!predictedWinnerId) return false
+    const eliminatedAt = eliminatedBeforeRound.get(predictedWinnerId)
+    if (eliminatedAt === undefined) return false
+    const currentRoundIdx = ROUND_ORDER.indexOf(matchRound)
+    return eliminatedAt < currentRoundIdx
   }
 
   if (predictions.length === 0) {
@@ -117,6 +209,58 @@ export function PredictionGrid({ predictions, groups, results = [], thirdPlaceQu
               </tr>
             ))
           ))}
+          {/* Knockout predictions grid */}
+          {knockoutVisible && knockoutByRound.size > 0 &&
+            ROUND_ORDER.filter((r) => knockoutByRound.has(r)).map((round) => (
+              <Fragment key={round}>
+                {/* Round header */}
+                <tr>
+                  <td
+                    colSpan={2 + predictions.length}
+                    className="sticky left-0 z-10 px-2 py-1.5 text-xs font-heading font-bold text-gold bg-surface-light/50"
+                  >
+                    {ROUND_NAMES[round]}
+                  </td>
+                </tr>
+                {knockoutByRound.get(round)!.map((match) => (
+                  <tr key={match.id}>
+                    <td className="sticky left-0 z-10 bg-surface px-2 py-1 font-mono text-foreground whitespace-nowrap text-[10px]">
+                      {getTeamCode(match.home_team_id)}
+                    </td>
+                    <td className="sticky left-[60px] z-10 bg-surface px-2 py-1 font-mono text-foreground whitespace-nowrap text-[10px]">
+                      v {getTeamCode(match.away_team_id)}
+                    </td>
+                    {predictions.map((p) => {
+                      const pred = p.knockout_predictions.find(
+                        (kp) => kp.match_id === match.id
+                      )
+                      const impossible = isImpossiblePick(
+                        pred?.predicted_winner_id ?? null,
+                        match.round
+                      )
+                      return (
+                        <td
+                          key={`${p.entry_id}-${match.id}`}
+                          className={cn(
+                            'px-2 py-1 text-center font-mono',
+                            getKnockoutCellColor(
+                              pred?.predicted_winner_id ?? null,
+                              match.winner_team_id,
+                              impossible
+                            )
+                          )}
+                        >
+                          {pred
+                            ? getTeamCode(pred.predicted_winner_id)
+                            : '-'}
+                        </td>
+                      )
+                    })}
+                  </tr>
+                ))}
+              </Fragment>
+            ))
+          }
         </tbody>
       </table>
     </div>

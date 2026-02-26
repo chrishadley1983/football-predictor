@@ -238,6 +238,8 @@ export default async function PredictionsPage({
           (tournament as Record<string, unknown>)
             .third_place_qualifiers_count as number | null
         }
+        knockoutMatches={knockoutMatches}
+        knockoutVisible={knockoutVisible}
       />
     </div>
   )

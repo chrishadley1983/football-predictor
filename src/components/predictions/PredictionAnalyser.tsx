@@ -123,12 +123,48 @@ export function PredictionAnalyser({
 
   function getKnockoutCellColor(
     predictedWinnerId: string | null,
-    actualWinnerId: string | null
+    actualWinnerId: string | null,
+    impossible?: boolean
   ): string {
+    if (impossible) return 'bg-surface-light/50 text-text-muted line-through'
     if (!predictedWinnerId || !actualWinnerId) return 'bg-surface-light'
     if (predictedWinnerId === actualWinnerId)
       return 'bg-green-accent/20 text-green-accent'
     return 'bg-red-accent/20 text-red-accent'
+  }
+
+  // Build set of eliminated teams (lost in a knockout match) keyed by round index
+  // A team is "impossible" for round X if they were eliminated in any round before X
+  const eliminatedBeforeRound = useMemo(() => {
+    const eliminated = new Map<string, number>() // team_id -> round_index they were eliminated in
+    for (const match of knockoutMatches) {
+      if (!match.winner_team_id) continue
+      const loserId =
+        match.home_team_id === match.winner_team_id
+          ? match.away_team_id
+          : match.home_team_id
+      if (loserId) {
+        const roundIdx = ROUND_ORDER.indexOf(match.round)
+        if (roundIdx >= 0) {
+          const existing = eliminated.get(loserId)
+          if (existing === undefined || roundIdx < existing) {
+            eliminated.set(loserId, roundIdx)
+          }
+        }
+      }
+    }
+    return eliminated
+  }, [knockoutMatches])
+
+  function isImpossiblePick(
+    predictedWinnerId: string | null,
+    matchRound: KnockoutRound
+  ): boolean {
+    if (!predictedWinnerId) return false
+    const eliminatedAt = eliminatedBeforeRound.get(predictedWinnerId)
+    if (eliminatedAt === undefined) return false
+    const currentRoundIdx = ROUND_ORDER.indexOf(matchRound)
+    return eliminatedAt < currentRoundIdx
   }
 
   const playerA = playerAId
@@ -574,21 +610,21 @@ export function PredictionAnalyser({
                           )
                         })}
                         {/* Per-group points row */}
-                        <tr className="border-t border-border-custom/50">
-                          <td className="sticky left-0 z-10 bg-surface" />
-                          <td className="px-2 py-1 text-text-muted text-[10px] font-medium">
+                        <tr className="border-t-2 border-gold/30 bg-gold/5">
+                          <td className="sticky left-0 z-10 bg-gold/5" />
+                          <td className="px-2 py-1.5 text-gold text-[10px] font-bold uppercase tracking-wider">
                             Pts
                           </td>
                           <td
-                            className="px-2 py-1 text-center font-mono text-xs font-bold text-gold"
+                            className="px-2 py-1.5 text-center font-mono text-xs font-bold text-gold"
                             data-testid="h2h-group-points"
                           >
                             {gpA?.points_earned ?? 0}
                           </td>
-                          <td className="px-2 py-1 bg-surface-light/30" />
+                          <td className="px-2 py-1.5 bg-gold/5" />
                           {isH2H && (
                             <td
-                              className="px-2 py-1 text-center font-mono text-xs font-bold text-gold"
+                              className="px-2 py-1.5 text-center font-mono text-xs font-bold text-gold"
                               data-testid="h2h-group-points"
                             >
                               {gpB?.points_earned ?? 0}
@@ -651,70 +687,136 @@ export function PredictionAnalyser({
                 </thead>
                 <tbody className="divide-y divide-border-custom bg-surface">
                   {ROUND_ORDER.filter((r) => knockoutByRound.has(r)).map(
-                    (round) => (
-                      <Fragment key={round}>
-                        <tr>
-                          <td
-                            colSpan={colCount}
-                            className="px-2 py-1.5 text-xs font-heading font-bold text-gold bg-surface-light/50"
-                          >
-                            {ROUND_NAMES[round]}
-                          </td>
-                        </tr>
-                        {knockoutByRound.get(round)!.map((match) => {
-                          const predA =
-                            playerA?.knockout_predictions.find(
-                              (kp) => kp.match_id === match.id
+                    (round) => {
+                      const matches = knockoutByRound.get(round)!
+                      // Calculate round points for each player
+                      const roundPtsA = matches.reduce((sum, m) => {
+                        const pred = playerA?.knockout_predictions.find(
+                          (kp) => kp.match_id === m.id
+                        )
+                        return sum + (pred?.points_earned ?? 0)
+                      }, 0)
+                      const roundPtsB = matches.reduce((sum, m) => {
+                        const pred = playerB?.knockout_predictions.find(
+                          (kp) => kp.match_id === m.id
+                        )
+                        return sum + (pred?.points_earned ?? 0)
+                      }, 0)
+
+                      return (
+                        <Fragment key={round}>
+                          <tr>
+                            <td
+                              colSpan={colCount}
+                              className="px-2 py-1.5 text-xs font-heading font-bold text-gold bg-surface-light/50"
+                            >
+                              {ROUND_NAMES[round]}
+                            </td>
+                          </tr>
+                          {matches.map((match) => {
+                            const predA =
+                              playerA?.knockout_predictions.find(
+                                (kp) => kp.match_id === match.id
+                              )
+                            const predB =
+                              playerB?.knockout_predictions.find(
+                                (kp) => kp.match_id === match.id
+                              )
+                            const impossibleA = isImpossiblePick(
+                              predA?.predicted_winner_id ?? null,
+                              match.round
                             )
-                          const predB =
-                            playerB?.knockout_predictions.find(
-                              (kp) => kp.match_id === match.id
+                            const impossibleB = isImpossiblePick(
+                              predB?.predicted_winner_id ?? null,
+                              match.round
                             )
-                          return (
-                            <tr key={match.id}>
-                              <td className="px-2 py-1 font-mono text-foreground whitespace-nowrap">
-                                {getTeamCode(match.home_team_id)} v{' '}
-                                {getTeamCode(match.away_team_id)}
-                              </td>
-                              <td
-                                className={cn(
-                                  'px-2 py-1 text-center font-mono',
-                                  getKnockoutCellColor(
-                                    predA?.predicted_winner_id ?? null,
-                                    match.winner_team_id
-                                  )
-                                )}
-                              >
-                                {predA
-                                  ? getTeamCode(predA.predicted_winner_id)
-                                  : '-'}
-                              </td>
-                              <td className="px-2 py-1 text-center font-mono text-foreground bg-surface-light/30">
-                                {match.winner_team_id
-                                  ? getTeamCode(match.winner_team_id)
-                                  : '-'}
-                              </td>
-                              {isH2H && (
+                            return (
+                              <tr key={match.id}>
+                                <td className="px-2 py-1 font-mono text-foreground whitespace-nowrap">
+                                  {getTeamCode(match.home_team_id)} v{' '}
+                                  {getTeamCode(match.away_team_id)}
+                                </td>
                                 <td
                                   className={cn(
                                     'px-2 py-1 text-center font-mono',
                                     getKnockoutCellColor(
-                                      predB?.predicted_winner_id ?? null,
-                                      match.winner_team_id
+                                      predA?.predicted_winner_id ?? null,
+                                      match.winner_team_id,
+                                      impossibleA
                                     )
                                   )}
                                 >
-                                  {predB
-                                    ? getTeamCode(predB.predicted_winner_id)
+                                  {predA
+                                    ? getTeamCode(predA.predicted_winner_id)
                                     : '-'}
                                 </td>
-                              )}
-                            </tr>
-                          )
-                        })}
-                      </Fragment>
-                    )
+                                <td className="px-2 py-1 text-center font-mono text-foreground bg-surface-light/30">
+                                  {match.winner_team_id
+                                    ? getTeamCode(match.winner_team_id)
+                                    : '-'}
+                                </td>
+                                {isH2H && (
+                                  <td
+                                    className={cn(
+                                      'px-2 py-1 text-center font-mono',
+                                      getKnockoutCellColor(
+                                        predB?.predicted_winner_id ?? null,
+                                        match.winner_team_id,
+                                        impossibleB
+                                      )
+                                    )}
+                                  >
+                                    {predB
+                                      ? getTeamCode(predB.predicted_winner_id)
+                                      : '-'}
+                                  </td>
+                                )}
+                              </tr>
+                            )
+                          })}
+                          {/* Per-round points row */}
+                          <tr className="border-t-2 border-gold/30 bg-gold/5">
+                            <td className="px-2 py-1.5 text-gold text-[10px] font-bold uppercase tracking-wider">
+                              Pts
+                            </td>
+                            <td className="px-2 py-1.5 text-center font-mono text-xs font-bold text-gold">
+                              {roundPtsA}
+                            </td>
+                            <td className="px-2 py-1.5 bg-gold/5" />
+                            {isH2H && (
+                              <td className="px-2 py-1.5 text-center font-mono text-xs font-bold text-gold">
+                                {roundPtsB}
+                              </td>
+                            )}
+                          </tr>
+                        </Fragment>
+                      )
+                    }
                   )}
+                  {/* Knockout Total row */}
+                  <tr
+                    className="bg-surface-light font-bold"
+                    data-testid="h2h-knockout-total"
+                  >
+                    <td className="px-2 py-2 text-foreground">
+                      Total
+                    </td>
+                    <td className="px-2 py-2 text-center font-mono text-gold">
+                      {playerA?.knockout_predictions.reduce(
+                        (sum, kp) => sum + kp.points_earned,
+                        0
+                      ) ?? 0}
+                    </td>
+                    <td className="px-2 py-2 bg-surface-light" />
+                    {isH2H && (
+                      <td className="px-2 py-2 text-center font-mono text-gold">
+                        {playerB?.knockout_predictions.reduce(
+                          (sum, kp) => sum + kp.points_earned,
+                          0
+                        ) ?? 0}
+                      </td>
+                    )}
+                  </tr>
                 </tbody>
               </table>
             </div>
