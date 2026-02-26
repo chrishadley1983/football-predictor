@@ -49,6 +49,10 @@ export type BadgeType =
   | 'dead_heat'
   | 'contrarian'
 
+export type PunditKey = 'neverill' | 'bright' | 'meane' | 'scaragher'
+
+export type PunditCategory = 'leaderboard' | 'predictions' | 'results' | 'chat' | 'news' | 'wildcard'
+
 // ============================================================================
 // Database row types (match column names exactly from spec)
 // ============================================================================
@@ -215,6 +219,16 @@ export interface PlayerAchievement {
   badge_type: BadgeType
   description: string
   earned_at: string
+}
+
+export interface PunditSnippet {
+  id: string
+  tournament_id: string
+  pundit_key: PunditKey
+  content: string
+  category: PunditCategory
+  generated_date: string
+  created_at: string
 }
 
 export interface KnockoutRoundConfig {
@@ -1117,6 +1131,43 @@ export interface Database {
             columns: ['entry_id']
             isOneToOne: false
             referencedRelation: 'tournament_entries'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      pundit_snippets: {
+        Row: {
+          id: string
+          tournament_id: string
+          pundit_key: PunditKey
+          content: string
+          category: PunditCategory
+          generated_date: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          tournament_id: string
+          pundit_key: PunditKey
+          content: string
+          category: PunditCategory
+          generated_date?: string
+          created_at?: string
+        }
+        Update: {
+          tournament_id?: string
+          pundit_key?: PunditKey
+          content?: string
+          category?: PunditCategory
+          generated_date?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'pundit_snippets_tournament_id_fkey'
+            columns: ['tournament_id']
+            isOneToOne: false
+            referencedRelation: 'tournaments'
             referencedColumns: ['id']
           },
         ]

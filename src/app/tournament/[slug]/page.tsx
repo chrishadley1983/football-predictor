@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { TournamentStatusBadge } from '@/components/ui/Badge'
 import { Card } from '@/components/ui/Card'
+import { PunditCard } from '@/components/pundit/PunditCard'
 import { formatCurrency, formatDate, getDeadlineStatus } from '@/lib/utils'
 import type { Tournament } from '@/lib/types'
 
@@ -94,6 +95,9 @@ export default async function TournamentPage({ params }: { params: Promise<{ slu
           </div>
         </div>
       </Card>
+
+      {/* Pundit */}
+      <PunditCard tournamentSlug={slug} />
 
       {/* Navigation links */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
