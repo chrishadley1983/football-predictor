@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { Card } from '@/components/ui/Card'
+import { isPunditPlayer, getPunditByPlayerId } from '@/lib/pundit-players'
 
 interface MiniChatProps {
   tournamentId: string
@@ -23,7 +24,7 @@ export async function MiniChat({ tournamentId, tournamentSlug }: MiniChatProps) 
 
   const { data: messages } = await supabase
     .from('chat_messages')
-    .select('id, content, created_at, player:players!chat_messages_player_id_fkey(display_name, nickname)')
+    .select('id, content, created_at, message_type, player_id, player:players!chat_messages_player_id_fkey(display_name, nickname)')
     .eq('tournament_id', tournamentId)
     .order('created_at', { ascending: false })
     .limit(8)
@@ -43,17 +44,38 @@ export async function MiniChat({ tournamentId, tournamentSlug }: MiniChatProps) 
             {reversed.map((msg) => {
               const player = msg.player as unknown as { display_name: string; nickname: string | null }
               const name = player?.nickname || player?.display_name || 'Unknown'
+              const pundit = isPunditPlayer(msg.player_id) ? getPunditByPlayerId(msg.player_id) : null
               return (
                 <div key={msg.id} className="flex items-start gap-2">
-                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gold/20 text-xs font-bold text-gold">
-                    {name.charAt(0).toUpperCase()}
-                  </div>
+                  {pundit ? (
+                    <div
+                      className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
+                      style={{ backgroundColor: pundit.color }}
+                    >
+                      {name.charAt(0).toUpperCase()}
+                    </div>
+                  ) : (
+                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gold/20 text-xs font-bold text-gold">
+                      {name.charAt(0).toUpperCase()}
+                    </div>
+                  )}
                   <div className="min-w-0 flex-1">
                     <div className="flex items-baseline gap-2">
-                      <span className="text-sm font-semibold text-gold">{name}</span>
+                      {pundit ? (
+                        <span className="text-sm font-semibold" style={{ color: pundit.color }}>{name}</span>
+                      ) : (
+                        <span className="text-sm font-semibold text-gold">{name}</span>
+                      )}
+                      {pundit && (
+                        <span className="rounded-full bg-gold/20 px-1 py-0.5 text-[8px] font-semibold text-gold">
+                          AI
+                        </span>
+                      )}
                       <span className="text-xs text-text-muted">{timeAgo(msg.created_at)}</span>
                     </div>
-                    <p className="text-sm leading-snug text-text-secondary line-clamp-2">{msg.content}</p>
+                    <p className={`text-sm leading-snug text-text-secondary line-clamp-2 ${pundit ? 'italic' : ''}`}>
+                      {msg.content}
+                    </p>
                   </div>
                 </div>
               )

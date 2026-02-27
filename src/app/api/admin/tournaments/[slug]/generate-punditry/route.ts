@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { getPunditSystemPrompt } from '@/lib/pundit-prompts'
 import { PUNDIT_KEYS } from '@/lib/pundit-characters'
+import { PUNDIT_PLAYER_IDS } from '@/lib/pundit-players'
 import type { PunditKey, PunditCategory } from '@/lib/types'
 
 interface SnippetOutput {
@@ -223,11 +224,47 @@ export async function POST(
     }
   }
 
+  // Insert 'chat' category snippets as pundit messages in the chat
+  let chatMessagesInserted = 0
+  try {
+    const { data: chatSnippets } = await admin
+      .from('pundit_snippets')
+      .select('*')
+      .eq('tournament_id', tournament.id)
+      .eq('generated_date', today)
+      .eq('category', 'chat')
+
+    if (chatSnippets && chatSnippets.length > 0) {
+      // Shuffle and pick up to 4 across different pundits
+      const shuffled = chatSnippets.sort(() => Math.random() - 0.5).slice(0, 4)
+
+      const chatMessages = shuffled.map((s, i) => ({
+        tournament_id: tournament.id,
+        player_id: PUNDIT_PLAYER_IDS[s.pundit_key as PunditKey],
+        content: s.content,
+        message_type: 'pundit' as const,
+        metadata: { pundit_key: s.pundit_key, snippet_id: s.id },
+        // Stagger by 5 minutes so they appear naturally spaced
+        created_at: new Date(Date.now() + i * 5 * 60 * 1000).toISOString(),
+      }))
+
+      const { error: chatErr } = await admin.from('chat_messages').insert(chatMessages)
+      if (chatErr) {
+        console.error('[generate-punditry] Failed to insert chat messages:', chatErr.message)
+      } else {
+        chatMessagesInserted = chatMessages.length
+      }
+    }
+  } catch (err) {
+    console.error('[generate-punditry] Error inserting chat messages:', err)
+  }
+
   return NextResponse.json({
     success: true,
     date: today,
     tournament: tournament.name,
     generated: results,
     totalInserted,
+    chatMessagesInserted,
   })
 }

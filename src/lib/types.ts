@@ -393,17 +393,47 @@ export interface PostWithTournament extends Post {
   tournament: Tournament
 }
 
+export type ChatMessageType = 'user' | 'pundit' | 'system'
+
 export interface ChatMessage {
   id: string
   tournament_id: string
   player_id: string
   content: string
   created_at: string
+  reply_to_id: string | null
+  message_type: ChatMessageType
+  metadata: Record<string, unknown> | null
+}
+
+export interface ChatReplyPreview {
+  id: string
+  content: string
+  player: Pick<Player, 'display_name' | 'nickname'>
+}
+
+export interface ReactionSummary {
+  emoji: string
+  count: number
+  reacted: boolean
 }
 
 export interface ChatMessageWithPlayer extends ChatMessage {
   player: Pick<Player, 'display_name' | 'nickname' | 'avatar_url'>
+  reply_to?: ChatReplyPreview | null
+  reactions?: ReactionSummary[]
 }
+
+export interface ChatReaction {
+  id: string
+  message_id: string
+  player_id: string
+  emoji: string
+  created_at: string
+}
+
+export const ALLOWED_REACTIONS = ['⚽', '🔥', '😂', '💀', '👑', '🤡', '🫡', '🧊'] as const
+export type AllowedReaction = (typeof ALLOWED_REACTIONS)[number]
 
 export interface LeaderboardEntry {
   entry_id: string
@@ -1273,6 +1303,9 @@ export interface Database {
           player_id: string
           content: string
           created_at: string
+          reply_to_id: string | null
+          message_type: string
+          metadata: Record<string, unknown> | null
         }
         Insert: {
           id?: string
@@ -1280,12 +1313,18 @@ export interface Database {
           player_id: string
           content: string
           created_at?: string
+          reply_to_id?: string | null
+          message_type?: string
+          metadata?: Record<string, unknown> | null
         }
         Update: {
           tournament_id?: string
           player_id?: string
           content?: string
           created_at?: string
+          reply_to_id?: string | null
+          message_type?: string
+          metadata?: Record<string, unknown> | null
         }
         Relationships: [
           {
@@ -1298,6 +1337,86 @@ export interface Database {
           {
             foreignKeyName: 'chat_messages_player_id_fkey'
             columns: ['player_id']
+            isOneToOne: false
+            referencedRelation: 'players'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'chat_messages_reply_to_id_fkey'
+            columns: ['reply_to_id']
+            isOneToOne: false
+            referencedRelation: 'chat_messages'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      chat_reactions: {
+        Row: {
+          id: string
+          message_id: string
+          player_id: string
+          emoji: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          message_id: string
+          player_id: string
+          emoji: string
+          created_at?: string
+        }
+        Update: {
+          message_id?: string
+          player_id?: string
+          emoji?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'chat_reactions_message_id_fkey'
+            columns: ['message_id']
+            isOneToOne: false
+            referencedRelation: 'chat_messages'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'chat_reactions_player_id_fkey'
+            columns: ['player_id']
+            isOneToOne: false
+            referencedRelation: 'players'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      chat_mentions: {
+        Row: {
+          id: string
+          message_id: string
+          mentioned_player_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          message_id: string
+          mentioned_player_id: string
+          created_at?: string
+        }
+        Update: {
+          message_id?: string
+          mentioned_player_id?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'chat_mentions_message_id_fkey'
+            columns: ['message_id']
+            isOneToOne: false
+            referencedRelation: 'chat_messages'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'chat_mentions_mentioned_player_id_fkey'
+            columns: ['mentioned_player_id']
             isOneToOne: false
             referencedRelation: 'players'
             referencedColumns: ['id']
