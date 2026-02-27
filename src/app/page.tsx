@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { TournamentCard } from '@/components/TournamentCard'
 import { HonoursBoard } from '@/components/HonoursBoard'
+import { MiniChat } from '@/components/MiniChat'
 import type { Tournament, HonoursWithDetails } from '@/lib/types'
 
 export default async function HomePage() {
@@ -38,46 +39,73 @@ export default async function HomePage() {
 
   if (postsErr) console.error('Failed to fetch posts:', postsErr.message)
 
-  const currentTournament = (tournaments as Tournament[] | null)?.find(
-    (t) => t.status !== 'completed'
-  )
+  const allTournaments = (tournaments as Tournament[] | null) ?? []
+  const currentTournament = allTournaments.find((t) => t.status !== 'completed')
+  const previousTournaments = allTournaments.filter((t) => t.status === 'completed')
 
   return (
-    <div className="space-y-12">
-      {/* Hero */}
-      <section className="text-center">
-        <h1 className="shimmer-text font-heading text-3xl font-bold tracking-tight sm:text-4xl">
-          Football Prediction Game
-        </h1>
-        <p className="mx-auto mt-3 max-w-xl text-text-secondary">
-          Predict group stage outcomes and knockout bracket results for major international tournaments.
-          Compete with friends for prizes.
-        </p>
+    <div className="space-y-14">
+      {/* Section 1: Intro + Video */}
+      <section className="grid items-center gap-8 lg:grid-cols-2">
+        <div>
+          <h1 className="shimmer-text font-heading text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">
+            Football Prediction Game
+          </h1>
+          <p className="mt-4 text-lg leading-relaxed text-text-secondary">
+            Think you know football? Prove it. Predict group stage outcomes and knockout bracket results
+            for major international tournaments. Compete against your mates for bragging rights, prizes,
+            and a spot on the Honours Board.
+          </p>
+          <p className="mt-3 text-text-muted">
+            AI pundits roast your predictions. A live chat fuels the banter.
+            And one Golden Ticket could change everything.
+          </p>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Link
+              href="/register"
+              className="inline-block rounded-lg bg-gold px-6 py-2.5 font-heading text-sm font-bold text-background transition-colors hover:bg-gold-light"
+            >
+              Join Now
+            </Link>
+            {currentTournament && (
+              <Link
+                href={`/tournament/${currentTournament.slug}`}
+                className="inline-block rounded-lg border border-gold/30 px-6 py-2.5 font-heading text-sm font-bold text-gold transition-colors hover:border-gold hover:bg-gold/10"
+              >
+                View Tournament
+              </Link>
+            )}
+          </div>
+        </div>
+        <div>
+          <video
+            className="w-full rounded-xl shadow-lg shadow-black/30"
+            controls
+            muted
+            playsInline
+            preload="metadata"
+            poster=""
+          >
+            <source src="/prediction-pod.mp4" type="video/mp4" />
+          </video>
+          <p className="mt-2 text-center text-xs text-text-muted">
+            The Prediction Pod &mdash; World Cup 2026 Preview
+          </p>
+        </div>
       </section>
 
-      {/* Current/Upcoming Tournament */}
+      {/* Section 2: Current Tournament + Mini Chat */}
       {currentTournament && (
         <section>
           <h2 className="mb-4 font-heading text-xl font-bold text-foreground">Current Tournament</h2>
-          <div className="max-w-md">
+          <div className="grid gap-6 lg:grid-cols-2">
             <TournamentCard tournament={currentTournament} />
+            <MiniChat tournamentId={currentTournament.id} tournamentSlug={currentTournament.slug} />
           </div>
         </section>
       )}
 
-      {/* All Tournaments */}
-      {tournaments && tournaments.length > 0 && (
-        <section>
-          <h2 className="mb-4 font-heading text-xl font-bold text-foreground">Tournaments</h2>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {(tournaments as Tournament[]).map((t) => (
-              <TournamentCard key={t.id} tournament={t} />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Recent Posts */}
+      {/* Section 3: Recent Posts */}
       {posts && posts.length > 0 && (
         <section>
           <h2 className="mb-4 font-heading text-xl font-bold text-foreground">Recent Posts</h2>
@@ -98,7 +126,7 @@ export default async function HomePage() {
         </section>
       )}
 
-      {/* Honours Board Preview */}
+      {/* Section 4: Honours Board */}
       {honours && honours.length > 0 && (
         <section>
           <div className="mb-4 flex items-center justify-between">
@@ -108,6 +136,18 @@ export default async function HomePage() {
             </Link>
           </div>
           <HonoursBoard honours={honours as HonoursWithDetails[]} />
+        </section>
+      )}
+
+      {/* Section 5: Previous Tournaments */}
+      {previousTournaments.length > 0 && (
+        <section>
+          <h2 className="mb-4 font-heading text-xl font-bold text-foreground">Previous Tournaments</h2>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {previousTournaments.map((t) => (
+              <TournamentCard key={t.id} tournament={t} />
+            ))}
+          </div>
         </section>
       )}
     </div>
