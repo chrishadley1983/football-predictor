@@ -14,18 +14,18 @@ interface ChatInputProps {
   onCancelReply?: () => void
   players?: PlayerInfo[]
   disabled?: boolean
-  cooldownUntil?: number | null
+  cooldownActive?: boolean
   onTyping?: () => void
 }
 
-export function ChatInput({ onSend, replyingTo, onCancelReply, players = [], disabled, cooldownUntil, onTyping }: ChatInputProps) {
+export function ChatInput({ onSend, replyingTo, onCancelReply, players = [], disabled, cooldownActive, onTyping }: ChatInputProps) {
   const [content, setContent] = useState('')
   const [sending, setSending] = useState(false)
   const [mentionQuery, setMentionQuery] = useState<string | null>(null)
   const [showGifPicker, setShowGifPicker] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  const isCoolingDown = cooldownUntil ? Date.now() < cooldownUntil : false
+  const isCoolingDown = cooldownActive ?? false
 
   const checkForMention = useCallback((value: string) => {
     const cursorPos = inputRef.current?.selectionStart ?? value.length

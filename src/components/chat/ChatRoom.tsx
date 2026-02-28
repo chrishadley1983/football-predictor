@@ -11,7 +11,7 @@ import { useChatPresence } from '@/hooks/useChatPresence'
 import type { ChatMessageWithPlayer, ReactionSummary, Player } from '@/lib/types'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 
-type PlayerInfo = Pick<Player, 'id' | 'display_name' | 'nickname'>
+type PlayerInfo = Pick<Player, 'id' | 'display_name' | 'nickname' | 'avatar_url'>
 
 interface ChatRoomProps {
   tournamentId: string
@@ -78,7 +78,8 @@ export function ChatRoom({ tournamentId, currentPlayerId, isAdmin }: ChatRoomPro
   const [error, setError] = useState<string | null>(null)
   const [replyingTo, setReplyingTo] = useState<ChatMessageWithPlayer | null>(null)
   const [players, setPlayers] = useState<PlayerInfo[]>([])
-  const [cooldownUntil, setCooldownUntil] = useState<number | null>(null)
+  const [cooldownActive, setCooldownActive] = useState(false)
+  const cooldownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [newMessageCount, setNewMessageCount] = useState(0)
   const [isAtBottom, setIsAtBottom] = useState(true)
 
@@ -169,7 +170,7 @@ export function ChatRoom({ tournamentId, currentPlayerId, isAdmin }: ChatRoomPro
       const supabase = supabaseRef.current
       const { data } = await supabase
         .from('tournament_entries')
-        .select('player:players(id, display_name, nickname)')
+        .select('player:players(id, display_name, nickname, avatar_url)')
         .eq('tournament_id', tournamentId)
 
       if (data) {
@@ -407,8 +408,10 @@ export function ChatRoom({ tournamentId, currentPlayerId, isAdmin }: ChatRoomPro
     setError(null)
 
     // Client-side rate limit
-    if (cooldownUntil && Date.now() < cooldownUntil) return
-    setCooldownUntil(Date.now() + 3000)
+    if (cooldownActive) return
+    setCooldownActive(true)
+    if (cooldownTimerRef.current) clearTimeout(cooldownTimerRef.current)
+    cooldownTimerRef.current = setTimeout(() => setCooldownActive(false), 3000)
 
     // Clear typing state
     presence.setTyping(false)
@@ -430,7 +433,7 @@ export function ChatRoom({ tournamentId, currentPlayerId, isAdmin }: ChatRoomPro
       player: {
         display_name: currentPlayer?.display_name ?? 'You',
         nickname: currentPlayer?.nickname ?? null,
-        avatar_url: null,
+        avatar_url: currentPlayer?.avatar_url ?? null,
       },
       reply_to: replyToId ? (() => {
         const replyMsg = messages.find((m) => m.id === replyToId)
@@ -643,7 +646,7 @@ export function ChatRoom({ tournamentId, currentPlayerId, isAdmin }: ChatRoomPro
             replyingTo={replyingTo}
             onCancelReply={() => setReplyingTo(null)}
             players={players}
-            cooldownUntil={cooldownUntil}
+            cooldownActive={cooldownActive}
             onTyping={handleTyping}
           />
         ) : (
