@@ -522,16 +522,18 @@ export function ChatRoom({ tournamentId, currentPlayerId, isAdmin }: ChatRoomPro
     const existingReaction = msg?.reactions?.find((r) => r.emoji === emoji && r.reacted)
 
     if (existingReaction) {
-      await supabase
+      const { error: delErr } = await supabase
         .from('chat_reactions')
         .delete()
         .eq('message_id', messageId)
         .eq('player_id', currentPlayerId)
         .eq('emoji', emoji)
+      if (delErr) console.error('Failed to remove reaction:', delErr.message)
     } else {
-      await supabase
+      const { error: insErr } = await supabase
         .from('chat_reactions')
         .insert({ message_id: messageId, player_id: currentPlayerId, emoji })
+      if (insErr) console.error('Failed to add reaction:', insErr.message)
     }
   }
 

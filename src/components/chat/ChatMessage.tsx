@@ -100,6 +100,7 @@ export function ChatMessage({
   const pickerTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
   const longPressTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
   const messageRef = useRef<HTMLDivElement>(null)
+  const bubbleRef = useRef<HTMLDivElement>(null)
 
   const isPundit = message.message_type === 'pundit'
   const pundit = isPundit ? getPunditByPlayerId(message.player_id) : null
@@ -107,13 +108,16 @@ export function ChatMessage({
   const isSending = message._status === 'sending'
   const isFailed = message._status === 'failed'
 
-  // Close picker on outside click
+  // Close picker on outside click (picker is in a portal so check both refs)
   useEffect(() => {
     if (!showPicker) return
     function handleClick(e: MouseEvent) {
-      if (messageRef.current && !messageRef.current.contains(e.target as Node)) {
-        setShowPicker(false)
-      }
+      const target = e.target as Node
+      if (messageRef.current?.contains(target)) return
+      // Check if click is inside the portal picker (find by z-index style)
+      const picker = document.querySelector('[style*="z-index: 9999"]')
+      if (picker?.contains(target)) return
+      setShowPicker(false)
     }
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
@@ -192,12 +196,13 @@ export function ChatMessage({
         </div>
       )}
 
-      <div className="relative max-w-[80%]">
-        {/* Reaction picker */}
+      <div ref={bubbleRef} className="relative max-w-[80%]">
+        {/* Reaction picker (rendered via portal) */}
         {showPicker && onReact && currentPlayerId && (
           <ReactionPicker
             onReact={handleReact}
             existingReactions={myReactions}
+            anchorRef={bubbleRef}
             position={showOnRight ? 'right' : 'left'}
           />
         )}
