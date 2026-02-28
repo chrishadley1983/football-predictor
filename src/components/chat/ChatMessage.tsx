@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback, useEffect, type ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 import { PlayerAvatar } from '@/components/ui/PlayerAvatar'
 import { ReactionPicker } from './ReactionPicker'
@@ -23,36 +23,75 @@ function formatRelativeTime(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
 }
 
-/** Highlight @mentions in message text */
-function renderContent(text: string) {
-  const parts = text.split(/(@\w[\w\s]*?\w(?=\s|$|[.,!?]))/g)
-  return parts.map((part, i) =>
-    part.startsWith('@') ? (
-      <span key={i} className="font-bold text-gold">{part}</span>
-    ) : (
-      <span key={i}>{part}</span>
-    )
-  )
+/** Format message content: @mentions, **bold**, *italic*, URLs */
+function renderContent(text: string): ReactNode[] {
+  // Split on: @mentions, **bold**, *italic*, URLs
+  const pattern = /(@\w[\w\s]*?\w(?=\s|$|[.,!?]))|(\*\*[^*]+\*\*)|(\*[^*]+\*)|(https?:\/\/[^\s<]+)/g
+  const result: ReactNode[] = []
+  let lastIndex = 0
+  let match: RegExpExecArray | null
+
+  while ((match = pattern.exec(text)) !== null) {
+    // Text before match
+    if (match.index > lastIndex) {
+      result.push(<span key={`t${lastIndex}`}>{text.slice(lastIndex, match.index)}</span>)
+    }
+
+    const [full] = match
+    if (full.startsWith('@')) {
+      result.push(<span key={`m${match.index}`} className="font-bold text-gold">{full}</span>)
+    } else if (full.startsWith('**') && full.endsWith('**')) {
+      result.push(<strong key={`b${match.index}`}>{full.slice(2, -2)}</strong>)
+    } else if (full.startsWith('*') && full.endsWith('*')) {
+      result.push(<em key={`i${match.index}`}>{full.slice(1, -1)}</em>)
+    } else if (full.startsWith('http')) {
+      const display = full.length > 40 ? full.slice(0, 37) + '...' : full
+      result.push(
+        <a
+          key={`u${match.index}`}
+          href={full}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-gold underline hover:text-gold-light"
+        >
+          {display}
+        </a>
+      )
+    }
+    lastIndex = match.index + full.length
+  }
+
+  if (lastIndex < text.length) {
+    result.push(<span key={`t${lastIndex}`}>{text.slice(lastIndex)}</span>)
+  }
+
+  return result.length > 0 ? result : [<span key="raw">{text}</span>]
 }
 
 interface ChatMessageProps {
-  message: ChatMessageWithPlayer & { _status?: 'sending' | 'failed' }
+  message: ChatMessageWithPlayer & { _status?: 'sending' | 'failed'; is_pinned?: boolean }
   isOwnMessage: boolean
   currentPlayerId: string | null
+  isAdmin?: boolean
   onDelete?: (messageId: string) => Promise<void>
   onReply?: (message: ChatMessageWithPlayer) => void
   onReact?: (messageId: string, emoji: string) => Promise<void>
   onRetry?: (message: ChatMessageWithPlayer) => void
+  onPin?: (messageId: string) => void
+  onUnpin?: (messageId: string) => void
 }
 
 export function ChatMessage({
   message,
   isOwnMessage,
   currentPlayerId,
+  isAdmin,
   onDelete,
   onReply,
   onReact,
   onRetry,
+  onPin,
+  onUnpin,
 }: ChatMessageProps) {
   const displayName = message.player.nickname || message.player.display_name
   const [confirming, setConfirming] = useState(false)
@@ -64,6 +103,7 @@ export function ChatMessage({
 
   const isPundit = message.message_type === 'pundit'
   const pundit = isPundit ? getPunditByPlayerId(message.player_id) : null
+  const isGif = (message.metadata?.type === 'gif')
   const isSending = message._status === 'sending'
   const isFailed = message._status === 'failed'
 
@@ -86,7 +126,6 @@ export function ChatMessage({
 
   const handleMouseLeave = useCallback(() => {
     if (pickerTimeout.current) clearTimeout(pickerTimeout.current)
-    // Delay hiding so user can move to picker
     pickerTimeout.current = setTimeout(() => setShowPicker(false), 300)
   }, [])
 
@@ -116,10 +155,10 @@ export function ChatMessage({
   }
 
   const myReactions = (message.reactions ?? [])
-    .filter((r) => r.reacted)
-    .map((r) => r.emoji)
+    .filter((r: ReactionSummary) => r.reacted)
+    .map((r: ReactionSummary) => r.emoji)
 
-  const reactions = (message.reactions ?? []).filter((r) => r.count > 0)
+  const reactions = (message.reactions ?? []).filter((r: ReactionSummary) => r.count > 0)
 
   // Pundit messages always render on the left
   const showOnRight = isOwnMessage && !isPundit
@@ -139,7 +178,7 @@ export function ChatMessage({
       onTouchEnd={handleTouchEnd}
     >
       {!showOnRight && (
-        <div className="mr-2 mt-1 flex-shrink-0">
+        <div className="mr-2 mt-1 flex-shrink-0 relative">
           {isPundit && pundit ? (
             <div
               className="flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold text-white"
@@ -171,7 +210,8 @@ export function ChatMessage({
               ? 'border-l-[3px] bg-surface-light text-foreground'
               : showOnRight
                 ? 'bg-gold text-black'
-                : 'bg-surface-light text-foreground'
+                : 'bg-surface-light text-foreground',
+            message.is_pinned && 'ring-1 ring-gold/30'
           )}
           style={isPundit && pundit ? { borderLeftColor: pundit.color } : undefined}
         >
@@ -191,6 +231,11 @@ export function ChatMessage({
                   AI
                 </span>
               )}
+              {message.is_pinned && (
+                <svg className="h-3 w-3 text-gold/70" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z" />
+                </svg>
+              )}
             </div>
             <div className="flex items-center gap-1">
               {/* Reply button */}
@@ -206,6 +251,21 @@ export function ChatMessage({
                   aria-label="Reply to message"
                 >
                   Reply
+                </button>
+              )}
+              {/* Pin/unpin button (admin) */}
+              {isAdmin && !isSending && !isFailed && (
+                <button
+                  onClick={() => message.is_pinned ? onUnpin?.(message.id) : onPin?.(message.id)}
+                  className={cn(
+                    'flex-shrink-0 rounded px-1 text-[10px] font-medium transition-opacity',
+                    showOnRight
+                      ? 'text-black/40 opacity-0 hover:text-black/70 group-hover:opacity-100'
+                      : 'text-text-muted opacity-0 hover:text-foreground group-hover:opacity-100'
+                  )}
+                  aria-label={message.is_pinned ? 'Unpin message' : 'Pin message'}
+                >
+                  {message.is_pinned ? 'Unpin' : 'Pin'}
                 </button>
               )}
               {/* Delete button (admin) */}
@@ -244,9 +304,18 @@ export function ChatMessage({
           )}
 
           {/* Content */}
-          <p className={cn('text-sm whitespace-pre-wrap break-words', isPundit && 'italic')}>
-            {renderContent(message.content)}
-          </p>
+          {isGif ? (
+            <img
+              src={message.content}
+              alt="GIF"
+              className="max-w-[300px] rounded-md"
+              loading="lazy"
+            />
+          ) : (
+            <p className={cn('text-sm whitespace-pre-wrap break-words', isPundit && 'italic')}>
+              {renderContent(message.content)}
+            </p>
+          )}
 
           {/* Timestamp + status */}
           <div className="mt-0.5 flex items-center gap-1.5">
@@ -267,7 +336,7 @@ export function ChatMessage({
         {/* Reaction pills */}
         {reactions.length > 0 && (
           <div className={cn('mt-0.5 flex flex-wrap gap-1', showOnRight && 'justify-end')}>
-            {reactions.map((r) => (
+            {reactions.map((r: ReactionSummary) => (
               <button
                 key={r.emoji}
                 onClick={() => onReact?.(message.id, r.emoji)}

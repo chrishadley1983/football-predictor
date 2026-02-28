@@ -3,23 +3,29 @@
 import { useState, useRef, useCallback, type FormEvent } from 'react'
 import { Button } from '@/components/ui/Button'
 import { MentionAutocomplete } from './MentionAutocomplete'
+import { GifPicker } from './GifPicker'
 import type { ChatMessageWithPlayer, Player } from '@/lib/types'
 
 type PlayerInfo = Pick<Player, 'id' | 'display_name' | 'nickname'>
 
 interface ChatInputProps {
-  onSend: (content: string, replyToId?: string) => Promise<void>
+  onSend: (content: string, replyToId?: string, messageType?: string) => Promise<void>
   replyingTo?: ChatMessageWithPlayer | null
   onCancelReply?: () => void
   players?: PlayerInfo[]
   disabled?: boolean
+  cooldownUntil?: number | null
+  onTyping?: () => void
 }
 
-export function ChatInput({ onSend, replyingTo, onCancelReply, players = [], disabled }: ChatInputProps) {
+export function ChatInput({ onSend, replyingTo, onCancelReply, players = [], disabled, cooldownUntil, onTyping }: ChatInputProps) {
   const [content, setContent] = useState('')
   const [sending, setSending] = useState(false)
   const [mentionQuery, setMentionQuery] = useState<string | null>(null)
+  const [showGifPicker, setShowGifPicker] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  const isCoolingDown = cooldownUntil ? Date.now() < cooldownUntil : false
 
   const checkForMention = useCallback((value: string) => {
     const cursorPos = inputRef.current?.selectionStart ?? value.length
@@ -36,6 +42,7 @@ export function ChatInput({ onSend, replyingTo, onCancelReply, players = [], dis
     const capped = value.slice(0, 2000)
     setContent(capped)
     checkForMention(capped)
+    onTyping?.()
   }
 
   function handleMentionSelect(player: PlayerInfo) {
@@ -47,9 +54,8 @@ export function ChatInput({ onSend, replyingTo, onCancelReply, players = [], dis
     const newContent = `${beforeMention}@${name} ${textAfterCursor}`
     setContent(newContent)
     setMentionQuery(null)
-    // Refocus input
     setTimeout(() => {
-      const newPos = beforeMention.length + name.length + 2 // +2 for @ and space
+      const newPos = beforeMention.length + name.length + 2
       inputRef.current?.setSelectionRange(newPos, newPos)
       inputRef.current?.focus()
     }, 0)
@@ -58,13 +64,24 @@ export function ChatInput({ onSend, replyingTo, onCancelReply, players = [], dis
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     const trimmed = content.trim()
-    if (!trimmed || sending) return
+    if (!trimmed || sending || isCoolingDown) return
 
     setSending(true)
     try {
       await onSend(trimmed, replyingTo?.id)
       setContent('')
       setMentionQuery(null)
+      onCancelReply?.()
+    } finally {
+      setSending(false)
+    }
+  }
+
+  async function handleGifSelect(gifUrl: string) {
+    setShowGifPicker(false)
+    setSending(true)
+    try {
+      await onSend(gifUrl, replyingTo?.id, 'gif')
       onCancelReply?.()
     } finally {
       setSending(false)
@@ -106,7 +123,23 @@ export function ChatInput({ onSend, replyingTo, onCancelReply, players = [], dis
         />
       )}
 
+      {/* GIF picker */}
+      {showGifPicker && (
+        <GifPicker onSelect={handleGifSelect} onClose={() => setShowGifPicker(false)} />
+      )}
+
       <form onSubmit={handleSubmit} className="flex gap-2">
+        {/* GIF button */}
+        <button
+          type="button"
+          onClick={() => setShowGifPicker(!showGifPicker)}
+          className={`flex-shrink-0 rounded-md border border-border-custom px-2 py-2 text-xs font-bold transition-colors ${
+            showGifPicker ? 'bg-gold text-black' : 'bg-surface-light text-text-muted hover:text-gold'
+          }`}
+          title="Send a GIF"
+        >
+          GIF
+        </button>
         <div className="relative flex-1">
           <input
             ref={inputRef}
@@ -116,11 +149,12 @@ export function ChatInput({ onSend, replyingTo, onCancelReply, players = [], dis
             onKeyDown={(e) => {
               if (e.key === 'Escape') {
                 setMentionQuery(null)
+                setShowGifPicker(false)
                 onCancelReply?.()
               }
             }}
-            placeholder={replyingTo ? `Reply to ${replyName}...` : 'Type a message...'}
-            disabled={disabled || sending}
+            placeholder={isCoolingDown ? 'Wait a moment...' : replyingTo ? `Reply to ${replyName}...` : 'Type a message...'}
+            disabled={disabled || sending || isCoolingDown}
             maxLength={2000}
             className="block w-full rounded-md border border-border-custom bg-surface-light px-3 py-2 text-sm text-foreground shadow-sm transition-colors focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-1 focus:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50"
           />
@@ -133,12 +167,15 @@ export function ChatInput({ onSend, replyingTo, onCancelReply, players = [], dis
         <Button
           type="submit"
           size="md"
-          disabled={disabled || sending || !content.trim()}
+          disabled={disabled || sending || !content.trim() || isCoolingDown}
           loading={sending}
         >
           Send
         </Button>
       </form>
+      {isCoolingDown && (
+        <p className="mt-1 text-[10px] text-text-muted">Rate limit: wait 3 seconds between messages</p>
+      )}
     </div>
   )
 }

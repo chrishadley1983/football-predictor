@@ -404,6 +404,14 @@ export interface ChatMessage {
   reply_to_id: string | null
   message_type: ChatMessageType
   metadata: Record<string, unknown> | null
+  is_pinned: boolean
+}
+
+export interface ChatReadCursor {
+  id: string
+  player_id: string
+  tournament_id: string
+  last_read_at: string
 }
 
 export interface ChatReplyPreview {
@@ -1306,6 +1314,7 @@ export interface Database {
           reply_to_id: string | null
           message_type: string
           metadata: Record<string, unknown> | null
+          is_pinned: boolean
         }
         Insert: {
           id?: string
@@ -1316,6 +1325,7 @@ export interface Database {
           reply_to_id?: string | null
           message_type?: string
           metadata?: Record<string, unknown> | null
+          is_pinned?: boolean
         }
         Update: {
           tournament_id?: string
@@ -1325,6 +1335,7 @@ export interface Database {
           reply_to_id?: string | null
           message_type?: string
           metadata?: Record<string, unknown> | null
+          is_pinned?: boolean
         }
         Relationships: [
           {
@@ -1419,6 +1430,41 @@ export interface Database {
             columns: ['mentioned_player_id']
             isOneToOne: false
             referencedRelation: 'players'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      chat_read_cursors: {
+        Row: {
+          id: string
+          player_id: string
+          tournament_id: string
+          last_read_at: string
+        }
+        Insert: {
+          id?: string
+          player_id: string
+          tournament_id: string
+          last_read_at?: string
+        }
+        Update: {
+          player_id?: string
+          tournament_id?: string
+          last_read_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'chat_read_cursors_player_id_fkey'
+            columns: ['player_id']
+            isOneToOne: false
+            referencedRelation: 'players'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'chat_read_cursors_tournament_id_fkey'
+            columns: ['tournament_id']
+            isOneToOne: false
+            referencedRelation: 'tournaments'
             referencedColumns: ['id']
           },
         ]

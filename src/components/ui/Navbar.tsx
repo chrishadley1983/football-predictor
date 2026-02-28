@@ -14,6 +14,7 @@ export function Navbar() {
   const [player, setPlayer] = useState<Player | null>(null)
   const [isAdmin, setIsAdmin] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [unreadCount, setUnreadCount] = useState(0)
 
   useEffect(() => {
     const supabase = createClient()
@@ -23,6 +24,7 @@ export function Navbar() {
       if (!user) {
         setPlayer(null)
         setIsAdmin(false)
+        setUnreadCount(0)
         return
       }
 
@@ -35,6 +37,50 @@ export function Navbar() {
         .single()
 
       setPlayer(data ?? null)
+
+      // Fetch unread count
+      if (data) {
+        fetchUnreadCount(supabase, data.id)
+      }
+    }
+
+    async function fetchUnreadCount(supabase: ReturnType<typeof createClient>, playerId: string) {
+      try {
+        // Get the tournament ID from the URL
+        const match = window.location.pathname.match(/^\/tournament\/([^/]+)/)
+        if (!match) return
+
+        const { data: tournament } = await supabase
+          .from('tournaments')
+          .select('id')
+          .eq('slug', match[1])
+          .single()
+        if (!tournament) return
+
+        // Get read cursor
+        const { data: cursor } = await supabase
+          .from('chat_read_cursors')
+          .select('last_read_at')
+          .eq('player_id', playerId)
+          .eq('tournament_id', tournament.id)
+          .single()
+
+        // Count messages after cursor
+        let query = supabase
+          .from('chat_messages')
+          .select('id', { count: 'exact', head: true })
+          .eq('tournament_id', tournament.id)
+          .neq('player_id', playerId)
+
+        if (cursor?.last_read_at) {
+          query = query.gt('created_at', cursor.last_read_at)
+        }
+
+        const { count } = await query
+        setUnreadCount(count ?? 0)
+      } catch {
+        // Silently ignore errors
+      }
     }
 
     loadUser()
@@ -43,7 +89,18 @@ export function Navbar() {
       loadUser()
     })
 
-    return () => subscription.unsubscribe()
+    // Re-check unread count periodically
+    const interval = setInterval(() => {
+      if (player) {
+        fetchUnreadCount(supabase, player.id)
+      }
+    }, 30000)
+
+    return () => {
+      subscription.unsubscribe()
+      clearInterval(interval)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   async function handleLogout() {
@@ -99,8 +156,13 @@ export function Navbar() {
                 <Link href={`/tournament/${tournamentSlug}/posts`} className={linkClass(pathname.includes('/posts'))}>
                   Posts
                 </Link>
-                <Link href={`/tournament/${tournamentSlug}/chat`} className={linkClass(pathname.includes('/chat'))}>
+                <Link href={`/tournament/${tournamentSlug}/chat`} className={cn(linkClass(pathname.includes('/chat')), 'relative')}>
                   Chat
+                  {unreadCount > 0 && !pathname.includes('/chat') && (
+                    <span className="absolute -right-3 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  )}
                 </Link>
               </>
             )}
@@ -186,8 +248,13 @@ export function Navbar() {
                 <Link href={`/tournament/${tournamentSlug}/posts`} className={mobileLinkClass} onClick={() => setMenuOpen(false)}>
                   Posts
                 </Link>
-                <Link href={`/tournament/${tournamentSlug}/chat`} className={mobileLinkClass} onClick={() => setMenuOpen(false)}>
+                <Link href={`/tournament/${tournamentSlug}/chat`} className={cn(mobileLinkClass, 'relative inline-flex items-center gap-2')} onClick={() => setMenuOpen(false)}>
                   Chat
+                  {unreadCount > 0 && !pathname.includes('/chat') && (
+                    <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  )}
                 </Link>
               </>
             )}
