@@ -123,19 +123,21 @@ export default function SetupPage() {
     loadTournament()
   }, [loadTournament])
 
-  async function handleSeedWC2022() {
+  async function handleSeed(endpoint: string, label: string) {
     setSeedLoading(true)
     setError('')
     setSuccess('')
 
-    const res = await fetch('/api/admin/seed/wc2022', { method: 'POST' })
+    const res = await fetch(endpoint, { method: 'POST' })
     const data = await res.json()
 
     if (!res.ok) {
       setError(data.error || 'Failed to seed data')
     } else {
+      const groupMatchesPart =
+        data.counts.group_matches != null ? `, ${data.counts.group_matches} group matches` : ''
       setSuccess(
-        `Seeded WC 2022: ${data.counts.teams} teams, ${data.counts.groups} groups, ${data.counts.knockout_matches} matches`
+        `Seeded ${label}: ${data.counts.teams} teams, ${data.counts.groups} groups${groupMatchesPart}, ${data.counts.knockout_matches} knockout matches`
       )
       const tournamentRes = await fetch(`/api/tournaments/${data.tournament.slug}`)
       if (tournamentRes.ok) {
@@ -592,8 +594,22 @@ export default function SetupPage() {
       {!draft && (
         <Card header={<h2 className="font-semibold text-foreground">Quick Setup</h2>}>
           <div className="space-y-4">
-            <div className="flex items-center gap-4">
-              <Button onClick={handleSeedWC2022} loading={seedLoading} variant="primary">
+            <div className="flex flex-wrap items-center gap-4">
+              <Button
+                onClick={() => handleSeed('/api/admin/seed/wc2026', 'WC 2026')}
+                loading={seedLoading}
+                variant="primary"
+              >
+                Seed WC 2026 Data
+              </Button>
+              <span className="text-xs text-text-muted">Loads the finalised 2026 draw: 48 teams across 12 groups, 72 group fixtures and the full R32→Final bracket</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-4">
+              <Button
+                onClick={() => handleSeed('/api/admin/seed/wc2022', 'WC 2022')}
+                loading={seedLoading}
+                variant="secondary"
+              >
                 Seed WC 2022 Data
               </Button>
               <span className="text-xs text-text-muted">Creates a test tournament with all 32 teams and bracket</span>
