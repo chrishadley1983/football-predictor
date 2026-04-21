@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { requireAuth } from '@/lib/auth'
+import { sendAuditEmail } from '@/lib/email/audit'
 
 // POST: Register player for tournament
 export async function POST(
@@ -62,6 +63,24 @@ export async function POST(
     if (entryErr) {
       return NextResponse.json({ error: entryErr.message }, { status: 400 })
     }
+
+    void sendAuditEmail({
+      event: 'tournament_entry',
+      player: {
+        id: player.id,
+        displayName: player.display_name,
+        nickname: player.nickname,
+        email: player.email,
+      },
+      tournament: {
+        id: tournament.id,
+        name: tournament.name,
+        slug: tournament.slug,
+        year: tournament.year,
+      },
+      entryId: entry.id,
+      entryFeeGbp: tournament.entry_fee_gbp ?? null,
+    })
 
     return NextResponse.json(entry, { status: 201 })
   } catch (err) {

@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { requireAuth } from '@/lib/auth'
+import { sendAuditEmail } from '@/lib/email/audit'
+import type { KnockoutPredictionChange } from '@/lib/email/audit'
 
 // GET: Get player's knockout predictions
 export async function GET(
@@ -64,6 +66,28 @@ export async function GET(
   }
 }
 
+const ROUND_SHORT: Record<string, string> = {
+  round_of_32: 'R32',
+  round_of_16: 'R16',
+  quarter_final: 'QF',
+  semi_final: 'SF',
+  final: 'F',
+}
+
+type MatchInfo = {
+  id: string
+  round: string
+  match_number: number
+  home_team_id: string | null
+  away_team_id: string | null
+}
+
+type Diff = {
+  matchId: string
+  old: string | null
+  new: string
+}
+
 // POST: Submit/update knockout predictions
 export async function POST(
   request: Request,
@@ -123,18 +147,21 @@ export async function POST(
       return NextResponse.json({ error: 'predictions must be an array' }, { status: 400 })
     }
 
+    let matches: MatchInfo[] = []
+
     // Validate all predictions: match must belong to tournament and winner must be a participant
     if (predictions.length > 0) {
       const matchIds = predictions.map((p: { match_id: string }) => p.match_id)
-      const { data: matches } = await supabase
+      const { data: matchesData } = await supabase
         .from('knockout_matches')
-        .select('id, home_team_id, away_team_id')
+        .select('id, round, match_number, home_team_id, away_team_id')
         .eq('tournament_id', tournament.id)
         .in('id', matchIds)
 
-      if (!matches) {
+      if (!matchesData) {
         return NextResponse.json({ error: 'Failed to look up matches' }, { status: 500 })
       }
+      matches = matchesData as MatchInfo[]
 
       const matchMap = new Map(matches.map((m) => [m.id, m]))
 
@@ -158,15 +185,22 @@ export async function POST(
       }
     }
 
-    // Upsert each knockout prediction
+    // Upsert each knockout prediction, capturing before/after for the audit email
+    const diffs: Diff[] = []
     for (const pred of predictions) {
-      // Check if prediction already exists
+      // Capture existing prediction for diffing
       const { data: existing } = await supabase
         .from('knockout_predictions')
-        .select('id')
+        .select('id, predicted_winner_id')
         .eq('entry_id', entry.id)
         .eq('match_id', pred.match_id)
         .maybeSingle()
+
+      diffs.push({
+        matchId: pred.match_id,
+        old: existing?.predicted_winner_id ?? null,
+        new: pred.predicted_winner_id,
+      })
 
       if (existing) {
         // Update existing prediction (preserve points_earned)
@@ -197,9 +231,81 @@ export async function POST(
       }
     }
 
+    // Audit email: build changes with team names + match labels, skip if nothing changed
+    await fireKnockoutPredictionsAudit({
+      supabase,
+      player,
+      tournament,
+      diffs,
+      matches,
+    })
+
     return NextResponse.json({ success: true })
   } catch (err) {
     if (err instanceof Response) return err
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
+}
+
+async function fireKnockoutPredictionsAudit(opts: {
+  supabase: Awaited<ReturnType<typeof createClient>>
+  player: { id: string; display_name: string; nickname: string | null; email: string }
+  tournament: { id: string; name: string; slug: string; year: number }
+  diffs: Diff[]
+  matches: MatchInfo[]
+}): Promise<void> {
+  const { supabase, player, tournament, diffs, matches } = opts
+  if (diffs.length === 0) return
+
+  const matchById = new Map(matches.map((m) => [m.id, m]))
+
+  // Batch-fetch team names for all teams referenced
+  const teamIds = new Set<string>()
+  for (const d of diffs) {
+    if (d.old) teamIds.add(d.old)
+    if (d.new) teamIds.add(d.new)
+  }
+  for (const m of matches) {
+    if (m.home_team_id) teamIds.add(m.home_team_id)
+    if (m.away_team_id) teamIds.add(m.away_team_id)
+  }
+  const { data: teams } = teamIds.size
+    ? await supabase.from('teams').select('id, name').in('id', [...teamIds])
+    : { data: [] as { id: string; name: string }[] }
+  const teamName = new Map((teams ?? []).map((t) => [t.id, t.name]))
+
+  const changes: KnockoutPredictionChange[] = diffs.map((d) => {
+    const match = matchById.get(d.matchId)
+    const short = match ? ROUND_SHORT[match.round] ?? match.round : '?'
+    const home = match?.home_team_id ? teamName.get(match.home_team_id) ?? '?' : '?'
+    const away = match?.away_team_id ? teamName.get(match.away_team_id) ?? '?' : '?'
+    const label = match
+      ? `${short} #${match.match_number}: ${home} vs ${away}`
+      : 'Unknown match'
+    return {
+      matchLabel: label,
+      old: d.old ? teamName.get(d.old) ?? null : null,
+      new: teamName.get(d.new) ?? 'Unknown',
+      changed: d.old !== d.new,
+    }
+  })
+
+  if (!changes.some((c) => c.changed)) return
+
+  void sendAuditEmail({
+    event: 'knockout_predictions_submitted',
+    player: {
+      id: player.id,
+      displayName: player.display_name,
+      nickname: player.nickname,
+      email: player.email,
+    },
+    tournament: {
+      id: tournament.id,
+      name: tournament.name,
+      slug: tournament.slug,
+      year: tournament.year,
+    },
+    changes,
+  })
 }

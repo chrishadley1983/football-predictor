@@ -34,41 +34,30 @@ export default function RegisterPage() {
       return
     }
 
+    // Create account + player row server-side (bypasses RLS, pre-confirms email, fires audit).
+    const res = await fetch('/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email,
+        password,
+        displayName: displayName.trim(),
+        nickname: nickname.trim() || null,
+      }),
+    })
+
+    if (!res.ok) {
+      const { error: msg } = await res.json().catch(() => ({ error: 'Registration failed' }))
+      setError(msg ?? 'Registration failed')
+      setLoading(false)
+      return
+    }
+
+    // Sign in immediately — user is pre-confirmed server-side.
     const supabase = createClient()
-
-    // Register with Supabase Auth
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-      },
-    })
-
-    if (authError) {
-      setError(authError.message)
-      setLoading(false)
-      return
-    }
-
-    if (!authData.user) {
-      setError('Registration failed. Please try again.')
-      setLoading(false)
-      return
-    }
-
-    // Create player record
-    const { error: playerError } = await supabase.from('players').insert({
-      auth_user_id: authData.user.id,
-      display_name: displayName.trim(),
-      nickname: nickname.trim() || null,
-      email,
-    })
-
-    if (playerError) {
-      // Clean up orphaned auth user to prevent inconsistent state
-      await supabase.auth.signOut()
-      setError(`Registration failed: ${playerError.message}. Please try again.`)
+    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+    if (signInError) {
+      setError(`Account created but sign-in failed: ${signInError.message}. Try logging in.`)
       setLoading(false)
       return
     }
