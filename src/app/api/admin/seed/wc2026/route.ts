@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { sendAuditEmail } from '@/lib/email/audit'
+import { scheduleAuditEmail } from '@/lib/email/audit'
 import type { KnockoutRound, BracketSide } from '@/lib/types'
 
 // All 48 WC 2026 teams, grouped per the final draw (5 Dec 2025, Washington DC)
@@ -518,7 +518,7 @@ export async function POST() {
       )
     }
 
-    void sendAuditEmail({
+    scheduleAuditEmail({
       event: 'admin_action',
       action: 'seed_tournament',
       tournament: {

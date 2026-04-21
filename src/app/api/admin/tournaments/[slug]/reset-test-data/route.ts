@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { sendAuditEmail } from '@/lib/email/audit'
+import { scheduleAuditEmail } from '@/lib/email/audit'
 import { TEST_EMAIL_DOMAIN } from '@/lib/testing/seed-helpers'
 
 export async function POST(
@@ -128,7 +128,7 @@ export async function POST(
       .update({ status: 'group_stage_open' })
       .eq('id', tournamentId)
 
-    void sendAuditEmail({
+    scheduleAuditEmail({
       event: 'admin_action',
       action: 'reset_test_data',
       tournament: {

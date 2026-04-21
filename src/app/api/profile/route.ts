@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { requireAuth } from '@/lib/auth'
-import { sendAuditEmail } from '@/lib/email/audit'
+import { scheduleAuditEmail } from '@/lib/email/audit'
 import type { ProfileField } from '@/lib/email/audit'
 
 export async function PATCH(request: Request) {
@@ -74,7 +74,7 @@ export async function PATCH(request: Request) {
     }
 
     if (changes.length > 0) {
-      void sendAuditEmail({
+      scheduleAuditEmail({
         event: 'profile_updated',
         player: {
           id: data.id,

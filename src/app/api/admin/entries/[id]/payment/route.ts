@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { sendAuditEmail } from '@/lib/email/audit'
+import { scheduleAuditEmail } from '@/lib/email/audit'
 import type { PaymentStatus } from '@/lib/email/audit'
 
 // PATCH: Update payment status (admin only)
@@ -76,7 +76,7 @@ export async function PATCH(
         .maybeSingle()
 
       if (player) {
-        void sendAuditEmail({
+        scheduleAuditEmail({
           event: 'payment_status_changed',
           player: {
             id: player.id,

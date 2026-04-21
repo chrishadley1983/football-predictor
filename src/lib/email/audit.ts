@@ -1,4 +1,5 @@
 import 'server-only'
+import { after } from 'next/server'
 import { getResendClient, isAuditEmailEnabled } from './client'
 import { AUDIT_FROM, AUDIT_RECIPIENTS } from './recipients'
 import { renderTemplate } from './templates'
@@ -139,8 +140,20 @@ export type AuditEvent =
   | AdminActionEvent
 
 /**
- * Fire-and-forget audit email. Never rejects — all failures are logged.
- * Call sites should use `void sendAuditEmail(...)` and continue.
+ * Schedule an audit email from inside a route handler. Uses Next.js `after()`
+ * so the send runs AFTER the HTTP response has been flushed without being
+ * killed by Vercel's serverless function freeze. Never rejects.
+ *
+ * Prefer this over `void sendAuditEmail(...)` at any request-context call site.
+ */
+export function scheduleAuditEmail(event: AuditEvent): void {
+  after(() => sendAuditEmail(event))
+}
+
+/**
+ * Awaitable audit email. Never rejects — all failures are logged. Prefer
+ * `scheduleAuditEmail` in request handlers; use this directly inside
+ * long-running background jobs / webhooks where awaiting is safe.
  */
 export async function sendAuditEmail(event: AuditEvent): Promise<void> {
   try {

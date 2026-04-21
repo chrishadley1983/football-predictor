@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { sendAuditEmail } from '@/lib/email/audit'
+import { scheduleAuditEmail } from '@/lib/email/audit'
 
 type Body = {
   email?: string
@@ -80,7 +80,7 @@ export async function POST(request: Request) {
   }
 
   // Step 3: fire audit email (fire-and-forget)
-  void sendAuditEmail({
+  scheduleAuditEmail({
     event: 'sign_up',
     player: {
       id: player.id,

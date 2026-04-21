@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { sendAuditEmail } from '@/lib/email/audit'
+import { scheduleAuditEmail } from '@/lib/email/audit'
 import {
   getGoldenTicketWindow,
   getEligibleSwaps,
@@ -225,7 +225,7 @@ export async function POST(
 
       if (tournamentInfo && newTeam && originalMatch) {
         const shortRound = ROUND_SHORT[originalMatch.round] ?? originalMatch.round
-        void sendAuditEmail({
+        scheduleAuditEmail({
           event: 'golden_ticket_played',
           player: {
             id: player.id,

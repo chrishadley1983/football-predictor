@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { requireAuth } from '@/lib/auth'
-import { sendAuditEmail } from '@/lib/email/audit'
+import { scheduleAuditEmail } from '@/lib/email/audit'
 import type { KnockoutPredictionChange } from '@/lib/email/audit'
 
 // GET: Get player's knockout predictions
@@ -292,7 +292,7 @@ async function fireKnockoutPredictionsAudit(opts: {
 
   if (!changes.some((c) => c.changed)) return
 
-  void sendAuditEmail({
+  scheduleAuditEmail({
     event: 'knockout_predictions_submitted',
     player: {
       id: player.id,

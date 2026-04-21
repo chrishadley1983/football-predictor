@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { sendAuditEmail } from '@/lib/email/audit'
+import { scheduleAuditEmail } from '@/lib/email/audit'
 import {
   forceCompleteGroupStageLogic,
   forceCompleteKnockoutRoundLogic,
@@ -58,7 +58,7 @@ export async function POST(
         .update({ status: 'group_stage_closed' })
         .eq('slug', slug)
 
-      void sendAuditEmail({
+      scheduleAuditEmail({
         event: 'admin_action',
         action: 'force_complete',
         tournament: {
@@ -97,7 +97,7 @@ export async function POST(
             .eq('id', tournament.id)
         }
 
-        void sendAuditEmail({
+        scheduleAuditEmail({
           event: 'admin_action',
           action: 'force_complete',
           tournament: {
