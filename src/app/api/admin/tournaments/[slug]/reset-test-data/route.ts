@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { sendAuditEmail } from '@/lib/email/audit'
 import { TEST_EMAIL_DOMAIN } from '@/lib/testing/seed-helpers'
 
 export async function POST(
@@ -23,7 +24,7 @@ export async function POST(
     // Get tournament
     const { data: tournament } = await admin
       .from('tournaments')
-      .select('id')
+      .select('id, name, slug, year')
       .eq('slug', slug)
       .single()
 
@@ -126,6 +127,22 @@ export async function POST(
       .from('tournaments')
       .update({ status: 'group_stage_open' })
       .eq('id', tournamentId)
+
+    void sendAuditEmail({
+      event: 'admin_action',
+      action: 'reset_test_data',
+      tournament: {
+        id: tournament.id,
+        name: tournament.name,
+        slug: tournament.slug,
+        year: tournament.year,
+      },
+      summary: `Reset test data — ${entryIds.length} entr${entryIds.length === 1 ? 'y' : 'ies'} deleted, status reset to group_stage_open`,
+      details: {
+        entries_deleted: entryIds.length,
+        groups_affected: groupIds.length,
+      },
+    })
 
     return NextResponse.json({
       success: true,

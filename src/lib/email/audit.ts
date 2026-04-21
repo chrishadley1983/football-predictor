@@ -82,12 +82,61 @@ export type ChatMessageEvent = {
   }
 }
 
+export type PaymentStatus = 'pending' | 'paid' | 'refunded'
+
+export type PaymentStatusEvent = {
+  event: 'payment_status_changed'
+  player: PlayerRef
+  tournament: TournamentRef
+  entryId: string
+  old: PaymentStatus
+  new: PaymentStatus
+}
+
+export type ProfileField = 'display_name' | 'nickname' | 'avatar_url'
+
+export type ProfileUpdatedEvent = {
+  event: 'profile_updated'
+  player: PlayerRef
+  changes: Array<{ field: ProfileField; old: string | null; new: string | null }>
+}
+
+export type GoldenTicketEvent = {
+  event: 'golden_ticket_played'
+  player: PlayerRef
+  tournament: TournamentRef
+  swap: {
+    round: string
+    matchLabel: string
+    oldTeam: string | null
+    newTeam: string
+  }
+}
+
+export type AdminAction =
+  | 'seed_tournament'
+  | 'reset_test_data'
+  | 'force_complete'
+  | 'status_change'
+
+export type AdminActionEvent = {
+  event: 'admin_action'
+  action: AdminAction
+  tournament: TournamentRef | null
+  summary: string
+  details?: Record<string, string | number | boolean | null>
+}
+
 export type AuditEvent =
   | SignUpEvent
   | TournamentEntryEvent
   | GroupPredictionsEvent
   | KnockoutPredictionsEvent
   | ChatMessageEvent
+  | PaymentStatusEvent
+  | ProfileUpdatedEvent
+  | GoldenTicketEvent
+  | AdminActionEvent
 
 /**
  * Fire-and-forget audit email. Never rejects — all failures are logged.

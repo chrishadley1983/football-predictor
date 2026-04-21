@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { sendAuditEmail } from '@/lib/email/audit'
 import {
   forceCompleteGroupStageLogic,
   forceCompleteKnockoutRoundLogic,
@@ -57,6 +58,19 @@ export async function POST(
         .update({ status: 'group_stage_closed' })
         .eq('slug', slug)
 
+      void sendAuditEmail({
+        event: 'admin_action',
+        action: 'force_complete',
+        tournament: {
+          id: tournament.id,
+          name: tournament.name,
+          slug: tournament.slug,
+          year: tournament.year,
+        },
+        summary: 'Group stage force-completed with random results',
+        details: { phase: 'group_stage', previous_status: tournament.status },
+      })
+
       return NextResponse.json({
         success: true,
         message: 'Group stage force-completed with random results',
@@ -82,6 +96,24 @@ export async function POST(
             .update({ status: 'completed' })
             .eq('id', tournament.id)
         }
+
+        void sendAuditEmail({
+          event: 'admin_action',
+          action: 'force_complete',
+          tournament: {
+            id: tournament.id,
+            name: tournament.name,
+            slug: tournament.slug,
+            year: tournament.year,
+          },
+          summary: `Force-completed ${body.round}: ${result.decidedCount} matches decided`,
+          details: {
+            phase: 'knockout_round',
+            round: body.round,
+            decided_count: result.decidedCount,
+            all_knockout_complete: result.allKnockoutComplete,
+          },
+        })
 
         return NextResponse.json({
           success: true,

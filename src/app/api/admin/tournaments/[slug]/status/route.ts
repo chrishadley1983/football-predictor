@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { sendAuditEmail } from '@/lib/email/audit'
 import type { TournamentStatus } from '@/lib/types'
 
 const VALID_STATUSES: TournamentStatus[] = [
@@ -74,6 +75,19 @@ export async function PATCH(
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 })
     }
+
+    void sendAuditEmail({
+      event: 'admin_action',
+      action: 'status_change',
+      tournament: {
+        id: tournament.id,
+        name: tournament.name,
+        slug: tournament.slug,
+        year: tournament.year,
+      },
+      summary: `Tournament status ${currentStatus} → ${body.status}`,
+      details: { old_status: currentStatus, new_status: body.status },
+    })
 
     return NextResponse.json(updated)
   } catch (err) {

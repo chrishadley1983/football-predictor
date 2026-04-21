@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { sendAuditEmail } from '@/lib/email/audit'
 import type { KnockoutRound, BracketSide } from '@/lib/types'
 
 // All 32 WC 2022 teams, grouped
@@ -325,6 +326,24 @@ export async function POST() {
         { status: 500 }
       )
     }
+
+    void sendAuditEmail({
+      event: 'admin_action',
+      action: 'seed_tournament',
+      tournament: {
+        id: tournament.id,
+        name: tournament.name,
+        slug: tournament.slug,
+        year: tournament.year,
+      },
+      summary: `Seeded ${tournament.name}: ${teams.length} teams, ${createdGroups.length} groups, ${createdMatches.length} knockout matches`,
+      details: {
+        teams: teams.length,
+        groups: createdGroups.length,
+        group_teams: groupTeamRecords.length,
+        knockout_matches: createdMatches.length,
+      },
+    })
 
     return NextResponse.json({
       success: true,

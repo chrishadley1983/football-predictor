@@ -1,11 +1,20 @@
 import { NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { sendAuditEmail } from '@/lib/email/audit'
 import {
   getGoldenTicketWindow,
   getEligibleSwaps,
   applyGoldenTicket,
 } from '@/lib/golden-ticket'
+
+const ROUND_SHORT: Record<string, string> = {
+  round_of_32: 'R32',
+  round_of_16: 'R16',
+  quarter_final: 'QF',
+  semi_final: 'SF',
+  final: 'F',
+}
 
 // GET: Get golden ticket state for the current player + all tournament tickets
 export async function GET(
@@ -195,6 +204,50 @@ export async function POST(
       `)
       .eq('entry_id', entry.id)
       .single()
+
+    // Fire audit email.
+    if (createdTicket) {
+      const { data: tournamentInfo } = await admin
+        .from('tournaments')
+        .select('id, name, slug, year')
+        .eq('id', tournament.id)
+        .single()
+
+      const originalTeam = Array.isArray(createdTicket.original_team)
+        ? createdTicket.original_team[0]
+        : createdTicket.original_team
+      const newTeam = Array.isArray(createdTicket.new_team)
+        ? createdTicket.new_team[0]
+        : createdTicket.new_team
+      const originalMatch = Array.isArray(createdTicket.original_match)
+        ? createdTicket.original_match[0]
+        : createdTicket.original_match
+
+      if (tournamentInfo && newTeam && originalMatch) {
+        const shortRound = ROUND_SHORT[originalMatch.round] ?? originalMatch.round
+        void sendAuditEmail({
+          event: 'golden_ticket_played',
+          player: {
+            id: player.id,
+            displayName: player.display_name,
+            nickname: player.nickname,
+            email: player.email,
+          },
+          tournament: {
+            id: tournamentInfo.id,
+            name: tournamentInfo.name,
+            slug: tournamentInfo.slug,
+            year: tournamentInfo.year,
+          },
+          swap: {
+            round: shortRound,
+            matchLabel: `${shortRound} #${originalMatch.match_number}`,
+            oldTeam: originalTeam?.name ?? null,
+            newTeam: newTeam.name,
+          },
+        })
+      }
+    }
 
     return NextResponse.json({
       success: true,
