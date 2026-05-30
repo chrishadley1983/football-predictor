@@ -7,7 +7,7 @@ export function renderTournamentEntry(
   const { player, tournament, entryId, entryFeeGbp } = e
   const fee = entryFeeGbp != null ? `£${entryFeeGbp.toFixed(2)}` : '—'
 
-  const subject = `[FPG audit] Entry: ${player.displayName} → ${tournament.name}`
+  const subject = `[Freemo's] Entry: ${player.displayName} → ${tournament.name}`
 
   const text = [
     `New tournament entry`,

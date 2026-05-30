@@ -148,9 +148,9 @@ export default async function PredictionsPage({
           .in('group_id', groupIds)
       : { data: [] }
 
-  // Knockout visibility
+  // Knockout visibility (admin can always see)
   const knockoutVisible =
-    t.status === 'knockout_closed' || t.status === 'completed'
+    isAdmin || t.status === 'knockout_closed' || t.status === 'completed'
 
   // Fetch knockout data if visible
   let allKnockoutPredictions: KnockoutPrediction[] = []

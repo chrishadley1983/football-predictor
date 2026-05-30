@@ -14,7 +14,7 @@ export function renderAdminAction(
   const label = ACTION_LABELS[e.action]
   const scope = e.tournament ? ` (${e.tournament.slug})` : ''
 
-  const subject = `[FPG audit] Admin — ${label}${scope}: ${e.summary}`
+  const subject = `[Freemo's] Admin — ${label}${scope}: ${e.summary}`
 
   const detailLines: string[] = []
   const detailRows: string[] = []

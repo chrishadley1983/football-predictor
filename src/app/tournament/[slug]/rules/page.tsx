@@ -84,6 +84,7 @@ export default async function RulesPage({ params }: { params: Promise<{ slug: st
           </table>
           <p className="text-xs text-text-muted">
             Maximum knockout points: 80 (16x1 + 8x2 + 4x4 + 2x8 + 1x16).
+            Maximum total: 112 points (32 group + 80 knockout).
           </p>
         </div>
       </Card>
