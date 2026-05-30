@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { requireAuth } from '@/lib/auth'
 
-// GET: Get all players' predictions (only after deadline has passed)
+// GET: Get all players' predictions (only after deadline has passed, or admin)
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ slug: string }> }
@@ -11,6 +11,10 @@ export async function GET(
     await requireAuth()
     const { slug } = await params
     const supabase = await createClient()
+
+    // Check if current user is admin
+    const { data: { user: authUser } } = await supabase.auth.getUser()
+    const isAdmin = authUser?.app_metadata?.role === 'admin'
 
     // Get tournament
     const { data: tournament } = await supabase
@@ -23,13 +27,13 @@ export async function GET(
       return NextResponse.json({ error: 'Tournament not found' }, { status: 404 })
     }
 
-    // Check if group predictions can be shown (after group stage closes)
+    // Check if group predictions can be shown (after group stage closes, or admin)
     const groupPredictionsVisible =
-      tournament.status !== 'draft' && tournament.status !== 'group_stage_open'
+      isAdmin || (tournament.status !== 'draft' && tournament.status !== 'group_stage_open')
 
-    // Check if knockout predictions can be shown (after knockout stage closes)
+    // Check if knockout predictions can be shown (after knockout stage closes, or admin)
     const knockoutPredictionsVisible =
-      tournament.status === 'knockout_closed' || tournament.status === 'completed'
+      isAdmin || tournament.status === 'knockout_closed' || tournament.status === 'completed'
 
     if (!groupPredictionsVisible) {
       return NextResponse.json(

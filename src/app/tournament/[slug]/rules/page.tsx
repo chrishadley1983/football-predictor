@@ -61,6 +61,10 @@ export default async function RulesPage({ params }: { params: Promise<{ slug: st
             </thead>
             <tbody className="divide-y divide-border-custom">
               <tr>
+                <td className="py-2">Round of 32</td>
+                <td className="py-2 text-right font-bold">1 point</td>
+              </tr>
+              <tr>
                 <td className="py-2">Round of 16</td>
                 <td className="py-2 text-right font-bold">2 points</td>
               </tr>
@@ -79,8 +83,20 @@ export default async function RulesPage({ params }: { params: Promise<{ slug: st
             </tbody>
           </table>
           <p className="text-xs text-text-muted">
-            Maximum knockout points: 64 (8x2 + 4x4 + 2x8 + 1x16).
-            Maximum total: 96 points (32 group + 64 knockout).
+            Maximum knockout points: 80 (16x1 + 8x2 + 4x4 + 2x8 + 1x16).
+          </p>
+        </div>
+      </Card>
+
+      <Card header={<h2 className="font-semibold text-foreground">Emergency Sub</h2>}>
+        <div className="space-y-2 text-sm text-text-secondary">
+          <p>
+            If you selected a team that was knocked out, you can replace that team with whoever
+            knocked them out — but you can only do this <strong>once</strong>, so use it wisely.
+          </p>
+          <p>
+            Using the Emergency Sub costs a <strong>6-point penalty</strong>. The replacement team
+            will carry forward through all subsequent rounds.
           </p>
         </div>
       </Card>

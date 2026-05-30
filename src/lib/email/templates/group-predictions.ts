@@ -12,7 +12,7 @@ export function renderGroupPredictions(
       ? 'tiebreaker-only update'
       : `${groupsChanged.length} group${groupsChanged.length === 1 ? '' : 's'} changed`
 
-  const subject = `[FPG audit] Group predictions: ${player.displayName} — ${countText}`
+  const subject = `[Freemo's] Group predictions: ${player.displayName} — ${countText}`
 
   const text = [
     `Group predictions submitted`,

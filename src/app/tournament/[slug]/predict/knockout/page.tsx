@@ -202,24 +202,24 @@ export default function KnockoutPredictionPage() {
         goldenTicketMatchId={goldenTicket?.original_match_id}
       />
 
-      {/* Golden Ticket */}
+      {/* Emergency Sub */}
       {goldenTicketWindowOpen && !goldenTicketUsed && eligibleSwaps.length > 0 && (
         <div className="rounded-xl border-2 border-gold bg-gold/10 p-4 text-center">
           <p className="mb-2 text-sm text-foreground">
-            🎫 Your golden ticket is available! One of your predicted teams has been eliminated.
+            🔄 Your Emergency Sub is available! One of your predicted teams has been eliminated.
           </p>
           <Button
             onClick={() => setShowGoldenTicketModal(true)}
             className="bg-gold text-surface hover:bg-gold/90 font-bold"
           >
-            🎫 Play Golden Ticket
+            🔄 Use Emergency Sub
           </Button>
         </div>
       )}
 
       {goldenTicketUsed && goldenTicket && (
         <div className="rounded-xl border border-gold/30 bg-gold/5 p-3 text-center text-sm text-text-muted">
-          🎫 Golden ticket played — swapped{' '}
+          🔄 Emergency Sub used — swapped{' '}
           <span className="text-red-accent line-through">
             {(goldenTicket as GoldenTicket & { original_team?: { code: string } }).original_team?.code ?? '?'}
           </span>{' '}

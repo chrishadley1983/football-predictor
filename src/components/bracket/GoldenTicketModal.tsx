@@ -30,7 +30,7 @@ export function GoldenTicketModal({ slug, eligibleSwaps, onSuccess, onClose }: G
 
     if (!res.ok) {
       const data = await res.json()
-      setError(data.error || 'Failed to play golden ticket')
+      setError(data.error || 'Failed to use emergency sub')
       setSubmitting(false)
       return
     }
@@ -46,12 +46,13 @@ export function GoldenTicketModal({ slug, eligibleSwaps, onSuccess, onClose }: G
         {/* Header */}
         <div className="border-b border-gold/20 bg-gold/10 px-5 py-4 rounded-t-2xl">
           <div className="flex items-center gap-2">
-            <span className="text-2xl">🎫</span>
-            <h2 className="font-heading text-xl font-bold text-gold">Golden Ticket</h2>
+            <span className="text-2xl">🔄</span>
+            <h2 className="font-heading text-xl font-bold text-gold">Emergency Sub</h2>
           </div>
           <p className="mt-1 text-sm text-text-muted">
-            Fix a wrong prediction — swap to the actual winner. No points for that match,
-            but the winner carries forward through the rest of the tournament.
+            If you selected a team that was knocked out, you can replace that team with whoever
+            knocked them out — but you can only do this once, so use it wisely. Using the Emergency
+            Sub costs a 6-point penalty.
           </p>
         </div>
 
@@ -107,10 +108,10 @@ export function GoldenTicketModal({ slug, eligibleSwaps, onSuccess, onClose }: G
 
           {/* Warning */}
           <div className="rounded-md bg-yellow-accent/10 p-2 text-xs text-yellow-accent">
-            This is irreversible. You can only use the golden ticket once per tournament.
+            This is irreversible. You can only use the Emergency Sub once per tournament. A 6-point penalty will be applied.
             {selectedSwap && (
               <span className="block mt-1">
-                No points for this match — {selectedSwap.winner_team.code} will score from the next round onwards.
+                {selectedSwap.winner_team.code} will replace your pick from the next round onwards.
               </span>
             )}
           </div>
@@ -127,7 +128,7 @@ export function GoldenTicketModal({ slug, eligibleSwaps, onSuccess, onClose }: G
             disabled={!selectedMatchId}
             className="flex-1 bg-gold text-surface hover:bg-gold/90"
           >
-            🎫 Play Golden Ticket
+            🔄 Use Emergency Sub
           </Button>
         </div>
       </div>

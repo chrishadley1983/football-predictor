@@ -130,7 +130,7 @@ export function Navbar() {
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 font-heading text-lg font-bold tracking-wider text-gold">
-            Prediction Game
+            Freemo&apos;s Prediction Game
           </Link>
 
           {/* Desktop nav */}

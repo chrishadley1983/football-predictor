@@ -7,7 +7,7 @@ export function renderKnockoutPredictions(
   const { player, tournament, changes } = e
   const changedCount = changes.filter((c) => c.changed).length
 
-  const subject = `[FPG audit] Knockout predictions: ${player.displayName} — ${changedCount} match${changedCount === 1 ? '' : 'es'} changed`
+  const subject = `[Freemo's] Knockout predictions: ${player.displayName} — ${changedCount} match${changedCount === 1 ? '' : 'es'} changed`
 
   const text = [
     `Knockout predictions submitted`,

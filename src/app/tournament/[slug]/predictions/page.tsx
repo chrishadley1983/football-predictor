@@ -5,6 +5,7 @@ import { PredictionGrid } from '@/components/predictions/PredictionGrid'
 import { PredictionAnalyser } from '@/components/predictions/PredictionAnalyser'
 import type { EntryInfo } from '@/components/predictions/PredictionAnalyser'
 import { getDeadlineStatus } from '@/lib/utils'
+import { PlayerAvatar } from '@/components/ui/PlayerAvatar'
 import { GoldenTicketSummary } from '@/components/bracket/GoldenTicketSummary'
 import type {
   Tournament,
@@ -50,8 +51,21 @@ export default async function PredictionsPage({
   const t = tournament as Tournament
   const groupDeadline = getDeadlineStatus(t.group_stage_deadline)
 
-  // Don't show predictions before deadline
-  if (!groupDeadline.passed && t.status === 'group_stage_open') {
+  // Check if current user is admin
+  let isAdmin = false
+  if (currentPlayer) {
+    const { data: { user: authUser } } = await supabase.auth.getUser()
+    isAdmin = authUser?.app_metadata?.role === 'admin'
+  }
+
+  // Don't show predictions before deadline (unless admin)
+  if (!groupDeadline.passed && t.status === 'group_stage_open' && !isAdmin) {
+    // Fetch entries to show who has entered
+    const { data: enteredPlayers } = await supabase
+      .from('tournament_entries')
+      .select('id, player:players (id, display_name, nickname, avatar_url)')
+      .eq('tournament_id', t.id)
+
     return (
       <div className="space-y-6">
         <h1 className="font-heading text-2xl font-bold text-foreground">
@@ -62,6 +76,28 @@ export default async function PredictionsPage({
           <br />
           {groupDeadline.label}
         </div>
+
+        {/* Show who has entered */}
+        {enteredPlayers && enteredPlayers.length > 0 && (
+          <div className="rounded-xl border border-border-custom bg-surface p-4">
+            <h3 className="mb-3 font-heading text-sm font-bold text-foreground">
+              Players Entered ({enteredPlayers.length})
+            </h3>
+            <div className="flex flex-wrap gap-3">
+              {enteredPlayers.map((entry) => {
+                const player = entry.player as unknown as { id: string; display_name: string; nickname: string | null; avatar_url: string | null }
+                return (
+                  <div key={entry.id} className="flex items-center gap-2 rounded-lg border border-border-custom bg-surface-light px-3 py-2">
+                    <PlayerAvatar avatarUrl={player?.avatar_url ?? null} displayName={player?.display_name ?? 'Unknown'} size="sm" />
+                    <span className="text-sm text-foreground">
+                      {player?.nickname ?? player?.display_name ?? 'Unknown'}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
       </div>
     )
   }
@@ -234,6 +270,26 @@ export default async function PredictionsPage({
       <h1 className="font-heading text-2xl font-bold text-foreground">
         {t.name} - All Predictions
       </h1>
+
+      {/* Points Scoring Key */}
+      <div className="rounded-xl border border-border-custom bg-surface p-4">
+        <h3 className="mb-2 font-heading text-sm font-bold text-foreground">Scoring Key</h3>
+        <div className="flex flex-wrap gap-4 text-xs">
+          <div className="flex items-center gap-2">
+            <span className="inline-block h-4 w-4 rounded bg-green-accent/20"></span>
+            <span className="text-text-secondary"><strong className="text-green-accent">2 pts</strong> — Correct team in correct position</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="inline-block h-4 w-4 rounded bg-yellow-accent/20"></span>
+            <span className="text-text-secondary"><strong className="text-yellow-accent">1 pt</strong> — Correct qualifier, wrong position</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="inline-block h-4 w-4 rounded bg-red-accent/20"></span>
+            <span className="text-text-secondary"><strong className="text-red-accent">0 pts</strong> — Team did not qualify</span>
+          </div>
+        </div>
+      </div>
+
       <PredictionAnalyser
         predictions={predictions}
         groups={((groups as GroupWithTeams[]) ?? [])}
