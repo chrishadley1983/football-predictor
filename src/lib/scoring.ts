@@ -189,10 +189,10 @@ export async function calculateKnockoutScores(tournamentId: string): Promise<voi
       continue
     }
 
-    // Golden ticket match scores 0 — points only count from the next round onwards
+    // Emergency Sub (golden ticket) match: -6 point penalty, subsequent rounds score normally
     const isGoldenTicketMatch = goldenTicketMatches.has(`${pred.entry_id}:${pred.match_id}`)
     const isCorrect = pred.predicted_winner_id === match.winner_team_id
-    const pointsEarned = isGoldenTicketMatch ? 0 : isCorrect ? match.points_value : 0
+    const pointsEarned = isGoldenTicketMatch ? -6 : isCorrect ? match.points_value : 0
 
     knockoutUpdates.push(
       admin
