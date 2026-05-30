@@ -7,7 +7,7 @@ export function renderProfileUpdated(
   const { player, changes } = e
 
   const fieldNames = changes.map((c) => c.field).join(', ')
-  const subject = `[FPG audit] Profile: ${player.displayName} — ${fieldNames}`
+  const subject = `[Freemo's] Profile: ${player.displayName} — ${fieldNames}`
 
   const text = [
     `Profile updated`,

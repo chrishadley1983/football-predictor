@@ -6,10 +6,10 @@ export function renderGoldenTicket(
 ): { subject: string; html: string; text: string } {
   const { player, tournament, swap } = e
 
-  const subject = `[FPG audit] Golden ticket played: ${player.displayName} (${tournament.name})`
+  const subject = `[Freemo's] Emergency Sub used: ${player.displayName} (${tournament.name})`
 
   const text = [
-    `Golden ticket played`,
+    `Emergency Sub used`,
     ``,
     `Player:     ${renderPlayerLine(player)}`,
     `Tournament: ${tournament.name} (${tournament.slug})`,
@@ -20,7 +20,7 @@ export function renderGoldenTicket(
 
   const html = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 560px; color: #111;">
-      <h2 style="margin: 0 0 12px;">🎟️ Golden ticket played</h2>
+      <h2 style="margin: 0 0 12px;">🔄 Emergency Sub used</h2>
       <table style="border-collapse: collapse; font-size: 14px;">
         <tr><td style="padding: 4px 12px 4px 0; color: #666;">Player</td><td style="padding: 4px 0;">${renderPlayerHtml(player)}</td></tr>
         <tr><td style="padding: 4px 12px 4px 0; color: #666;">Tournament</td><td style="padding: 4px 0;"><strong>${escapeHtml(tournament.name)}</strong> (${escapeHtml(tournament.slug)})</td></tr>

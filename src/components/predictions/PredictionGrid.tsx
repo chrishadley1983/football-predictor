@@ -88,6 +88,17 @@ export function PredictionGrid({
     return '?'
   }
 
+  // Find full team name by id across all groups
+  function getTeamName(teamId: string | null): string {
+    if (!teamId) return '-'
+    for (const g of groups) {
+      for (const gt of g.group_teams) {
+        if (gt.team.id === teamId) return gt.team.name
+      }
+    }
+    return '?'
+  }
+
   // Group knockout matches by round
   const knockoutByRound = useMemo(() => {
     const map = new Map<string, KnockoutMatch[]>()
@@ -155,7 +166,7 @@ export function PredictionGrid({
               <th key={p.entry_id} className="px-2 py-2 text-center font-medium text-text-muted">
                 <div className="flex flex-col items-center gap-1">
                   <PlayerAvatar avatarUrl={p.player.avatar_url} displayName={p.player.display_name} size="sm" />
-                  <div className="max-w-[60px] truncate">
+                  <div className="max-w-[80px] truncate">
                     {p.player.display_name.split(' ')[0]}
                   </div>
                 </div>
@@ -199,7 +210,7 @@ export function PredictionGrid({
                     >
                       {isNullThird ? '-' : (
                         <>
-                          {getTeamCode(teamId ?? null)}
+                          {getTeamName(teamId ?? null)}
                           {isCorrectPosButNQ && <span className="ml-0.5 text-[9px] opacity-70">NQ</span>}
                         </>
                       )}
@@ -225,10 +236,10 @@ export function PredictionGrid({
                 {knockoutByRound.get(round)!.map((match) => (
                   <tr key={match.id}>
                     <td className="sticky left-0 z-10 bg-surface px-2 py-1 font-mono text-foreground whitespace-nowrap text-[10px]">
-                      {getTeamCode(match.home_team_id)}
+                      {getTeamName(match.home_team_id)}
                     </td>
                     <td className="sticky left-[60px] z-10 bg-surface px-2 py-1 font-mono text-foreground whitespace-nowrap text-[10px]">
-                      v {getTeamCode(match.away_team_id)}
+                      v {getTeamName(match.away_team_id)}
                     </td>
                     {predictions.map((p) => {
                       const pred = p.knockout_predictions.find(
@@ -251,7 +262,7 @@ export function PredictionGrid({
                           )}
                         >
                           {pred
-                            ? getTeamCode(pred.predicted_winner_id)
+                            ? getTeamName(pred.predicted_winner_id)
                             : '-'}
                         </td>
                       )

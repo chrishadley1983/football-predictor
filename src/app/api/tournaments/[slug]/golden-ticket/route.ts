@@ -142,7 +142,7 @@ export async function POST(
 
     if (existingTicket) {
       return NextResponse.json(
-        { error: 'You have already used your golden ticket' },
+        { error: 'You have already used your Emergency Sub' },
         { status: 400 }
       )
     }
@@ -151,7 +151,7 @@ export async function POST(
     const window = await getGoldenTicketWindow(admin, tournament.id)
     if (!window.isOpen || !window.completedRound || !window.nextRound) {
       return NextResponse.json(
-        { error: 'The golden ticket window is not currently open' },
+        { error: 'The Emergency Sub window is not currently open' },
         { status: 400 }
       )
     }
@@ -178,7 +178,7 @@ export async function POST(
     const swap = eligibleSwaps.find((s) => s.match_id === match_id)
     if (!swap) {
       return NextResponse.json(
-        { error: 'This match is not eligible for a golden ticket swap' },
+        { error: 'This match is not eligible for an Emergency Sub swap' },
         { status: 400 }
       )
     }

@@ -7,7 +7,7 @@ export function renderChatMessage(
   const { player, tournament, message } = e
   const where = tournament ? tournament.name : 'Global chat'
 
-  const subject = `[FPG audit] Chat: ${player.displayName} in ${where}`
+  const subject = `[Freemo's] Chat: ${player.displayName} in ${where}`
 
   const contentPreview = message.content.length > 80
     ? message.content.slice(0, 80) + '…'

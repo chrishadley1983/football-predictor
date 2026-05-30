@@ -6,7 +6,7 @@ export function renderPayment(
 ): { subject: string; html: string; text: string } {
   const { player, tournament, entryId } = e
 
-  const subject = `[FPG audit] Payment: ${player.displayName} → ${e.new} (${tournament.name})`
+  const subject = `[Freemo's] Payment: ${player.displayName} → ${e.new} (${tournament.name})`
 
   const text = [
     `Payment status changed`,

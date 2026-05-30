@@ -6,7 +6,7 @@ export function renderSignUp(e: SignUpEvent): { subject: string; html: string; t
   const name = player.displayName
   const nickname = player.nickname ? ` (${player.nickname})` : ''
 
-  const subject = `[FPG audit] New signup: ${name}${nickname}`
+  const subject = `[Freemo's] New signup: ${name}${nickname}`
 
   const text = [
     `New player registered`,

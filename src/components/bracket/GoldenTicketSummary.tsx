@@ -31,9 +31,9 @@ export function GoldenTicketSummary({ tickets, entries }: GoldenTicketSummaryPro
         className="flex w-full items-center justify-between px-4 py-3 text-left"
       >
         <div className="flex items-center gap-2">
-          <span>🎫</span>
+          <span>🔄</span>
           <h2 className="font-heading text-lg font-bold text-foreground">
-            Golden Tickets
+            Emergency Subs
           </h2>
           <span className="rounded-full bg-gold/20 px-2 py-0.5 text-xs font-bold text-gold">
             {tickets.length}

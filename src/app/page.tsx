@@ -49,7 +49,7 @@ export default async function HomePage() {
       <section className="grid items-center gap-8 lg:grid-cols-2">
         <div>
           <h1 className="shimmer-text font-heading text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">
-            Football Prediction Game
+            Freemo&apos;s Prediction Game
           </h1>
           <p className="mt-4 text-lg leading-relaxed text-text-secondary">
             Think you know football? Prove it. Predict group stage outcomes and knockout bracket results
@@ -58,7 +58,7 @@ export default async function HomePage() {
           </p>
           <p className="mt-3 text-text-muted">
             AI pundits roast your predictions. A live chat fuels the banter.
-            And one Golden Ticket could change everything.
+            And one Emergency Sub could change everything.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link

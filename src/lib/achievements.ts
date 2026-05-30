@@ -410,7 +410,7 @@ export async function calculateAchievements(tournamentId: string): Promise<void>
           tournament_id: tournamentId,
           entry_id: ticket.entry_id,
           badge_type: 'golden_touch',
-          description: 'Golden ticket pick won their next match',
+          description: 'Emergency Sub pick won their next match',
         })
       }
     }
