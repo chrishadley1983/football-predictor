@@ -8,12 +8,15 @@ import type { LeaderboardEntry } from '@/lib/types'
 interface LeaderboardTableProps {
   entries: LeaderboardEntry[]
   currentPlayerId?: string
+  tournamentStatus?: string
 }
 
 type SortField = 'total_points' | 'group_stage_points' | 'knockout_points' | 'tiebreaker_diff'
 type SortDir = 'asc' | 'desc'
 
-export function LeaderboardTable({ entries, currentPlayerId }: LeaderboardTableProps) {
+export function LeaderboardTable({ entries, currentPlayerId, tournamentStatus }: LeaderboardTableProps) {
+  const isPreLaunch = tournamentStatus === 'draft' || tournamentStatus === 'group_stage_open'
+
   const [sortField, setSortField] = useState<SortField>('total_points')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
 
@@ -27,6 +30,12 @@ export function LeaderboardTable({ entries, currentPlayerId }: LeaderboardTableP
   }
 
   const sorted = useMemo(() => {
+    if (isPreLaunch) {
+      // Roster view: stable alphabetical by display_name
+      return [...entries].sort((a, b) =>
+        (a.nickname ?? a.display_name).localeCompare(b.nickname ?? b.display_name)
+      )
+    }
     return [...entries].sort((a, b) => {
       let aVal: number
       let bVal: number
@@ -35,17 +44,17 @@ export function LeaderboardTable({ entries, currentPlayerId }: LeaderboardTableP
         aVal = a.tiebreaker_diff ?? 9999
         bVal = b.tiebreaker_diff ?? 9999
       } else {
-        aVal = a[sortField]
-        bVal = b[sortField]
+        aVal = a[sortField] ?? 0
+        bVal = b[sortField] ?? 0
       }
 
       return sortDir === 'asc' ? aVal - bVal : bVal - aVal
     })
-  }, [entries, sortField, sortDir])
+  }, [entries, sortField, sortDir, isPreLaunch])
 
   function sortIndicator(field: SortField) {
     if (sortField !== field) return null
-    return sortDir === 'asc' ? ' \u25B2' : ' \u25BC'
+    return sortDir === 'asc' ? ' ▲' : ' ▼'
   }
 
   function headerClass(field: SortField) {
@@ -61,30 +70,41 @@ export function LeaderboardTable({ entries, currentPlayerId }: LeaderboardTableP
 
   return (
     <div className="overflow-x-auto rounded-xl border border-border-custom">
+      {isPreLaunch && (
+        <div className="bg-gold/5 px-3 py-2 text-xs text-text-secondary">
+          Scores hidden until the group stage closes. Showing registered players ({entries.length}).
+        </div>
+      )}
       <table className="w-full min-w-[500px]">
         <thead className="bg-surface-light">
           <tr>
-            <th className="whitespace-nowrap px-3 py-2 text-center text-xs font-medium uppercase tracking-wider text-text-muted">
-              #
-            </th>
+            {!isPreLaunch && (
+              <th className="whitespace-nowrap px-3 py-2 text-center text-xs font-medium uppercase tracking-wider text-text-muted">
+                #
+              </th>
+            )}
             <th className="whitespace-nowrap px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-text-muted">
               Player
             </th>
             <th className="hidden whitespace-nowrap px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-text-muted sm:table-cell">
               Name
             </th>
-            <th className={headerClass('group_stage_points')} onClick={() => handleSort('group_stage_points')}>
-              Group{sortIndicator('group_stage_points')}
-            </th>
-            <th className={headerClass('knockout_points')} onClick={() => handleSort('knockout_points')}>
-              KO{sortIndicator('knockout_points')}
-            </th>
-            <th className={headerClass('total_points')} onClick={() => handleSort('total_points')}>
-              Total{sortIndicator('total_points')}
-            </th>
-            <th className={headerClass('tiebreaker_diff')} onClick={() => handleSort('tiebreaker_diff')}>
-              TB{sortIndicator('tiebreaker_diff')}
-            </th>
+            {!isPreLaunch && (
+              <>
+                <th className={headerClass('group_stage_points')} onClick={() => handleSort('group_stage_points')}>
+                  Group{sortIndicator('group_stage_points')}
+                </th>
+                <th className={headerClass('knockout_points')} onClick={() => handleSort('knockout_points')}>
+                  KO{sortIndicator('knockout_points')}
+                </th>
+                <th className={headerClass('total_points')} onClick={() => handleSort('total_points')}>
+                  Total{sortIndicator('total_points')}
+                </th>
+                <th className={headerClass('tiebreaker_diff')} onClick={() => handleSort('tiebreaker_diff')}>
+                  TB{sortIndicator('tiebreaker_diff')}
+                </th>
+              </>
+            )}
           </tr>
         </thead>
         <tbody className="divide-y divide-border-custom bg-surface">
@@ -94,6 +114,7 @@ export function LeaderboardTable({ entries, currentPlayerId }: LeaderboardTableP
               entry={entry}
               isCurrentUser={entry.player_id === currentPlayerId}
               rank={entry.overall_rank ?? idx + 1}
+              preLaunch={isPreLaunch}
             />
           ))}
         </tbody>

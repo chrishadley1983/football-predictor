@@ -20,26 +20,12 @@ export default async function LeaderboardPage({ params }: { params: Promise<{ sl
 
   const t = tournament as Tournament
 
-  // Fetch leaderboard data directly instead of self-fetching the API
+  // Fetch leaderboard via the public view. The view bypasses RLS and masks
+  // tiebreaker/points/ranks while status is 'draft' or 'group_stage_open',
+  // so all registered players are visible without leaking predictions.
   const { data: rawEntries, error: entriesErr } = await supabase
-    .from('tournament_entries')
-    .select(`
-      id,
-      player_id,
-      tiebreaker_goals,
-      group_stage_points,
-      knockout_points,
-      total_points,
-      tiebreaker_diff,
-      group_stage_rank,
-      overall_rank,
-      player:players (
-        id,
-        display_name,
-        nickname,
-        avatar_url
-      )
-    `)
+    .from('tournament_leaderboard')
+    .select('*')
     .eq('tournament_id', t.id)
     .order('overall_rank', { ascending: true, nullsFirst: false })
 
@@ -57,24 +43,21 @@ export default async function LeaderboardPage({ params }: { params: Promise<{ sl
     achievementsByEntry.get(a.entry_id)!.push(a)
   }
 
-  const entries: LeaderboardEntry[] = (rawEntries ?? []).map((e) => {
-    const player = e.player as unknown as { id: string; display_name: string; nickname: string | null; avatar_url: string | null }
-    return {
-      entry_id: e.id,
-      player_id: e.player_id,
-      display_name: player?.display_name ?? 'Unknown',
-      nickname: player?.nickname ?? null,
-      avatar_url: player?.avatar_url ?? null,
-      group_stage_points: e.group_stage_points,
-      knockout_points: e.knockout_points,
-      total_points: e.total_points,
-      tiebreaker_goals: e.tiebreaker_goals,
-      tiebreaker_diff: e.tiebreaker_diff,
-      group_stage_rank: e.group_stage_rank,
-      overall_rank: e.overall_rank,
-      badges: achievementsByEntry.get(e.id) ?? [],
-    }
-  })
+  const entries: LeaderboardEntry[] = (rawEntries ?? []).map((e) => ({
+    entry_id: e.entry_id,
+    player_id: e.player_id,
+    display_name: e.display_name ?? 'Unknown',
+    nickname: e.nickname ?? null,
+    avatar_url: e.avatar_url ?? null,
+    group_stage_points: e.group_stage_points,
+    knockout_points: e.knockout_points,
+    total_points: e.total_points,
+    tiebreaker_goals: e.tiebreaker_goals,
+    tiebreaker_diff: e.tiebreaker_diff,
+    group_stage_rank: e.group_stage_rank,
+    overall_rank: e.overall_rank,
+    badges: achievementsByEntry.get(e.entry_id) ?? [],
+  }))
 
   const currentPlayer = await getCurrentPlayer()
 
@@ -95,6 +78,7 @@ export default async function LeaderboardPage({ params }: { params: Promise<{ sl
       <LeaderboardTable
         entries={entries}
         currentPlayerId={currentPlayer?.id}
+        tournamentStatus={t.status}
       />
 
       {earnedBadgeTypes.length > 0 && (

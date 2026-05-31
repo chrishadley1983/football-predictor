@@ -115,6 +115,7 @@ export interface KnockoutMatch {
   sort_order: number
   scheduled_at: string | null
   venue: string | null
+  stadium: string | null
 }
 
 export interface GroupMatch {
@@ -125,6 +126,7 @@ export interface GroupMatch {
   match_number: number | null
   scheduled_at: string | null
   venue: string | null
+  stadium: string | null
   home_score: number | null
   away_score: number | null
   sort_order: number
@@ -449,9 +451,12 @@ export interface LeaderboardEntry {
   display_name: string
   nickname: string | null
   avatar_url: string | null
-  group_stage_points: number
-  knockout_points: number
-  total_points: number
+  // Null while tournament status is 'draft' or 'group_stage_open' — the
+  // tournament_leaderboard view masks these columns until the prediction
+  // window closes so tiebreaker_goals can't leak between players.
+  group_stage_points: number | null
+  knockout_points: number | null
+  total_points: number | null
   tiebreaker_goals: number | null
   tiebreaker_diff: number | null
   group_stage_rank: number | null
@@ -630,6 +635,7 @@ export interface Database {
           match_number: number | null
           scheduled_at: string | null
           venue: string | null
+          stadium: string | null
           home_score: number | null
           away_score: number | null
           sort_order: number
@@ -642,6 +648,7 @@ export interface Database {
           match_number?: number | null
           scheduled_at?: string | null
           venue?: string | null
+          stadium?: string | null
           home_score?: number | null
           away_score?: number | null
           sort_order?: number
@@ -653,6 +660,7 @@ export interface Database {
           match_number?: number | null
           scheduled_at?: string | null
           venue?: string | null
+          stadium?: string | null
           home_score?: number | null
           away_score?: number | null
           sort_order?: number
@@ -697,6 +705,7 @@ export interface Database {
           sort_order: number
           scheduled_at: string | null
           venue: string | null
+          stadium: string | null
         }
         Insert: {
           id?: string
@@ -713,6 +722,7 @@ export interface Database {
           sort_order: number
           scheduled_at?: string | null
           venue?: string | null
+          stadium?: string | null
         }
         Update: {
           tournament_id?: string
@@ -728,6 +738,7 @@ export interface Database {
           sort_order?: number
           scheduled_at?: string | null
           venue?: string | null
+          stadium?: string | null
         }
         Relationships: [
           {
@@ -1470,8 +1481,27 @@ export interface Database {
         ]
       }
     }
-    // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-    Views: {}
+    Views: {
+      tournament_leaderboard: {
+        Row: {
+          entry_id: string
+          tournament_id: string
+          player_id: string
+          display_name: string
+          nickname: string | null
+          avatar_url: string | null
+          tiebreaker_goals: number | null
+          group_stage_points: number | null
+          knockout_points: number | null
+          total_points: number | null
+          tiebreaker_diff: number | null
+          group_stage_rank: number | null
+          overall_rank: number | null
+          tournament_status: string
+        }
+        Relationships: []
+      }
+    }
     // eslint-disable-next-line @typescript-eslint/no-empty-object-type
     Functions: {}
   }

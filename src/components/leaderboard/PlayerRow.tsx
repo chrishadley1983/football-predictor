@@ -10,9 +10,10 @@ interface PlayerRowProps {
   entry: LeaderboardEntry
   isCurrentUser: boolean
   rank: number
+  preLaunch?: boolean
 }
 
-export function PlayerRow({ entry, isCurrentUser, rank }: PlayerRowProps) {
+export function PlayerRow({ entry, isCurrentUser, rank, preLaunch = false }: PlayerRowProps) {
   const [expanded, setExpanded] = useState(false)
   const primaryName = entry.nickname ?? entry.display_name
 
@@ -20,14 +21,17 @@ export function PlayerRow({ entry, isCurrentUser, rank }: PlayerRowProps) {
     <>
       <tr
         className={cn(
-          'cursor-pointer transition-colors hover:bg-surface-light',
+          'transition-colors hover:bg-surface-light',
+          !preLaunch && 'cursor-pointer',
           isCurrentUser && 'bg-gold/10 font-medium'
         )}
-        onClick={() => setExpanded(!expanded)}
+        onClick={() => !preLaunch && setExpanded(!expanded)}
       >
-        <td className="whitespace-nowrap px-3 py-2 text-center text-sm font-bold text-foreground">
-          {rank}
-        </td>
+        {!preLaunch && (
+          <td className="whitespace-nowrap px-3 py-2 text-center text-sm font-bold text-foreground">
+            {rank}
+          </td>
+        )}
         <td className="whitespace-nowrap px-3 py-2 text-sm text-foreground">
           <div className="flex items-center gap-2">
             <PlayerAvatar avatarUrl={entry.avatar_url} displayName={entry.display_name} size="sm" />
@@ -53,23 +57,27 @@ export function PlayerRow({ entry, isCurrentUser, rank }: PlayerRowProps) {
         <td className="hidden whitespace-nowrap px-3 py-2 text-sm text-text-secondary sm:table-cell">
           {entry.display_name}
         </td>
-        <td className="whitespace-nowrap px-3 py-2 text-center text-sm text-text-secondary">
-          {entry.group_stage_points}
-        </td>
-        <td className="whitespace-nowrap px-3 py-2 text-center text-sm text-text-secondary">
-          {entry.knockout_points}
-        </td>
-        <td className="whitespace-nowrap px-3 py-2 text-center text-sm font-bold text-foreground">
-          {entry.total_points}
-        </td>
-        <td className="whitespace-nowrap px-3 py-2 text-center text-sm text-text-muted">
-          {entry.tiebreaker_goals ?? '-'}
-          {entry.tiebreaker_diff !== null && (
-            <span className="ml-1 text-xs text-text-faint">({entry.tiebreaker_diff})</span>
-          )}
-        </td>
+        {!preLaunch && (
+          <>
+            <td className="whitespace-nowrap px-3 py-2 text-center text-sm text-text-secondary">
+              {entry.group_stage_points ?? '-'}
+            </td>
+            <td className="whitespace-nowrap px-3 py-2 text-center text-sm text-text-secondary">
+              {entry.knockout_points ?? '-'}
+            </td>
+            <td className="whitespace-nowrap px-3 py-2 text-center text-sm font-bold text-foreground">
+              {entry.total_points ?? '-'}
+            </td>
+            <td className="whitespace-nowrap px-3 py-2 text-center text-sm text-text-muted">
+              {entry.tiebreaker_goals ?? '-'}
+              {entry.tiebreaker_diff !== null && (
+                <span className="ml-1 text-xs text-text-faint">({entry.tiebreaker_diff})</span>
+              )}
+            </td>
+          </>
+        )}
       </tr>
-      {expanded && (
+      {expanded && !preLaunch && (
         <tr className={cn(isCurrentUser && 'bg-gold/5')}>
           <td colSpan={7} className="px-3 py-3 text-xs text-text-secondary">
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -79,10 +87,10 @@ export function PlayerRow({ entry, isCurrentUser, rank }: PlayerRowProps) {
                 </div>
               )}
               <div>
-                <span className="font-medium">Group Pts:</span> {entry.group_stage_points}
+                <span className="font-medium">Group Pts:</span> {entry.group_stage_points ?? '-'}
               </div>
               <div>
-                <span className="font-medium">Knockout Pts:</span> {entry.knockout_points}
+                <span className="font-medium">Knockout Pts:</span> {entry.knockout_points ?? '-'}
               </div>
               <div>
                 <span className="font-medium">Tiebreaker:</span> {entry.tiebreaker_goals ?? 'N/A'}
