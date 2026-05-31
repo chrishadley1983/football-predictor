@@ -1,5 +1,5 @@
 import type { ProfileUpdatedEvent } from '../audit'
-import { escapeHtml, renderPlayerHtml, renderPlayerLine } from './shared'
+import { escapeHtml, renderPlayerLine, wrapInBrandedLayout } from './shared'
 
 export function renderProfileUpdated(
   e: ProfileUpdatedEvent
@@ -17,26 +17,36 @@ export function renderProfileUpdated(
     ...changes.map((c) => `  ${c.field}: ${c.old ?? '—'} → ${c.new ?? '—'}`),
   ].join('\n')
 
-  const html = `
-    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 560px; color: #111;">
-      <h2 style="margin: 0 0 12px;">Profile updated</h2>
-      <p style="margin: 0 0 12px; font-size: 14px;">${renderPlayerHtml(player)}</p>
-      <table style="border-collapse: collapse; font-size: 14px;">
-        ${changes
-          .map(
-            (c) => `
-              <tr>
-                <td style="padding: 4px 12px 4px 0; color: #666;">${escapeHtml(c.field)}</td>
-                <td style="padding: 4px 0;">
-                  <span style="color: #999; text-decoration: line-through;">${escapeHtml(c.old ?? '—')}</span>
-                  → <strong>${escapeHtml(c.new ?? '—')}</strong>
-                </td>
-              </tr>`
-          )
-          .join('')}
+  const changeRows = changes
+    .map(
+      (c) =>
+        `<tr>
+          <td style="padding: 6px 10px; border-bottom: 1px solid #eee; color: #666;">${escapeHtml(c.field)}</td>
+          <td style="padding: 6px 10px; border-bottom: 1px solid #eee;">
+            <span style="color: #999; text-decoration: line-through; font-size: 12px;">${escapeHtml(c.old ?? '—')}</span>
+            &rarr; <strong>${escapeHtml(c.new ?? '—')}</strong>
+          </td>
+        </tr>`
+    )
+    .join('')
+
+  const html = wrapInBrandedLayout({
+    heading: 'Profile Updated',
+    badgeText: 'PROFILE',
+    badgeColor: '#7c3aed',
+    player,
+    body: `
+      <table style="border-collapse: collapse; font-size: 13px; width: 100%; background: #fff; border-radius: 6px; overflow: hidden; border: 1px solid #e0e0e0;">
+        <thead>
+          <tr style="background: #f4f4f5;">
+            <th style="text-align: left; padding: 8px 10px; color: #666; font-weight: 500;">Field</th>
+            <th style="text-align: left; padding: 8px 10px; color: #666; font-weight: 500;">Change</th>
+          </tr>
+        </thead>
+        <tbody>${changeRows}</tbody>
       </table>
-    </div>
-  `.trim()
+    `,
+  })
 
   return { subject, html, text }
 }
