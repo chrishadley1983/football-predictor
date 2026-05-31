@@ -30,6 +30,27 @@ export default async function TournamentPage({ params }: { params: Promise<{ slu
     .select('id', { count: 'exact', head: true })
     .eq('tournament_id', t.id)
 
+  // Has the current user already entered this tournament?
+  let hasEntered = false
+  const { data: { user } } = await supabase.auth.getUser()
+  if (user) {
+    const { data: player } = await supabase
+      .from('players')
+      .select('id')
+      .eq('auth_user_id', user.id)
+      .single()
+    if (player) {
+      const { data: entry } = await supabase
+        .from('tournament_entries')
+        .select('id')
+        .eq('tournament_id', t.id)
+        .eq('player_id', player.id)
+        .maybeSingle()
+      hasEntered = !!entry
+    }
+  }
+  const canEnter = t.status === 'group_stage_open' && !hasEntered
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -96,25 +117,28 @@ export default async function TournamentPage({ params }: { params: Promise<{ slu
         </div>
       </Card>
 
+      {/* Prominent entry call-to-action — only when the user can still enter */}
+      {canEnter && (
+        <Link href={`/tournament/${slug}/enter`} className="group block">
+          <div className="flex flex-col items-start gap-4 rounded-xl border-2 border-gold/50 bg-gradient-to-r from-gold/15 to-gold/5 p-6 transition-all hover:border-gold hover:from-gold/25 hover:to-gold/10 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="font-heading text-xl font-bold text-gold-light">Enter This Tournament</h2>
+              <p className="mt-1 text-sm text-text-secondary">
+                Register and pay your {formatCurrency(t.entry_fee_gbp)} entry fee to start predicting.
+              </p>
+            </div>
+            <span className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-gold px-6 py-3 font-heading text-sm font-bold text-background transition-colors group-hover:bg-gold-light">
+              Enter Tournament &rarr;
+            </span>
+          </div>
+        </Link>
+      )}
+
       {/* Pundit */}
       <PunditCard tournamentSlug={slug} />
 
       {/* Navigation links */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {(t.status === 'group_stage_open') && (
-          <Link href={`/tournament/${slug}/enter`}>
-            <Card className="border-gold/25 bg-gold/5 transition-all hover:border-gold/40 hover:bg-gold/10">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-semibold text-gold-light">Enter Tournament</h3>
-                  <p className="mt-1 text-sm text-text-secondary">Register and pay entry fee</p>
-                </div>
-                <span className="text-text-muted opacity-0 transition-opacity group-hover:opacity-70">&rarr;</span>
-              </div>
-            </Card>
-          </Link>
-        )}
-
         {['group_stage_open'].includes(t.status) && (
           <Link href={`/tournament/${slug}/predict/groups`}>
             <Card className="border-gold/25 bg-gold/5 transition-all hover:border-gold/40 hover:bg-gold/10">

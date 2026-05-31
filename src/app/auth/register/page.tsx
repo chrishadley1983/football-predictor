@@ -62,7 +62,19 @@ export default function RegisterPage() {
       return
     }
 
-    router.push('/')
+    // Drop new players straight onto the current tournament so they can enter it.
+    let destination = '/'
+    const { data: current } = await supabase
+      .from('tournaments')
+      .select('slug')
+      .neq('status', 'draft')
+      .neq('status', 'completed')
+      .order('year', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    if (current?.slug) destination = `/tournament/${current.slug}`
+
+    router.push(destination)
     router.refresh()
   }
 
