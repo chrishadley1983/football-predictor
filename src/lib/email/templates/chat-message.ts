@@ -1,5 +1,5 @@
 import type { ChatMessageEvent } from '../audit'
-import { escapeHtml, renderPlayerHtml, renderPlayerLine } from './shared'
+import { escapeHtml, renderPlayerLine, wrapInBrandedLayout } from './shared'
 
 export function renderChatMessage(
   e: ChatMessageEvent
@@ -7,11 +7,7 @@ export function renderChatMessage(
   const { player, tournament, message } = e
   const where = tournament ? tournament.name : 'Global chat'
 
-  const subject = `[FPG audit] Chat: ${player.displayName} in ${where}`
-
-  const contentPreview = message.content.length > 80
-    ? message.content.slice(0, 80) + '…'
-    : message.content
+  const subject = `[Freemo's] Chat: ${player.displayName} in ${where}`
 
   const gifUrl =
     message.metadata && typeof message.metadata === 'object' && 'gif_url' in message.metadata
@@ -40,31 +36,30 @@ export function renderChatMessage(
 
   const text = textLines.join('\n')
 
-  const html = `
-    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 640px; color: #111;">
-      <h2 style="margin: 0 0 12px;">Chat message</h2>
-      <p style="margin: 0 0 12px; font-size: 14px; color: #555;">
-        ${renderPlayerHtml(player)}<br>
-        <span style="color: #666;">${tournament ? 'in' : ''}</span> <strong>${escapeHtml(where)}</strong>${tournament ? ` <span style="color:#999;">(${escapeHtml(tournament.slug)})</span>` : ''}<br>
-        <span style="color: #999; font-size: 12px;">${escapeHtml(message.createdAt)}</span>
-      </p>
-      ${
-        message.replyTo
-          ? `<blockquote style="border-left: 3px solid #ddd; margin: 0 0 8px; padding: 4px 10px; color: #666; font-size: 13px;">
-               <div style="font-weight: 600;">${escapeHtml(message.replyTo.authorName ?? '—')}</div>
-               ${escapeHtml(message.replyTo.content)}
-             </blockquote>`
-          : ''
-      }
-      <div style="padding: 10px 14px; background: #f8f8f8; border-radius: 6px; font-size: 15px; white-space: pre-wrap;">${escapeHtml(message.content)}</div>
-      ${
-        gifUrl
-          ? `<div style="margin-top: 10px;"><img src="${escapeHtml(gifUrl)}" alt="GIF" style="max-width: 300px; max-height: 300px; border-radius: 6px;" /></div>`
-          : ''
-      }
-      <p style="margin: 12px 0 0; font-size: 11px; color: #aaa; font-family: monospace;">msg id ${escapeHtml(message.id)} · preview: "${escapeHtml(contentPreview)}"</p>
-    </div>
-  `.trim()
+  const replyBlock = message.replyTo
+    ? `<div style="border-left: 3px solid #d4d4d8; margin: 0 0 10px; padding: 6px 12px; background: #fafafa; border-radius: 0 6px 6px 0;">
+         <div style="font-weight: 600; font-size: 12px; color: #666; margin-bottom: 2px;">${escapeHtml(message.replyTo.authorName ?? '—')}</div>
+         <div style="font-size: 13px; color: #555;">${escapeHtml(message.replyTo.content)}</div>
+       </div>`
+    : ''
+
+  const gifBlock = gifUrl
+    ? `<div style="margin-top: 10px;"><img src="${escapeHtml(gifUrl)}" alt="GIF" style="max-width: 300px; max-height: 300px; border-radius: 6px;" /></div>`
+    : ''
+
+  const html = wrapInBrandedLayout({
+    heading: 'Chat Message',
+    badgeText: 'CHAT',
+    badgeColor: '#2563eb',
+    player,
+    ...(tournament ? { tournament } : {}),
+    body: `
+      ${replyBlock}
+      <div style="padding: 12px 14px; background: #f4f4f5; border-radius: 8px; font-size: 15px; white-space: pre-wrap; line-height: 1.5;">${escapeHtml(message.content)}</div>
+      ${gifBlock}
+      <p style="margin: 10px 0 0; font-size: 11px; color: #aaa; font-family: monospace;">msg ${escapeHtml(message.id)} · ${escapeHtml(message.createdAt)}</p>
+    `,
+  })
 
   return { subject, html, text }
 }

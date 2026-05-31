@@ -130,7 +130,7 @@ export function Navbar() {
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 font-heading text-lg font-bold tracking-wider text-gold">
-            Prediction Game
+            Freemo&apos;s Prediction Game
           </Link>
 
           {/* Desktop nav */}
@@ -153,6 +153,11 @@ export function Navbar() {
                 <Link href={`/tournament/${tournamentSlug}/predictions`} className={linkClass(pathname.includes('/predictions') && !pathname.includes('/predict/'))}>
                   Predictions
                 </Link>
+                {player && (
+                  <Link href={`/tournament/${tournamentSlug}/predict/groups`} className={linkClass(pathname.includes('/predict/'))}>
+                    My Predictions
+                  </Link>
+                )}
                 <Link href={`/tournament/${tournamentSlug}/posts`} className={linkClass(pathname.includes('/posts'))}>
                   Posts
                 </Link>
@@ -245,6 +250,11 @@ export function Navbar() {
                 <Link href={`/tournament/${tournamentSlug}/predictions`} className={mobileLinkClass} onClick={() => setMenuOpen(false)}>
                   Predictions
                 </Link>
+                {player && (
+                  <Link href={`/tournament/${tournamentSlug}/predict/groups`} className={mobileLinkClass} onClick={() => setMenuOpen(false)}>
+                    My Predictions
+                  </Link>
+                )}
                 <Link href={`/tournament/${tournamentSlug}/posts`} className={mobileLinkClass} onClick={() => setMenuOpen(false)}>
                   Posts
                 </Link>

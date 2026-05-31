@@ -34,6 +34,8 @@ interface PredictionGridProps {
   thirdPlaceQualifiersCount?: number | null
   knockoutMatches?: KnockoutMatch[]
   knockoutVisible?: boolean
+  /** When true (all-players view), use 3-letter country codes to save space */
+  useShortNames?: boolean
 }
 
 export function PredictionGrid({
@@ -43,6 +45,7 @@ export function PredictionGrid({
   thirdPlaceQualifiersCount,
   knockoutMatches = [],
   knockoutVisible = false,
+  useShortNames = false,
 }: PredictionGridProps) {
   const hasThirdPlaceFeature = !!thirdPlaceQualifiersCount
   // Build result lookup: team_id -> { qualified, final_position }
@@ -77,7 +80,7 @@ export function PredictionGrid({
     return 'bg-red-accent/20 text-red-accent'
   }
 
-  // Find team code by id across all groups, also check knockout match teams
+  // Find team code by id across all groups
   function getTeamCode(teamId: string | null): string {
     if (!teamId) return '-'
     for (const g of groups) {
@@ -86,6 +89,22 @@ export function PredictionGrid({
       }
     }
     return '?'
+  }
+
+  // Find full team name by id across all groups
+  function getTeamName(teamId: string | null): string {
+    if (!teamId) return '-'
+    for (const g of groups) {
+      for (const gt of g.group_teams) {
+        if (gt.team.id === teamId) return gt.team.name
+      }
+    }
+    return '?'
+  }
+
+  // Display name: short code or full name depending on view mode
+  function getDisplayName(teamId: string | null): string {
+    return useShortNames ? getTeamCode(teamId) : getTeamName(teamId)
   }
 
   // Group knockout matches by round
@@ -155,7 +174,7 @@ export function PredictionGrid({
               <th key={p.entry_id} className="px-2 py-2 text-center font-medium text-text-muted">
                 <div className="flex flex-col items-center gap-1">
                   <PlayerAvatar avatarUrl={p.player.avatar_url} displayName={p.player.display_name} size="sm" />
-                  <div className="max-w-[60px] truncate">
+                  <div className="max-w-[80px] truncate">
                     {p.player.display_name.split(' ')[0]}
                   </div>
                 </div>
@@ -199,7 +218,7 @@ export function PredictionGrid({
                     >
                       {isNullThird ? '-' : (
                         <>
-                          {getTeamCode(teamId ?? null)}
+                          {getDisplayName(teamId ?? null)}
                           {isCorrectPosButNQ && <span className="ml-0.5 text-[9px] opacity-70">NQ</span>}
                         </>
                       )}
@@ -225,10 +244,10 @@ export function PredictionGrid({
                 {knockoutByRound.get(round)!.map((match) => (
                   <tr key={match.id}>
                     <td className="sticky left-0 z-10 bg-surface px-2 py-1 font-mono text-foreground whitespace-nowrap text-[10px]">
-                      {getTeamCode(match.home_team_id)}
+                      {getDisplayName(match.home_team_id)}
                     </td>
                     <td className="sticky left-[60px] z-10 bg-surface px-2 py-1 font-mono text-foreground whitespace-nowrap text-[10px]">
-                      v {getTeamCode(match.away_team_id)}
+                      v {getDisplayName(match.away_team_id)}
                     </td>
                     {predictions.map((p) => {
                       const pred = p.knockout_predictions.find(
@@ -251,7 +270,7 @@ export function PredictionGrid({
                           )}
                         >
                           {pred
-                            ? getTeamCode(pred.predicted_winner_id)
+                            ? getDisplayName(pred.predicted_winner_id)
                             : '-'}
                         </td>
                       )

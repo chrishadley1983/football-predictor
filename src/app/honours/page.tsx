@@ -3,7 +3,7 @@ import { HonoursBoard } from '@/components/HonoursBoard'
 import type { HonoursWithDetails } from '@/lib/types'
 
 export const metadata = {
-  title: 'Honours Board - Football Prediction Game',
+  title: "Honours Board - Freemo's Prediction Game",
 }
 
 export default async function HonoursPage() {

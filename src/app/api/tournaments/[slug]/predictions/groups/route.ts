@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server'
+import { after } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { requireAuth } from '@/lib/auth'
 import { scheduleAuditEmail } from '@/lib/email/audit'
+import { getResendClient, isAuditEmailEnabled } from '@/lib/email/client'
+import { AUDIT_FROM, AUDIT_RECIPIENTS } from '@/lib/email/recipients'
+import { renderPredictionConfirmation } from '@/lib/email/templates/prediction-confirmation'
 import type { GroupPredictionChange, GroupPredictionSnapshot } from '@/lib/email/audit'
 
 // GET: Get player's group predictions
@@ -331,6 +335,7 @@ async function fireGroupPredictionsAudit(opts: {
   const tiebreakerChanged = oldTiebreaker !== newTiebreaker
   if (!anyGroupChanged && !tiebreakerChanged) return
 
+  // Send audit email to admin
   scheduleAuditEmail({
     event: 'group_predictions_submitted',
     player: {
@@ -349,5 +354,32 @@ async function fireGroupPredictionsAudit(opts: {
     tiebreaker: tiebreakerChanged
       ? { old: oldTiebreaker, new: newTiebreaker, changed: true }
       : null,
+  })
+
+  // Send prediction confirmation email to the player (CC admin)
+  after(async () => {
+    try {
+      if (!isAuditEmailEnabled()) return
+      const resend = getResendClient()
+      if (!resend) return
+
+      const { subject, html, text } = renderPredictionConfirmation({
+        playerName: player.display_name,
+        tournamentName: tournament.name,
+        changes,
+        tiebreaker: newTiebreaker,
+      })
+
+      await resend.emails.send({
+        from: AUDIT_FROM,
+        to: [player.email],
+        cc: [...AUDIT_RECIPIENTS],
+        subject,
+        html,
+        text,
+      })
+    } catch (err) {
+      console.error('[prediction-confirmation] email failed', err)
+    }
   })
 }

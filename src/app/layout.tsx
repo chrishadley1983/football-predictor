@@ -16,7 +16,7 @@ const dmSans = DM_Sans({
 })
 
 export const metadata: Metadata = {
-  title: 'Football Prediction Game',
+  title: "Freemo's Prediction Game",
   description: 'Predict group stages and knockout brackets for major football tournaments. Compete with friends for prizes.',
 }
 

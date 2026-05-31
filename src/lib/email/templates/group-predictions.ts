@@ -1,5 +1,5 @@
 import type { GroupPredictionsEvent, GroupPredictionSnapshot } from '../audit'
-import { escapeHtml, renderPlayerHtml, renderPlayerLine } from './shared'
+import { escapeHtml, wrapInBrandedLayout } from './shared'
 
 export function renderGroupPredictions(
   e: GroupPredictionsEvent
@@ -12,12 +12,12 @@ export function renderGroupPredictions(
       ? 'tiebreaker-only update'
       : `${groupsChanged.length} group${groupsChanged.length === 1 ? '' : 's'} changed`
 
-  const subject = `[FPG audit] Group predictions: ${player.displayName} — ${countText}`
+  const subject = `[Freemo's] Group predictions: ${player.displayName} — ${countText}`
 
   const text = [
     `Group predictions submitted`,
     ``,
-    `Player:     ${renderPlayerLine(player)}`,
+    `Player:     ${player.displayName} <${player.email}>`,
     `Tournament: ${tournament.name} (${tournament.slug})`,
     ``,
     ...changes.map((c) => renderChangeText(c)),
@@ -26,33 +26,40 @@ export function renderGroupPredictions(
       : []),
   ].join('\n')
 
-  const html = `
-    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 720px; color: #111;">
-      <h2 style="margin: 0 0 12px;">Group predictions submitted</h2>
-      <p style="margin: 0 0 12px; font-size: 14px;">
-        <span style="color: #666;">Player:</span> ${renderPlayerHtml(player)}<br>
-        <span style="color: #666;">Tournament:</span> <strong>${escapeHtml(tournament.name)}</strong> (${escapeHtml(tournament.slug)})
-      </p>
-      <table style="border-collapse: collapse; font-size: 13px; width: 100%;">
+  const tableRows = changes.map((c) => renderChangeHtml(c)).join('')
+
+  const tiebreakerHtml =
+    tiebreaker && tiebreaker.changed
+      ? `<p style="margin: 12px 0 0; font-size: 13px;">
+          <strong>Tiebreaker:</strong>
+          <span style="color: #999; text-decoration: line-through;">${tiebreaker.old ?? '—'}</span>
+          &rarr; <strong>${tiebreaker.new ?? '—'}</strong> goals
+        </p>`
+      : ''
+
+  const html = wrapInBrandedLayout({
+    heading: 'Group Predictions Submitted',
+    badgeText: countText.toUpperCase(),
+    badgeColor: groupsChanged.length > 0 ? '#d97706' : '#6b7280',
+    player,
+    tournament,
+    body: `
+      <table style="border-collapse: collapse; font-size: 13px; width: 100%; background: #fff; border-radius: 6px; overflow: hidden; border: 1px solid #e0e0e0;">
         <thead>
-          <tr style="background: #f4f4f4;">
-            <th style="text-align: left; padding: 6px 10px; border: 1px solid #ddd;">Group</th>
-            <th style="text-align: left; padding: 6px 10px; border: 1px solid #ddd;">1st</th>
-            <th style="text-align: left; padding: 6px 10px; border: 1px solid #ddd;">2nd</th>
-            <th style="text-align: left; padding: 6px 10px; border: 1px solid #ddd;">3rd</th>
+          <tr style="background: #1a5c3a; color: #fff;">
+            <th style="text-align: left; padding: 8px 10px;">Group</th>
+            <th style="text-align: left; padding: 8px 10px;">1st</th>
+            <th style="text-align: left; padding: 8px 10px;">2nd</th>
+            <th style="text-align: left; padding: 8px 10px;">3rd</th>
           </tr>
         </thead>
         <tbody>
-          ${changes.map((c) => renderChangeHtml(c)).join('')}
+          ${tableRows}
         </tbody>
       </table>
-      ${
-        tiebreaker && tiebreaker.changed
-          ? `<p style="margin: 12px 0 0; font-size: 14px;"><span style="color: #666;">Tiebreaker goals:</span> ${tiebreaker.old ?? '—'} → <strong>${tiebreaker.new ?? '—'}</strong></p>`
-          : ''
-      }
-    </div>
-  `.trim()
+      ${tiebreakerHtml}
+    `,
+  })
 
   return { subject, html, text }
 }
@@ -87,15 +94,25 @@ function renderChangeHtml(c: {
   new: GroupPredictionSnapshot
   changed: boolean
 }): string {
-  const bg = c.changed ? '#fff8dc' : '#fff'
-  const row = `<td style="padding: 6px 10px; border: 1px solid #ddd; background: ${bg};">`
+  const bg = c.changed ? '#fef3c7' : '#fff'
   const renderPos = (pos: 'first' | 'second' | 'third') => {
     const prev = c.old?.[pos] ?? null
     const next = c.new[pos] ?? null
     if (c.changed && prev !== next) {
-      return `<span style="color: #999; text-decoration: line-through;">${escapeHtml(prev ?? '—')}</span> → <strong>${escapeHtml(next ?? '—')}</strong>`
+      const prevHtml = prev ? `<span style="color: #999; text-decoration: line-through; font-size: 11px;">${escapeHtml(prev)}</span> ` : ''
+      return `${prevHtml}<strong>${escapeHtml(next ?? '—')}</strong>`
     }
     return escapeHtml(next ?? '—')
   }
-  return `<tr>${row}<strong>${escapeHtml(c.groupName)}</strong>${c.changed ? '' : ' <span style="color:#999;">(unchanged)</span>'}</td>${row}${renderPos('first')}</td>${row}${renderPos('second')}</td>${row}${renderPos('third')}</td></tr>`
+
+  const statusIcon = c.changed
+    ? '<span style="color: #d97706; font-size: 10px;">&#9679;</span> '
+    : ''
+
+  return `<tr style="background: ${bg};">
+    <td style="padding: 6px 10px; border-bottom: 1px solid #eee;">${statusIcon}<strong>${escapeHtml(c.groupName)}</strong></td>
+    <td style="padding: 6px 10px; border-bottom: 1px solid #eee;">${renderPos('first')}</td>
+    <td style="padding: 6px 10px; border-bottom: 1px solid #eee;">${renderPos('second')}</td>
+    <td style="padding: 6px 10px; border-bottom: 1px solid #eee;">${renderPos('third')}</td>
+  </tr>`
 }

@@ -768,7 +768,7 @@ export function PredictionAnalyser({
                                   {predA ? (
                                     <>
                                       {goldenTicketA && (
-                                        <span title="Golden ticket used" className="mr-0.5">🎫</span>
+                                        <span title="Emergency Sub used" className="mr-0.5">🔄</span>
                                       )}
                                       {getTeamCode(predA.predicted_winner_id)}
                                     </>
@@ -800,7 +800,7 @@ export function PredictionAnalyser({
                                     {predB ? (
                                       <>
                                         {goldenTicketB && (
-                                          <span title="Golden ticket used" className="mr-0.5">🎫</span>
+                                          <span title="Emergency Sub used" className="mr-0.5">🔄</span>
                                         )}
                                         {getTeamCode(predB.predicted_winner_id)}
                                       </>

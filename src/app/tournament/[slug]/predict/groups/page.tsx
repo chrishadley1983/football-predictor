@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { GroupPredictionCard } from '@/components/groups/GroupPredictionCard'
@@ -22,6 +22,8 @@ export default function GroupPredictionPage() {
   const [results, setResults] = useState<GroupResult[]>([])
   const [tiebreaker, setTiebreaker] = useState('')
   const [thirdPlaceSelections, setThirdPlaceSelections] = useState<Record<string, boolean>>({})
+  // Local draft state per group: groupId -> { first, second, third }
+  const [drafts, setDrafts] = useState<Record<string, { first: string; second: string; third: string }>>({})
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -29,7 +31,6 @@ export default function GroupPredictionPage() {
 
   useEffect(() => {
     async function load() {
-      // Fetch tournament data
       const res = await fetch(`/api/tournaments/${slug}`)
       if (!res.ok) {
         setError('Tournament not found')
@@ -39,7 +40,6 @@ export default function GroupPredictionPage() {
       const data = await res.json()
       setTournament(data)
 
-      // Fetch current player's entry and predictions
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
@@ -76,7 +76,6 @@ export default function GroupPredictionPage() {
       setEntry(entryData)
       setTiebreaker(entryData.tiebreaker_goals?.toString() ?? '')
 
-      // Fetch existing predictions
       const { data: preds } = await supabase
         .from('group_predictions')
         .select('*')
@@ -84,7 +83,17 @@ export default function GroupPredictionPage() {
 
       if (preds) {
         setPredictions(preds)
-        // Initialize third place selections from existing predictions
+        // Initialize drafts from existing predictions
+        const initialDrafts: Record<string, { first: string; second: string; third: string }> = {}
+        for (const p of preds) {
+          initialDrafts[p.group_id] = {
+            first: p.predicted_1st ?? '',
+            second: p.predicted_2nd ?? '',
+            third: p.predicted_3rd ?? '',
+          }
+        }
+        setDrafts(initialDrafts)
+
         if (data.third_place_qualifiers_count) {
           const selections: Record<string, boolean> = {}
           for (const p of preds) {
@@ -94,7 +103,6 @@ export default function GroupPredictionPage() {
         }
       }
 
-      // Fetch group results if available
       const groupIds = data.groups?.map((g: GroupWithTeams) => g.id) ?? []
       if (groupIds.length > 0) {
         const { data: groupResults } = await supabase
@@ -112,90 +120,88 @@ export default function GroupPredictionPage() {
   const deadline = tournament ? getDeadlineStatus(tournament.group_stage_deadline) : null
   const isReadonly = deadline?.passed || tournament?.status !== 'group_stage_open'
 
-  async function handlePrediction(groupId: string, predicted_1st: string, predicted_2nd: string, predicted_3rd: string | null) {
+  // Track local draft changes per group (called from GroupPredictionCard)
+  const handleDraftChange = useCallback((groupId: string, first: string, second: string, third: string | null) => {
+    setDrafts((prev) => ({
+      ...prev,
+      [groupId]: { first, second, third: third ?? '' },
+    }))
+  }, [])
+
+  async function handleSubmitAll() {
     if (!entry || isReadonly) return
     setSaving(true)
     setError('')
     setSuccessMsg('')
 
+    const hasThirdPlaceFeature = (tournament?.third_place_qualifiers_count ?? null) !== null
+
+    // Build predictions array from drafts
+    const groups = tournament?.groups ?? []
+    const predictionPayload = groups
+      .map((group) => {
+        const draft = drafts[group.id]
+        if (!draft || !draft.first || !draft.second) return null
+        return {
+          group_id: group.id,
+          predicted_1st: draft.first,
+          predicted_2nd: draft.second,
+          predicted_3rd: hasThirdPlaceFeature && !thirdPlaceSelections[group.id]
+            ? null
+            : (draft.third || null),
+        }
+      })
+      .filter(Boolean)
+
+    if (predictionPayload.length === 0) {
+      setError('Please fill in at least one group prediction')
+      setSaving(false)
+      return
+    }
+
     const res = await fetch(`/api/tournaments/${slug}/predictions/groups`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        predictions: [
-          {
-            group_id: groupId,
-            predicted_1st,
-            predicted_2nd,
-            predicted_3rd,
-          },
-        ],
+        predictions: predictionPayload,
         tiebreaker_goals: tiebreaker ? parseInt(tiebreaker, 10) : undefined,
       }),
     })
 
     if (!res.ok) {
       const data = await res.json()
-      setError(data.error || 'Failed to save prediction')
+      setError(data.error || 'Failed to save predictions')
       setSaving(false)
       return
     }
 
-    // Update local state with the prediction we sent
+    // Update local predictions state
     setPredictions((prev) => {
-      const idx = prev.findIndex((p) => p.group_id === groupId)
-      const newPred: GroupPrediction = {
-        id: idx >= 0 ? prev[idx].id : '',
-        entry_id: entry.id,
-        group_id: groupId,
-        predicted_1st,
-        predicted_2nd,
-        predicted_3rd,
-        points_earned: idx >= 0 ? prev[idx].points_earned : 0,
-        submitted_at: new Date().toISOString(),
+      const updated = [...prev]
+      for (const payload of predictionPayload) {
+        if (!payload) continue
+        const idx = updated.findIndex((p) => p.group_id === payload.group_id)
+        const newPred: GroupPrediction = {
+          id: idx >= 0 ? updated[idx].id : '',
+          entry_id: entry.id,
+          group_id: payload.group_id,
+          predicted_1st: payload.predicted_1st,
+          predicted_2nd: payload.predicted_2nd,
+          predicted_3rd: payload.predicted_3rd,
+          points_earned: idx >= 0 ? updated[idx].points_earned : 0,
+          submitted_at: new Date().toISOString(),
+        }
+        if (idx >= 0) {
+          updated[idx] = newPred
+        } else {
+          updated.push(newPred)
+        }
       }
-      if (idx >= 0) {
-        const updated = [...prev]
-        updated[idx] = newPred
-        return updated
-      }
-      return [...prev, newPred]
+      return updated
     })
 
-    setSuccessMsg('Prediction saved!')
-    setTimeout(() => setSuccessMsg(''), 2000)
-    setSaving(false)
-  }
-
-  async function handleTiebreaker() {
-    if (!entry || isReadonly) return
-    setSaving(true)
-    setError('')
-
-    const goals = parseInt(tiebreaker, 10)
-    if (isNaN(goals) || goals < 0) {
-      setError('Please enter a valid number of goals')
-      setSaving(false)
-      return
-    }
-
-    // Route through API to enforce server-side tournament status/deadline checks
-    const res = await fetch(`/api/tournaments/${slug}/predictions/groups`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        predictions: [],
-        tiebreaker_goals: goals,
-      }),
-    })
-
-    if (!res.ok) {
-      const data = await res.json()
-      setError(data.error || 'Failed to save tiebreaker')
-    } else {
-      setSuccessMsg('Tiebreaker saved!')
-      setTimeout(() => setSuccessMsg(''), 2000)
-    }
+    setSuccessMsg('All predictions saved!')
+    setTimeout(() => setSuccessMsg(''), 3000)
     setSaving(false)
   }
 
@@ -206,6 +212,17 @@ export default function GroupPredictionPage() {
   const thirdPlaceCount = tournament?.third_place_qualifiers_count ?? null
   const selectedCount = Object.values(thirdPlaceSelections).filter(Boolean).length
   const limitReached = thirdPlaceCount !== null && selectedCount >= thirdPlaceCount
+
+  // Count how many groups have complete predictions in drafts
+  const hasThirdPlaceFeature = thirdPlaceCount !== null
+  const completedGroups = groups.filter((g) => {
+    const d = drafts[g.id]
+    if (!d || !d.first || !d.second) return false
+    if (hasThirdPlaceFeature) {
+      return thirdPlaceSelections[g.id] ? !!d.third : true
+    }
+    return !!d.third
+  }).length
 
   return (
     <div className="space-y-6">
@@ -244,9 +261,10 @@ export default function GroupPredictionPage() {
             key={group.id}
             group={group}
             prediction={predictions.find((p) => p.group_id === group.id)}
-            onPredict={(first, second, third) => handlePrediction(group.id, first, second, third)}
+            onPredict={(first, second, third) => handleDraftChange(group.id, first, second, third)}
             readonly={isReadonly}
             results={results.filter((r) => r.group_id === group.id)}
+            hideSubmitButton
             {...(thirdPlaceCount !== null ? {
               thirdPlaceQualifies: !!thirdPlaceSelections[group.id],
               onThirdPlaceToggle: (checked: boolean) => {
@@ -260,26 +278,33 @@ export default function GroupPredictionPage() {
 
       {/* Tiebreaker */}
       <Card header={<h2 className="font-semibold text-foreground">Tiebreaker</h2>}>
-        <div className="flex items-end gap-3">
-          <div className="flex-1">
-            <Input
-              label="Total goals scored in the group stage"
-              id="tiebreaker"
-              type="number"
-              min="0"
-              value={tiebreaker}
-              onChange={(e) => setTiebreaker(e.target.value)}
-              disabled={isReadonly}
-              placeholder="e.g. 120"
-            />
-          </div>
-          {!isReadonly && (
-            <Button onClick={handleTiebreaker} loading={saving} size="md">
-              Save
-            </Button>
-          )}
+        <div className="flex-1">
+          <Input
+            label="Total goals scored in the group stage"
+            id="tiebreaker"
+            type="number"
+            min="0"
+            value={tiebreaker}
+            onChange={(e) => setTiebreaker(e.target.value)}
+            disabled={isReadonly}
+            placeholder="e.g. 120"
+          />
         </div>
       </Card>
+
+      {/* Single submit button */}
+      {!isReadonly && (
+        <div className="sticky bottom-4 z-20">
+          <Button
+            onClick={handleSubmitAll}
+            loading={saving}
+            size="lg"
+            className="w-full shadow-lg shadow-black/30"
+          >
+            Submit Predictions ({completedGroups}/{groups.length} groups)
+          </Button>
+        </div>
+      )}
     </div>
   )
 }
