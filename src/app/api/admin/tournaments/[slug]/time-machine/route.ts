@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/auth'
+import { testHarnessDisabledResponse } from '@/lib/test-harness-guard'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { calculateAllScores } from '@/lib/scoring'
 import { calculateAchievements } from '@/lib/achievements'
@@ -47,10 +48,22 @@ export async function POST(
 ) {
   try {
     await requireAdmin()
+    const blocked = testHarnessDisabledResponse()
+    if (blocked) return blocked
     const { slug } = await params
     const admin = createAdminClient()
     const body = await request.json()
     const targetPhase: Phase = body.phase
+
+    // This route fully resets the tournament (deletes entries, predictions,
+    // results, achievements, and test players) before reseeding — require
+    // explicit confirmation, like reset-test-data.
+    if (body.confirm !== true) {
+      return NextResponse.json(
+        { error: 'Must pass { confirm: true } to run the time machine (it resets all data first)' },
+        { status: 400 }
+      )
+    }
 
     if (!targetPhase || !PHASE_ORDER.includes(targetPhase)) {
       return NextResponse.json(
@@ -220,7 +233,11 @@ async function resetTestData(
     }
   }
 
-  await admin.from('players').delete().like('email', `%${TEST_EMAIL_DOMAIN}`)
+  // Safety: never let an empty domain degrade the filter to LIKE '%' (which
+  // would delete EVERY player). TEST_EMAIL_DOMAIN is a constant, but guard anyway.
+  if (TEST_EMAIL_DOMAIN && TEST_EMAIL_DOMAIN.length > 1) {
+    await admin.from('players').delete().like('email', `%${TEST_EMAIL_DOMAIN}`)
+  }
   await admin.from('tournaments').update({ status: 'group_stage_open' }).eq('id', tournamentId)
 
   return { entries_deleted: entryIds.length }

@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentPlayer } from '@/lib/auth'
+import { fetchAllRows } from '@/lib/supabase/fetch-all'
 import { PredictionGrid } from '@/components/predictions/PredictionGrid'
 import { PredictionAnalyser } from '@/components/predictions/PredictionAnalyser'
 import type { EntryInfo } from '@/components/predictions/PredictionAnalyser'
@@ -117,26 +118,28 @@ export default async function PredictionsPage({
     .eq('tournament_id', t.id)
     .order('sort_order')
 
-  // Fetch all entries with players (includes score fields)
-  const { data: entries } = await supabase
-    .from('tournament_entries')
-    .select(
-      `
+  // Fetch all entries with players (includes score fields) — paginated
+  const entries = await fetchAllRows<TournamentEntry & { player: Player }>((from, to) =>
+    supabase
+      .from('tournament_entries')
+      .select(
+        `
       *,
       player:players (*)
     `
-    )
-    .eq('tournament_id', t.id)
+      )
+      .eq('tournament_id', t.id)
+      .range(from, to)
+  )
 
-  // Fetch all group predictions
-  const entryIds = (entries ?? []).map((e) => e.id)
-  const { data: allGroupPredictions } =
+  // Fetch all group predictions (paginated — entries × groups can exceed 1,000)
+  const entryIds = entries.map((e) => e.id)
+  const allGroupPredictions =
     entryIds.length > 0
-      ? await supabase
-          .from('group_predictions')
-          .select('*')
-          .in('entry_id', entryIds)
-      : { data: [] }
+      ? await fetchAllRows<GroupPrediction>((from, to) =>
+          supabase.from('group_predictions').select('*').in('entry_id', entryIds).range(from, to)
+        )
+      : []
 
   // Fetch group results
   const groupIds = ((groups as GroupWithTeams[]) ?? []).map((g) => g.id)
@@ -157,12 +160,12 @@ export default async function PredictionsPage({
   let knockoutMatches: KnockoutMatch[] = []
 
   if (knockoutVisible && entryIds.length > 0) {
-    const { data: koPreds } = await supabase
-      .from('knockout_predictions')
-      .select('*')
-      .in('entry_id', entryIds)
+    // Paginated — entries × matches can exceed 1,000
+    const koPreds = await fetchAllRows<KnockoutPrediction>((from, to) =>
+      supabase.from('knockout_predictions').select('*').in('entry_id', entryIds).range(from, to)
+    )
 
-    allKnockoutPredictions = (koPreds ?? []) as KnockoutPrediction[]
+    allKnockoutPredictions = koPreds as KnockoutPrediction[]
 
     const { data: koMatches } = await supabase
       .from('knockout_matches')

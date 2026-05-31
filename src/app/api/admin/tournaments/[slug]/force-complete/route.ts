@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/auth'
+import { testHarnessDisabledResponse } from '@/lib/test-harness-guard'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { scheduleAuditEmail } from '@/lib/email/audit'
 import {
@@ -19,6 +20,8 @@ export async function POST(
 ) {
   try {
     await requireAdmin()
+    const blocked = testHarnessDisabledResponse()
+    if (blocked) return blocked
     const { slug } = await params
     const admin = createAdminClient()
 

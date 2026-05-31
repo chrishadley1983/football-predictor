@@ -135,23 +135,25 @@ describe('calculateKnockoutScores', () => {
     expect(admin.tables.tournament_entries[0].knockout_points).toBe(5)
   })
 
-  it('scores the golden-ticket match itself as 0 even when "correct"', async () => {
+  it('applies the Emergency Sub (golden ticket) -6 penalty on the ticket match, even when "correct"', async () => {
+    // Behaviour changed in origin/main: the Emergency Sub match now carries a
+    // -6 point penalty (previously it scored 0). subsequent rounds score normally.
     const admin = install({
       tournament_entries: [{ id: 'e1', tournament_id: T, knockout_points: 0 }],
       knockout_matches: [{ id: 'm1', tournament_id: T, winner_team_id: 'A', points_value: 5 }],
       knockout_predictions: [
         { id: 'kp1', entry_id: 'e1', match_id: 'm1', predicted_winner_id: 'A', points_earned: 0, is_correct: null },
       ],
-      // The golden ticket was played ON match m1 for entry e1
+      // The golden ticket / Emergency Sub was played ON match m1 for entry e1
       golden_tickets: [{ entry_id: 'e1', tournament_id: T, original_match_id: 'm1' }],
     })
 
     await calculateKnockoutScores(T)
     const kp1 = admin.tables.knockout_predictions[0]
-    // is_correct still reflects the pick, but points are forced to 0
+    // is_correct still reflects the pick, but points are forced to the -6 penalty
     expect(kp1.is_correct).toBe(true)
-    expect(kp1.points_earned).toBe(0)
-    expect(admin.tables.tournament_entries[0].knockout_points).toBe(0)
+    expect(kp1.points_earned).toBe(-6)
+    expect(admin.tables.tournament_entries[0].knockout_points).toBe(-6)
   })
 
   it('skips matches that are not yet decided', async () => {

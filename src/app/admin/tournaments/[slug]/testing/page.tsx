@@ -176,7 +176,7 @@ export default function TestingPage() {
       const res = await fetch(`/api/admin/tournaments/${slug}/time-machine`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phase }),
+        body: JSON.stringify({ phase, confirm: true }),
       })
 
       const data = await res.json()

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { requireAuth } from '@/lib/auth'
+import { fetchAllRows } from '@/lib/supabase/fetch-all'
 
 // GET: Get all players' predictions (only after deadline has passed, or admin)
 export async function GET(
@@ -42,52 +43,63 @@ export async function GET(
       )
     }
 
-    // Get all entries with player info
-    const { data: entries } = await supabase
-      .from('tournament_entries')
-      .select(`
-        id,
-        player_id,
-        tiebreaker_goals,
-        player:players (
-          id,
-          display_name,
-          nickname,
-          avatar_url
-        )
-      `)
-      .eq('tournament_id', tournament.id)
+    // Get all entries with player info (paginated)
+    const entries = await fetchAllRows<{ id: string; player_id: string; tiebreaker_goals: number | null; player: unknown }>(
+      (from, to) =>
+        supabase
+          .from('tournament_entries')
+          .select(`
+            id,
+            player_id,
+            tiebreaker_goals,
+            player:players (
+              id,
+              display_name,
+              nickname,
+              avatar_url
+            )
+          `)
+          .eq('tournament_id', tournament.id)
+          .range(from, to)
+    )
 
-    if (!entries || entries.length === 0) {
+    if (entries.length === 0) {
       return NextResponse.json([])
     }
 
     const entryIds = entries.map((e) => e.id)
 
-    // Get all group predictions
-    const { data: groupPredictions } = await supabase
-      .from('group_predictions')
-      .select(`
-        *,
-        group:groups (*),
-        predicted_1st_team:teams!group_predictions_predicted_1st_fkey (*),
-        predicted_2nd_team:teams!group_predictions_predicted_2nd_fkey (*),
-        predicted_3rd_team:teams!group_predictions_predicted_3rd_fkey (*)
-      `)
-      .in('entry_id', entryIds)
+    // Get all group predictions (paginated — entries × groups can exceed 1,000)
+    const groupPredictions = await fetchAllRows<Record<string, unknown> & { entry_id: string }>(
+      (from, to) =>
+        supabase
+          .from('group_predictions')
+          .select(`
+            *,
+            group:groups (*),
+            predicted_1st_team:teams!group_predictions_predicted_1st_fkey (*),
+            predicted_2nd_team:teams!group_predictions_predicted_2nd_fkey (*),
+            predicted_3rd_team:teams!group_predictions_predicted_3rd_fkey (*)
+          `)
+          .in('entry_id', entryIds)
+          .range(from, to)
+    )
 
-    // Get knockout predictions only if visible
-    let knockoutPredictions = null
+    // Get knockout predictions only if visible (paginated — entries × matches can exceed 1,000)
+    let knockoutPredictions: (Record<string, unknown> & { entry_id: string })[] | null = null
     if (knockoutPredictionsVisible) {
-      const { data } = await supabase
-        .from('knockout_predictions')
-        .select(`
-          *,
-          match:knockout_matches (*),
-          predicted_winner:teams!knockout_predictions_predicted_winner_id_fkey (*)
-        `)
-        .in('entry_id', entryIds)
-      knockoutPredictions = data
+      knockoutPredictions = await fetchAllRows<Record<string, unknown> & { entry_id: string }>(
+        (from, to) =>
+          supabase
+            .from('knockout_predictions')
+            .select(`
+              *,
+              match:knockout_matches (*),
+              predicted_winner:teams!knockout_predictions_predicted_winner_id_fkey (*)
+            `)
+            .in('entry_id', entryIds)
+            .range(from, to)
+      )
     }
 
     // Assemble per-player summary

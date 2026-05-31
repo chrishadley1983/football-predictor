@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin'
+import { fetchAllRows } from '@/lib/supabase/fetch-all'
 
 /**
  * Group stage scoring (spec section 7.1):
@@ -9,14 +10,11 @@ import { createAdminClient } from '@/lib/supabase/admin'
 export async function calculateGroupStageScores(tournamentId: string): Promise<void> {
   const admin = createAdminClient()
 
-  // Get all entries for this tournament
-  const { data: entries, error: entriesErr } = await admin
-    .from('tournament_entries')
-    .select('id')
-    .eq('tournament_id', tournamentId)
-
-  if (entriesErr) throw new Error(`Failed to fetch entries: ${entriesErr.message}`)
-  if (!entries || entries.length === 0) return
+  // Get all entries for this tournament (paginated — can exceed 1,000)
+  const entries = await fetchAllRows<{ id: string }>((from, to) =>
+    admin.from('tournament_entries').select('id').eq('tournament_id', tournamentId).range(from, to)
+  )
+  if (entries.length === 0) return
 
   // Get all groups for this tournament
   const { data: groups, error: groupsErr } = await admin
@@ -48,15 +46,12 @@ export async function calculateGroupStageScores(tournamentId: string): Promise<v
     }
   }
 
-  // Get all group predictions for all entries
+  // Get all group predictions for all entries (paginated — entries × groups can exceed 1,000)
   const entryIds = entries.map((e) => e.id)
-  const { data: predictions, error: predsErr } = await admin
-    .from('group_predictions')
-    .select('*')
-    .in('entry_id', entryIds)
-
-  if (predsErr) throw new Error(`Failed to fetch group predictions: ${predsErr.message}`)
-  if (!predictions || predictions.length === 0) return
+  const predictions = await fetchAllRows<Record<string, unknown> & { id: string; entry_id: string; group_id: string; predicted_1st: string | null; predicted_2nd: string | null; predicted_3rd: string | null }>(
+    (from, to) => admin.from('group_predictions').select('*').in('entry_id', entryIds).range(from, to)
+  )
+  if (predictions.length === 0) return
 
   // Score each prediction and batch update
   const predictionUpdates: PromiseLike<unknown>[] = []
@@ -132,14 +127,11 @@ export async function calculateGroupStageScores(tournamentId: string): Promise<v
 export async function calculateKnockoutScores(tournamentId: string): Promise<void> {
   const admin = createAdminClient()
 
-  // Get all entries for this tournament
-  const { data: entries, error: entriesErr } = await admin
-    .from('tournament_entries')
-    .select('id')
-    .eq('tournament_id', tournamentId)
-
-  if (entriesErr) throw new Error(`Failed to fetch entries: ${entriesErr.message}`)
-  if (!entries || entries.length === 0) return
+  // Get all entries for this tournament (paginated — can exceed 1,000)
+  const entries = await fetchAllRows<{ id: string }>((from, to) =>
+    admin.from('tournament_entries').select('id').eq('tournament_id', tournamentId).range(from, to)
+  )
+  if (entries.length === 0) return
 
   // Get all knockout matches with results for this tournament
   const { data: matches, error: matchesErr } = await admin
@@ -156,21 +148,17 @@ export async function calculateKnockoutScores(tournamentId: string): Promise<voi
     matchById[m.id] = { winner_team_id: m.winner_team_id, points_value: m.points_value }
   }
 
-  // Get all knockout predictions for all entries
+  // Get all knockout predictions for all entries (paginated — entries × matches can exceed 1,000)
   const entryIds = entries.map((e) => e.id)
-  const { data: predictions, error: predsErr } = await admin
-    .from('knockout_predictions')
-    .select('*')
-    .in('entry_id', entryIds)
+  const predictions = await fetchAllRows<Record<string, unknown> & { id: string; entry_id: string; match_id: string; predicted_winner_id: string | null }>(
+    (from, to) => admin.from('knockout_predictions').select('*').in('entry_id', entryIds).range(from, to)
+  )
+  if (predictions.length === 0) return
 
-  if (predsErr) throw new Error(`Failed to fetch knockout predictions: ${predsErr.message}`)
-  if (!predictions || predictions.length === 0) return
-
-  // Fetch golden tickets so we can award 0 points on the golden ticket match itself
-  const { data: goldenTickets } = await admin
-    .from('golden_tickets')
-    .select('entry_id, original_match_id')
-    .eq('tournament_id', tournamentId)
+  // Fetch golden tickets so we can award the penalty on the golden ticket match itself
+  const goldenTickets = await fetchAllRows<{ entry_id: string; original_match_id: string }>((from, to) =>
+    admin.from('golden_tickets').select('entry_id, original_match_id').eq('tournament_id', tournamentId).range(from, to)
+  )
 
   // Build lookup: "entryId:matchId" -> true for golden ticket matches
   const goldenTicketMatches = new Set<string>()
@@ -248,14 +236,11 @@ export async function calculateTiebreakers(tournamentId: string): Promise<void> 
 
   const actualGoals = stats.total_group_stage_goals
 
-  // Get all entries with tiebreaker predictions
-  const { data: entries, error: entriesErr } = await admin
-    .from('tournament_entries')
-    .select('id, tiebreaker_goals')
-    .eq('tournament_id', tournamentId)
-
-  if (entriesErr) throw new Error(`Failed to fetch entries: ${entriesErr.message}`)
-  if (!entries) return
+  // Get all entries with tiebreaker predictions (paginated — can exceed 1,000)
+  const entries = await fetchAllRows<{ id: string; tiebreaker_goals: number | null }>((from, to) =>
+    admin.from('tournament_entries').select('id, tiebreaker_goals').eq('tournament_id', tournamentId).range(from, to)
+  )
+  if (entries.length === 0) return
 
   const tbResults = await Promise.all(
     entries.map((entry) => {
@@ -281,14 +266,16 @@ export async function calculateTiebreakers(tournamentId: string): Promise<void> 
 export async function calculateRankings(tournamentId: string): Promise<void> {
   const admin = createAdminClient()
 
-  // Fetch all entries sorted by ranking criteria
-  const { data: entries, error } = await admin
-    .from('tournament_entries')
-    .select('id, group_stage_points, knockout_points, total_points, tiebreaker_diff')
-    .eq('tournament_id', tournamentId)
-
-  if (error) throw new Error(`Failed to fetch entries: ${error.message}`)
-  if (!entries || entries.length === 0) return
+  // Fetch all entries sorted by ranking criteria (paginated — can exceed 1,000)
+  const entries = await fetchAllRows<{ id: string; group_stage_points: number; knockout_points: number; total_points: number; tiebreaker_diff: number | null }>(
+    (from, to) =>
+      admin
+        .from('tournament_entries')
+        .select('id, group_stage_points, knockout_points, total_points, tiebreaker_diff')
+        .eq('tournament_id', tournamentId)
+        .range(from, to)
+  )
+  if (entries.length === 0) return
 
   // Sort for overall ranking: total_points DESC, tiebreaker_diff ASC NULLS LAST, knockout_points DESC
   const overallSorted = [...entries].sort((a, b) => {

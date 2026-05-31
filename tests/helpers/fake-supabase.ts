@@ -60,6 +60,8 @@ class QueryBuilder<T = any> implements PromiseLike<{ data: T; error: any }> {
   private orderCol: string | null = null
   private orderAsc = true
   private limitN: number | null = null
+  private rangeFrom: number | null = null
+  private rangeTo: number | null = null
 
   constructor(private tables: Tables, private table: string) {}
 
@@ -122,6 +124,12 @@ class QueryBuilder<T = any> implements PromiseLike<{ data: T; error: any }> {
     this.limitN = n
     return this
   }
+  range(from: number, to: number) {
+    // PostgREST .range() is inclusive on both ends.
+    this.rangeFrom = from
+    this.rangeTo = to
+    return this
+  }
   single() {
     this.isSingle = true
     return this
@@ -151,6 +159,10 @@ class QueryBuilder<T = any> implements PromiseLike<{ data: T; error: any }> {
         })
       }
       if (this.limitN !== null) result = result.slice(0, this.limitN)
+      if (this.rangeFrom !== null) {
+        const to = this.rangeTo ?? result.length
+        result = result.slice(this.rangeFrom, to + 1) // inclusive upper bound
+      }
 
       if (this.isSingle) {
         if (result.length === 0) {

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { requireAdmin } from '@/lib/auth'
+import { advanceWinnerLogic } from '@/lib/testing/seed-helpers'
 
 // POST: Submit group results or knockout results (admin only)
 export async function POST(
@@ -74,6 +75,22 @@ export async function POST(
       }
 
       for (const result of body.results) {
+        // Fetch the match (scoped to this tournament) to get its match_number,
+        // which we need to advance the winner downstream.
+        const { data: match } = await admin
+          .from('knockout_matches')
+          .select('match_number')
+          .eq('id', result.match_id)
+          .eq('tournament_id', tournament.id)
+          .single()
+
+        if (!match) {
+          return NextResponse.json(
+            { error: `Match ${result.match_id} not found in this tournament` },
+            { status: 404 }
+          )
+        }
+
         const { error } = await admin
           .from('knockout_matches')
           .update({ winner_team_id: result.winner_team_id })
@@ -83,6 +100,10 @@ export async function POST(
         if (error) {
           return NextResponse.json({ error: error.message }, { status: 400 })
         }
+
+        // Advance the winner into downstream matches (parity with game-result,
+        // which previously was the only path that did this).
+        await advanceWinnerLogic(admin, tournament.id, match.match_number, result.winner_team_id)
       }
 
       return NextResponse.json({ success: true, type: 'knockout' })

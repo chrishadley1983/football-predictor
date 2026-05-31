@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin'
+import { fetchAllRows } from '@/lib/supabase/fetch-all'
 import type { BadgeType } from '@/lib/types'
 
 interface BadgeToInsert {
@@ -24,13 +25,11 @@ export async function calculateAchievements(tournamentId: string): Promise<void>
 
   if (!tournament) return
 
-  // Get all entries
-  const { data: entries } = await admin
-    .from('tournament_entries')
-    .select('id, tiebreaker_goals')
-    .eq('tournament_id', tournamentId)
-
-  if (!entries || entries.length === 0) return
+  // Get all entries (paginated — can exceed 1,000)
+  const entries = await fetchAllRows<{ id: string; tiebreaker_goals: number | null }>((from, to) =>
+    admin.from('tournament_entries').select('id, tiebreaker_goals').eq('tournament_id', tournamentId).range(from, to)
+  )
+  if (entries.length === 0) return
   const entryIds = entries.map((e) => e.id)
 
   // Get all groups
@@ -44,13 +43,10 @@ export async function calculateAchievements(tournamentId: string): Promise<void>
   const groupIds = groups.map((g) => g.id)
   const groupNameMap = new Map(groups.map((g) => [g.id, g.name]))
 
-  // Get all group predictions
-  const { data: allGroupPredictions } = await admin
-    .from('group_predictions')
-    .select('*')
-    .in('entry_id', entryIds)
-
-  const groupPredictions = allGroupPredictions ?? []
+  // Get all group predictions (paginated — entries × groups can exceed 1,000)
+  const groupPredictions = await fetchAllRows<Record<string, unknown> & { entry_id: string; group_id: string; predicted_1st: string | null; predicted_2nd: string | null; predicted_3rd: string | null; submitted_at: string }>(
+    (from, to) => admin.from('group_predictions').select('*').in('entry_id', entryIds).range(from, to)
+  )
 
   // Get all group results
   const { data: allGroupResults } = await admin
@@ -302,12 +298,10 @@ export async function calculateAchievements(tournamentId: string): Promise<void>
   const decidedMatches = matches.filter((m) => m.winner_team_id)
 
   if (decidedMatches.length > 0) {
-    const { data: allKnockoutPredictions } = await admin
-      .from('knockout_predictions')
-      .select('*')
-      .in('entry_id', entryIds)
-
-    const koPredictions = allKnockoutPredictions ?? []
+    // Paginated — entries × matches can exceed 1,000
+    const koPredictions = await fetchAllRows<Record<string, unknown> & { entry_id: string; match_id: string; predicted_winner_id: string | null }>(
+      (from, to) => admin.from('knockout_predictions').select('*').in('entry_id', entryIds).range(from, to)
+    )
 
     // Crystal Ball: correctly predicted the tournament winner (final match)
     const finalMatch = decidedMatches.find((m) => m.round === 'final')

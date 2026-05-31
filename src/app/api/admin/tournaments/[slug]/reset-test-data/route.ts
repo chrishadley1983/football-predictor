@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/auth'
+import { testHarnessDisabledResponse } from '@/lib/test-harness-guard'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { scheduleAuditEmail } from '@/lib/email/audit'
 import { TEST_EMAIL_DOMAIN } from '@/lib/testing/seed-helpers'
@@ -10,6 +11,8 @@ export async function POST(
 ) {
   try {
     await requireAdmin()
+    const blocked = testHarnessDisabledResponse()
+    if (blocked) return blocked
     const { slug } = await params
     const admin = createAdminClient()
 
@@ -116,11 +119,14 @@ export async function POST(
       }
     }
 
-    // 8. Delete test players
-    await admin
-      .from('players')
-      .delete()
-      .like('email', `%${TEST_EMAIL_DOMAIN}`)
+    // 8. Delete test players. Guard against an empty domain degrading the
+    // filter to LIKE '%' (which would delete EVERY player).
+    if (TEST_EMAIL_DOMAIN && TEST_EMAIL_DOMAIN.length > 1) {
+      await admin
+        .from('players')
+        .delete()
+        .like('email', `%${TEST_EMAIL_DOMAIN}`)
+    }
 
     // 9. Reset tournament status to group_stage_open
     await admin

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { fetchAllRows } from '@/lib/supabase/fetch-all'
 
 // GET: Get leaderboard data (all entries with rankings, sorted)
 export async function GET(
@@ -21,35 +22,39 @@ export async function GET(
       return NextResponse.json({ error: 'Tournament not found' }, { status: 404 })
     }
 
-    // Get all entries with player info, sorted by overall rank
-    const { data: entries, error } = await supabase
-      .from('tournament_entries')
-      .select(`
-        id,
-        player_id,
-        tiebreaker_goals,
-        group_stage_points,
-        knockout_points,
-        total_points,
-        tiebreaker_diff,
-        group_stage_rank,
-        overall_rank,
-        player:players (
-          id,
-          display_name,
-          nickname,
-          avatar_url
-        )
-      `)
-      .eq('tournament_id', tournament.id)
-      .order('overall_rank', { ascending: true, nullsFirst: false })
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
+    // Get all entries with player info, sorted by overall rank (paginated)
+    let entries: Record<string, unknown>[]
+    try {
+      entries = await fetchAllRows<Record<string, unknown>>((from, to) =>
+        supabase
+          .from('tournament_entries')
+          .select(`
+            id,
+            player_id,
+            tiebreaker_goals,
+            group_stage_points,
+            knockout_points,
+            total_points,
+            tiebreaker_diff,
+            group_stage_rank,
+            overall_rank,
+            player:players (
+              id,
+              display_name,
+              nickname,
+              avatar_url
+            )
+          `)
+          .eq('tournament_id', tournament.id)
+          .order('overall_rank', { ascending: true, nullsFirst: false })
+          .range(from, to)
+      )
+    } catch (e) {
+      return NextResponse.json({ error: (e as Error).message }, { status: 500 })
     }
 
     // Flatten player info into the leaderboard entry format
-    const leaderboard = (entries ?? []).map((e) => {
+    const leaderboard = entries.map((e) => {
       const player = e.player as unknown as { id: string; display_name: string; nickname: string | null; avatar_url: string | null }
       return {
         entry_id: e.id,

@@ -217,11 +217,7 @@ export function ChatRoom({ tournamentId, currentPlayerId, isAdmin }: ChatRoomPro
             }
           }
 
-          // Skip if we already have this message
-          setMessages((prev) => {
-            if (prev.some((m) => m.id === newId)) return prev
-            return prev
-          })
+          // (De-dupe happens below once the full message is fetched.)
 
           // Fetch full message with joins
           const { data } = await supabase
@@ -427,7 +423,7 @@ export function ChatRoom({ tournamentId, currentPlayerId, isAdmin }: ChatRoomPro
       content,
       created_at: new Date().toISOString(),
       reply_to_id: replyToId ?? null,
-      message_type: isGif ? 'user' : 'user',
+      message_type: 'user',
       metadata: isGif ? { type: 'gif' } : null,
       is_pinned: false,
       player: {

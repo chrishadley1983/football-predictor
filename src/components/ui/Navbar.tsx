@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -15,6 +15,9 @@ export function Navbar() {
   const [isAdmin, setIsAdmin] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
+  // Mirrors the current player id so the periodic poll below (mounted once)
+  // always sees the latest player instead of a stale closure value.
+  const playerIdRef = useRef<string | null>(null)
 
   useEffect(() => {
     const supabase = createClient()
@@ -25,6 +28,7 @@ export function Navbar() {
         setPlayer(null)
         setIsAdmin(false)
         setUnreadCount(0)
+        playerIdRef.current = null
         return
       }
 
@@ -37,6 +41,7 @@ export function Navbar() {
         .single()
 
       setPlayer(data ?? null)
+      playerIdRef.current = data?.id ?? null
 
       // Fetch unread count
       if (data) {
@@ -89,10 +94,11 @@ export function Navbar() {
       loadUser()
     })
 
-    // Re-check unread count periodically
+    // Re-check unread count periodically. Reads the ref (not the captured
+    // `player`) so it works for users who log in after the navbar mounted.
     const interval = setInterval(() => {
-      if (player) {
-        fetchUnreadCount(supabase, player.id)
+      if (playerIdRef.current) {
+        fetchUnreadCount(supabase, playerIdRef.current)
       }
     }, 30000)
 
