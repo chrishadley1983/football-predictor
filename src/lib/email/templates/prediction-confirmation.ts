@@ -4,6 +4,9 @@ import { escapeHtml } from './shared'
 /**
  * Build a nicely formatted prediction confirmation email for the player.
  * Sent when the player submits or modifies group predictions.
+ *
+ * For tournaments with third-place qualifiers (e.g. WC 2026 with 8 of 12),
+ * the email splits into a 1st/2nd table + a separate 3rd-place qualifiers list.
  */
 export function renderPredictionConfirmation(opts: {
   playerName: string
@@ -15,20 +18,92 @@ export function renderPredictionConfirmation(opts: {
 
   const subject = `Your predictions for ${tournamentName} - Freemo's Prediction Game`
 
-  const text = [
+  // Detect whether this is a "partial 3rd place" tournament (some groups have 3rd, some don't)
+  const thirdPlacePicks = changes.filter((c) => c.new.third !== null)
+  const hasPartialThirdPlace = thirdPlacePicks.length > 0 && thirdPlacePicks.length < changes.length
+  const hasAllThirdPlace = thirdPlacePicks.length === changes.length
+
+  // --- Plain text version ---
+  const textLines = [
     `Hi ${playerName},`,
     ``,
     `Here's a summary of your current predictions for ${tournamentName}:`,
     ``,
-    ...changes.map(
-      (c) =>
+  ]
+
+  if (hasPartialThirdPlace) {
+    // Show 1st/2nd for all groups, then 3rd-place qualifiers separately
+    for (const c of changes) {
+      textLines.push(`${c.groupName}: 1st ${c.new.first ?? '—'} / 2nd ${c.new.second ?? '—'}`)
+    }
+    textLines.push(``)
+    textLines.push(`3rd Place Qualifiers (${thirdPlacePicks.length}):`)
+    for (const c of thirdPlacePicks) {
+      textLines.push(`  ${c.groupName}: ${c.new.third}`)
+    }
+  } else {
+    for (const c of changes) {
+      textLines.push(
         `${c.groupName}: 1st ${c.new.first ?? '—'} / 2nd ${c.new.second ?? '—'} / 3rd ${c.new.third ?? '—'}`
-    ),
-    ``,
-    ...(tiebreaker !== null ? [`Tiebreaker (total group stage goals): ${tiebreaker}`, ``] : []),
-    `Good luck!`,
-    `- Freemo's Prediction Game`,
-  ].join('\n')
+      )
+    }
+  }
+
+  textLines.push(``)
+  if (tiebreaker !== null) {
+    textLines.push(`Tiebreaker (total group stage goals): ${tiebreaker}`)
+    textLines.push(``)
+  }
+  textLines.push(`Good luck!`)
+  textLines.push(`- Freemo's Prediction Game`)
+
+  const text = textLines.join('\n')
+
+  // --- HTML version ---
+  const showThirdColumn = hasAllThirdPlace
+
+  const mainTableRows = changes
+    .map((c, i) => {
+      const bg = i % 2 === 0 ? '#fff' : '#f9f9f9'
+      const thirdCol = showThirdColumn
+        ? `<td style="padding: 6px 12px; border-bottom: 1px solid #eee;">${escapeHtml(c.new.third ?? '—')}</td>`
+        : ''
+      return `<tr style="background: ${bg};">
+        <td style="padding: 6px 12px; border-bottom: 1px solid #eee;"><strong>${escapeHtml(c.groupName)}</strong></td>
+        <td style="padding: 6px 12px; border-bottom: 1px solid #eee;">${escapeHtml(c.new.first ?? '—')}</td>
+        <td style="padding: 6px 12px; border-bottom: 1px solid #eee;">${escapeHtml(c.new.second ?? '—')}</td>
+        ${thirdCol}
+      </tr>`
+    })
+    .join('')
+
+  const thirdHeader = showThirdColumn
+    ? '<th style="text-align: left; padding: 8px 12px;">3rd</th>'
+    : ''
+
+  const thirdPlaceSection = hasPartialThirdPlace
+    ? `
+      <h4 style="margin: 20px 0 8px; color: #1a5c3a; font-size: 14px;">3rd Place Qualifiers (${thirdPlacePicks.length})</h4>
+      <table style="border-collapse: collapse; font-size: 13px; width: 100%; background: #fff; border-radius: 8px; overflow: hidden;">
+        <thead>
+          <tr style="background: #1a5c3a; color: #fff;">
+            <th style="text-align: left; padding: 8px 12px;">Group</th>
+            <th style="text-align: left; padding: 8px 12px;">3rd Place</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${thirdPlacePicks
+            .map((c, i) => {
+              const bg = i % 2 === 0 ? '#fff' : '#f9f9f9'
+              return `<tr style="background: ${bg};">
+                <td style="padding: 6px 12px; border-bottom: 1px solid #eee;"><strong>${escapeHtml(c.groupName)}</strong></td>
+                <td style="padding: 6px 12px; border-bottom: 1px solid #eee;">${escapeHtml(c.new.third ?? '—')}</td>
+              </tr>`
+            })
+            .join('')}
+        </tbody>
+      </table>`
+    : ''
 
   const html = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 720px; color: #111; background: #fafafa; padding: 24px; border-radius: 12px;">
@@ -43,25 +118,14 @@ export function renderPredictionConfirmation(opts: {
             <th style="text-align: left; padding: 8px 12px;">Group</th>
             <th style="text-align: left; padding: 8px 12px;">1st</th>
             <th style="text-align: left; padding: 8px 12px;">2nd</th>
-            <th style="text-align: left; padding: 8px 12px;">3rd</th>
+            ${thirdHeader}
           </tr>
         </thead>
         <tbody>
-          ${changes
-            .map(
-              (c, i) => {
-                const bg = i % 2 === 0 ? '#fff' : '#f9f9f9'
-                return `<tr style="background: ${bg};">
-                  <td style="padding: 6px 12px; border-bottom: 1px solid #eee;"><strong>${escapeHtml(c.groupName)}</strong></td>
-                  <td style="padding: 6px 12px; border-bottom: 1px solid #eee;">${escapeHtml(c.new.first ?? '—')}</td>
-                  <td style="padding: 6px 12px; border-bottom: 1px solid #eee;">${escapeHtml(c.new.second ?? '—')}</td>
-                  <td style="padding: 6px 12px; border-bottom: 1px solid #eee;">${escapeHtml(c.new.third ?? '—')}</td>
-                </tr>`
-              }
-            )
-            .join('')}
+          ${mainTableRows}
         </tbody>
       </table>
+      ${thirdPlaceSection}
       ${
         tiebreaker !== null
           ? `<p style="margin: 16px 0 0; font-size: 14px;"><strong>Tiebreaker:</strong> ${tiebreaker} total group stage goals</p>`
