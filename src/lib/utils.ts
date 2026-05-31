@@ -14,10 +14,13 @@ export function formatCurrency(amount: number): string {
 
 export function formatDate(date: string | Date, options?: Intl.DateTimeFormatOptions): string {
   const d = typeof date === 'string' ? new Date(date) : date
+  // Kick-offs/deadlines are stored as UTC instants; render them in UK time
+  // (GMT/BST) so the date — and any time — matches what UK-based players expect.
   return d.toLocaleDateString('en-GB', {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
+    timeZone: 'Europe/London',
     ...options,
   })
 }
