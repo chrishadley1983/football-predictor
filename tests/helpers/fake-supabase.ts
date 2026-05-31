@@ -52,10 +52,13 @@ function matches(row: Row, filters: Filter[]): boolean {
   return true
 }
 
+export type FailMap = Record<string, Partial<Record<'select' | 'insert' | 'update' | 'delete' | 'upsert', { message: string; code?: string }>>>
+
 class QueryBuilder<T = any> implements PromiseLike<{ data: T; error: any }> {
   private filters: Filter[] = []
-  private op: 'select' | 'update' | 'insert' | 'delete' = 'select'
+  private op: 'select' | 'update' | 'insert' | 'delete' | 'upsert' = 'select'
   private payload: any = null
+  private onConflict: string[] | null = null
   private isSingle = false
   private orderCol: string | null = null
   private orderAsc = true
@@ -63,11 +66,13 @@ class QueryBuilder<T = any> implements PromiseLike<{ data: T; error: any }> {
   private rangeFrom: number | null = null
   private rangeTo: number | null = null
 
-  constructor(private tables: Tables, private table: string) {}
+  constructor(private tables: Tables, private table: string, private failOn: FailMap = {}) {}
 
   // ---- operations ----
   select(_projection?: string) {
-    this.op = 'select'
+    // For write ops, `.insert(...).select()` just asks for the affected rows to
+    // be returned — it must NOT turn the chain back into a read query. The op
+    // already defaults to 'select' for pure reads, so this is a safe no-op.
     return this
   }
   update(patch: Row) {
@@ -78,6 +83,12 @@ class QueryBuilder<T = any> implements PromiseLike<{ data: T; error: any }> {
   insert(rows: Row | Row[]) {
     this.op = 'insert'
     this.payload = rows
+    return this
+  }
+  upsert(rows: Row | Row[], opts?: { onConflict?: string }) {
+    this.op = 'upsert'
+    this.payload = rows
+    this.onConflict = opts?.onConflict ? opts.onConflict.split(',').map((c) => c.trim()) : null
     return this
   }
   delete() {
@@ -143,7 +154,22 @@ class QueryBuilder<T = any> implements PromiseLike<{ data: T; error: any }> {
     return (this.tables[this.table] ??= [])
   }
 
+  /** Shape affected-row output for a write, honouring `.single()`. */
+  private shape(affected: Row[]): { data: any; error: any } {
+    if (this.isSingle) {
+      if (affected.length === 0) return { data: null, error: { code: 'PGRST116', message: 'No rows found' } }
+      return { data: { ...affected[0] }, error: null }
+    }
+    return { data: affected.map((r) => ({ ...r })), error: null }
+  }
+
   private run(): { data: any; error: any } {
+    // Forced-error injection for testing error/rollback paths.
+    const forced = this.failOn[this.table]?.[this.op]
+    if (forced) {
+      return { data: null, error: { message: forced.message, code: forced.code } }
+    }
+
     const store = this.rows()
 
     if (this.op === 'select') {
@@ -181,7 +207,7 @@ class QueryBuilder<T = any> implements PromiseLike<{ data: T; error: any }> {
           updated.push(r)
         }
       }
-      return { data: updated.map((r) => ({ ...r })), error: null }
+      return this.shape(updated)
     }
 
     if (this.op === 'insert') {
@@ -193,7 +219,28 @@ class QueryBuilder<T = any> implements PromiseLike<{ data: T; error: any }> {
         store.push(withId)
         inserted.push(withId)
       }
-      return { data: inserted.map((r) => ({ ...r })), error: null }
+      return this.shape(inserted)
+    }
+
+    if (this.op === 'upsert') {
+      const incoming = Array.isArray(this.payload) ? this.payload : [this.payload]
+      const result: Row[] = []
+      for (const r of incoming) {
+        let existing: Row | undefined
+        if (this.onConflict) {
+          existing = store.find((s) => this.onConflict!.every((c) => s[c] === r[c]))
+        }
+        if (existing) {
+          Object.assign(existing, r)
+          result.push(existing)
+        } else {
+          const withId = { id: r.id ?? nextId(), ...r }
+          if (withId.id === undefined || withId.id === null) withId.id = nextId()
+          store.push(withId)
+          result.push(withId)
+        }
+      }
+      return this.shape(result)
     }
 
     if (this.op === 'delete') {
@@ -222,18 +269,56 @@ class QueryBuilder<T = any> implements PromiseLike<{ data: T; error: any }> {
   }
 }
 
+export interface AuthUser {
+  id: string
+  email?: string
+  app_metadata?: Record<string, unknown>
+  user_metadata?: Record<string, unknown>
+}
+
+export interface FakeOptions {
+  /** Current authenticated user returned by `.auth.getUser()`. */
+  user?: AuthUser | null
+  /** Force errors on a table+operation, e.g. { players: { insert: { message: 'boom' } } }. */
+  failOn?: FailMap
+  /** Override admin.createUser behaviour (for register tests). */
+  createUser?: (attrs: Record<string, unknown>) => { data: { user: AuthUser | null }; error: { message: string } | null }
+  /** Capture admin.deleteUser calls (rollback tests). */
+  deleteUser?: (id: string) => { error: { message: string } | null }
+}
+
 export class FakeAdminClient {
-  constructor(public tables: Tables) {}
+  public deletedUsers: string[] = []
+  constructor(public tables: Tables, public options: FakeOptions = {}) {}
+
   from(table: string) {
-    return new QueryBuilder(this.tables, table)
+    return new QueryBuilder(this.tables, table, this.options.failOn ?? {})
+  }
+
+  auth = {
+    getUser: async () => ({ data: { user: this.options.user ?? null }, error: null }),
+    admin: {
+      createUser: async (attrs: Record<string, unknown>) => {
+        if (this.options.createUser) return this.options.createUser(attrs)
+        return { data: { user: { id: nextId(), email: attrs.email as string, app_metadata: {} } as AuthUser }, error: null }
+      },
+      deleteUser: async (id: string) => {
+        this.deletedUsers.push(id)
+        if (this.options.deleteUser) return this.options.deleteUser(id)
+        return { error: null }
+      },
+    },
   }
 }
 
-/** Build a fake admin client seeded with the given tables (deep-ish copied). */
-export function makeFakeAdmin(seed: Tables = {}): FakeAdminClient {
+/** Build a fake client seeded with the given tables (deep-ish copied). */
+export function makeFakeAdmin(seed: Tables = {}, options: FakeOptions = {}): FakeAdminClient {
   const tables: Tables = {}
   for (const [k, v] of Object.entries(seed)) {
     tables[k] = v.map((r) => ({ ...r }))
   }
-  return new FakeAdminClient(tables)
+  return new FakeAdminClient(tables, options)
 }
+
+/** Alias: a fake server (RLS) client — same shape, used for auth/route tests. */
+export const makeFakeServer = makeFakeAdmin

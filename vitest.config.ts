@@ -12,8 +12,11 @@ export default defineConfig({
     },
   },
   test: {
+    // Default environment is node (logic/route/perf tests). Component tests opt
+    // into jsdom with a `// @vitest-environment jsdom` docblock at the top.
     environment: 'node',
     globals: true,
-    include: ['tests/**/*.test.ts'],
+    setupFiles: ['./tests/setup.ts'],
+    include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx'],
   },
 })
