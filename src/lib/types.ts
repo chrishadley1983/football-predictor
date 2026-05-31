@@ -72,6 +72,7 @@ export interface Tournament {
   knockout_stage_deadline: string | null
   status: TournamentStatus
   third_place_qualifiers_count: number | null
+  is_visible: boolean
   created_at: string
   updated_at: string
 }
@@ -502,6 +503,7 @@ export interface Database {
           knockout_stage_deadline: string | null
           status: TournamentStatus
           third_place_qualifiers_count: number | null
+          is_visible: boolean
           created_at: string
           updated_at: string
         }
@@ -519,6 +521,7 @@ export interface Database {
           knockout_stage_deadline?: string | null
           status?: TournamentStatus
           third_place_qualifiers_count?: number | null
+          is_visible?: boolean
           created_at?: string
           updated_at?: string
         }
@@ -535,6 +538,7 @@ export interface Database {
           knockout_stage_deadline?: string | null
           status?: TournamentStatus
           third_place_qualifiers_count?: number | null
+          is_visible?: boolean
           created_at?: string
           updated_at?: string
         }
@@ -1498,6 +1502,35 @@ export interface Database {
           group_stage_rank: number | null
           overall_rank: number | null
           tournament_status: string
+        }
+        Relationships: []
+      }
+      honours_with_tournament: {
+        Row: {
+          id: string
+          tournament_id: string
+          player_id: string | null
+          prize_type: PrizeType
+          prize_amount_gbp: number | null
+          player_name: string | null
+          description: string | null
+          points: number | null
+          sort_order: number
+          tournament: {
+            id: string
+            name: string
+            year: number
+            slug: string
+            type: TournamentType
+            status: TournamentStatus
+            is_visible: boolean
+          }
+          player: {
+            id: string
+            display_name: string
+            nickname: string | null
+            avatar_url: string | null
+          } | null
         }
         Relationships: []
       }
