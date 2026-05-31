@@ -226,39 +226,45 @@ const SF_BRACKET: [number, string, string, BracketSide][] = [
 
 const FINAL_MATCH: [number, string, string] = [31, 'W29', 'W30']
 
-// Knockout schedule: match_number → [YYYY-MM-DD, venue]
+// Knockout schedule (FIFA published dates/venues; teams TBD): match_number → [kickoff_utc_iso, city]
+// Each round's matches are listed in chronological order. Kick-off times are UTC.
 const KNOCKOUT_SCHEDULE: Record<number, [string, string]> = {
-  1: ['2026-06-28', 'Philadelphia'],
-  2: ['2026-06-28', 'Monterrey'],
-  3: ['2026-06-29', 'Toronto'],
-  4: ['2026-06-29', 'Los Angeles'],
-  5: ['2026-06-30', 'Boston'],
-  6: ['2026-06-30', 'Dallas'],
-  7: ['2026-07-01', 'Atlanta'],
-  8: ['2026-07-01', 'San Francisco'],
-  9: ['2026-07-02', 'Miami'],
-  10: ['2026-07-02', 'Seattle'],
-  11: ['2026-07-03', 'Houston'],
-  12: ['2026-07-03', 'Vancouver'],
-  13: ['2026-07-04', 'Kansas City'],
-  14: ['2026-07-04', 'New York/New Jersey'],
-  15: ['2026-07-05', 'Mexico City'],
-  16: ['2026-07-05', 'Guadalajara'],
-  17: ['2026-07-07', 'Philadelphia'],
-  18: ['2026-07-07', 'Dallas'],
-  19: ['2026-07-08', 'New York/New Jersey'],
-  20: ['2026-07-08', 'Atlanta'],
-  21: ['2026-07-09', 'Boston'],
-  22: ['2026-07-09', 'Los Angeles'],
-  23: ['2026-07-10', 'Kansas City'],
-  24: ['2026-07-10', 'Miami'],
-  25: ['2026-07-11', 'Boston'],
-  26: ['2026-07-11', 'Los Angeles'],
-  27: ['2026-07-12', 'Kansas City'],
-  28: ['2026-07-12', 'Miami'],
-  29: ['2026-07-14', 'Dallas'],
-  30: ['2026-07-15', 'Atlanta'],
-  31: ['2026-07-19', 'New York/New Jersey'],
+  // Round of 32 (1–16)
+  1: ['2026-06-28T19:00:00Z', 'Los Angeles'],
+  2: ['2026-06-29T17:00:00Z', 'Houston'],
+  3: ['2026-06-29T20:30:00Z', 'Boston'],
+  4: ['2026-06-30T00:00:00Z', 'Monterrey'],
+  5: ['2026-06-30T17:00:00Z', 'Dallas'],
+  6: ['2026-06-30T21:00:00Z', 'New York/New Jersey'],
+  7: ['2026-07-01T01:00:00Z', 'Mexico City'],
+  8: ['2026-07-01T16:00:00Z', 'Atlanta'],
+  9: ['2026-07-01T20:00:00Z', 'Seattle'],
+  10: ['2026-07-02T00:00:00Z', 'San Francisco'],
+  11: ['2026-07-02T19:00:00Z', 'Los Angeles'],
+  12: ['2026-07-02T23:00:00Z', 'Toronto'],
+  13: ['2026-07-03T03:00:00Z', 'Vancouver'],
+  14: ['2026-07-03T18:00:00Z', 'Dallas'],
+  15: ['2026-07-03T22:00:00Z', 'Miami'],
+  16: ['2026-07-04T01:30:00Z', 'Kansas City'],
+  // Round of 16 (17–24)
+  17: ['2026-07-04T17:00:00Z', 'Houston'],
+  18: ['2026-07-04T21:00:00Z', 'Philadelphia'],
+  19: ['2026-07-05T20:00:00Z', 'New York/New Jersey'],
+  20: ['2026-07-06T00:00:00Z', 'Mexico City'],
+  21: ['2026-07-06T19:00:00Z', 'Dallas'],
+  22: ['2026-07-07T00:00:00Z', 'Seattle'],
+  23: ['2026-07-07T16:00:00Z', 'Atlanta'],
+  24: ['2026-07-07T20:00:00Z', 'Vancouver'],
+  // Quarter-finals (25–28)
+  25: ['2026-07-09T20:00:00Z', 'Boston'],
+  26: ['2026-07-10T19:00:00Z', 'Los Angeles'],
+  27: ['2026-07-11T21:00:00Z', 'Miami'],
+  28: ['2026-07-12T01:00:00Z', 'Kansas City'],
+  // Semi-finals (29–30)
+  29: ['2026-07-14T19:00:00Z', 'Dallas'],
+  30: ['2026-07-15T19:00:00Z', 'Atlanta'],
+  // Final (31)
+  31: ['2026-07-19T19:00:00Z', 'New York/New Jersey'],
 }
 
 // Stadium name for each FIFA host-city label (one WC venue per city)
@@ -502,7 +508,7 @@ export async function POST() {
         away_source: awaySrc,
         points_value: points,
         sort_order: matchNum,
-        scheduled_at: schedule ? isoAt(schedule[0]) : null,
+        scheduled_at: schedule ? schedule[0] : null,
         venue,
         stadium: venue ? STADIUM_BY_CITY[venue] ?? null : null,
       })

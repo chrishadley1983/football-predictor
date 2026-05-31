@@ -16,10 +16,12 @@ export function GroupFixtures({ groupName, matches }: GroupFixturesProps) {
             key={match.id}
             className="flex items-center gap-3 rounded bg-surface-light px-3 py-2 text-sm"
           >
-            {/* Date & Venue — only shown when data exists */}
+            {/* Date, kick-off (UK time) & Venue — only shown when data exists */}
             {(match.scheduled_at || match.venue || match.stadium) && (
               <div className="hidden w-28 shrink-0 text-xs text-text-muted sm:block">
-                {match.scheduled_at && <div>{formatDate(match.scheduled_at, { day: 'numeric', month: 'short', year: undefined })}</div>}
+                {match.scheduled_at && (
+                  <div>{formatDate(match.scheduled_at, { day: 'numeric', month: 'short', year: undefined, hour: '2-digit', minute: '2-digit', hour12: false })}</div>
+                )}
                 {match.venue && <div className="truncate">{match.venue}</div>}
                 {match.stadium && <div className="truncate text-[10px] opacity-80" title={match.stadium}>{match.stadium}</div>}
               </div>
