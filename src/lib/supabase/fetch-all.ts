@@ -18,8 +18,7 @@ export async function fetchAllRows<T>(
 ): Promise<T[]> {
   const all: T[] = []
   let from = 0
-  // eslint-disable-next-line no-constant-condition
-  while (true) {
+  for (;;) {
     const { data, error } = await buildQuery(from, from + pageSize - 1)
     if (error) throw new Error(error.message)
     if (!data || data.length === 0) break

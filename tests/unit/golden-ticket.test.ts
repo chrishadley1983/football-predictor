@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { makeFakeAdmin, type Tables } from '../helpers/fake-supabase'
+import { makeFakeAdmin } from '../helpers/fake-supabase'
 
 // golden-ticket.ts takes the admin client as a parameter, but it imports
 // getExistingKnockoutRounds from seed-helpers, which calls createAdminClient().
