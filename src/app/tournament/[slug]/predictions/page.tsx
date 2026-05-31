@@ -148,9 +148,9 @@ export default async function PredictionsPage({
           .in('group_id', groupIds)
       : { data: [] }
 
-  // Knockout visibility (admin can always see)
-  const knockoutVisible =
-    isAdmin || t.status === 'knockout_closed' || t.status === 'completed'
+  // Knockout visibility: only after knockout stage has begun (admin can always see)
+  const knockoutStarted = ['knockout_open', 'knockout_closed', 'completed'].includes(t.status)
+  const knockoutVisible = isAdmin || knockoutStarted
 
   // Fetch knockout data if visible
   let allKnockoutPredictions: KnockoutPrediction[] = []
@@ -318,6 +318,7 @@ export default async function PredictionsPage({
         }
         knockoutMatches={knockoutMatches}
         knockoutVisible={knockoutVisible}
+        useShortNames
       />
     </div>
   )

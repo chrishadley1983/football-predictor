@@ -15,9 +15,11 @@ interface GroupPredictionCardProps {
   thirdPlaceQualifies?: boolean
   onThirdPlaceToggle?: (checked: boolean) => void
   canToggleThirdPlace?: boolean
+  /** When true, hides the per-card save button (parent handles submission) */
+  hideSubmitButton?: boolean
 }
 
-export function GroupPredictionCard({ group, prediction, onPredict, readonly, results, thirdPlaceQualifies, onThirdPlaceToggle, canToggleThirdPlace }: GroupPredictionCardProps) {
+export function GroupPredictionCard({ group, prediction, onPredict, readonly, results, thirdPlaceQualifies, onThirdPlaceToggle, canToggleThirdPlace, hideSubmitButton }: GroupPredictionCardProps) {
   const hasThirdPlaceFeature = thirdPlaceQualifies !== undefined
   const teams = group.group_teams.map((gt) => gt.team)
 
@@ -30,6 +32,14 @@ export function GroupPredictionCard({ group, prediction, onPredict, readonly, re
     setSecond(prediction?.predicted_2nd ?? '')
     setThird(prediction?.predicted_3rd ?? '')
   }, [prediction])
+
+  // Notify parent of draft changes whenever selections change
+  useEffect(() => {
+    if (hideSubmitButton) {
+      onPredict(first, second, (hasThirdPlaceFeature && !thirdPlaceQualifies) ? null : (third || null))
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [first, second, third, thirdPlaceQualifies, hideSubmitButton])
 
   const resultMap = new Map<string, GroupResult>()
   if (results) {
@@ -52,12 +62,12 @@ export function GroupPredictionCard({ group, prediction, onPredict, readonly, re
     const result = resultMap.get(teamId)
     if (!result) return ''
     if (result.qualified && result.final_position === predictedPosition) {
-      return 'ring-2 ring-green-accent' // exact position
+      return 'ring-2 ring-green-accent'
     }
     if (result.qualified) {
-      return 'ring-2 ring-yellow-accent' // qualified but wrong position
+      return 'ring-2 ring-yellow-accent'
     }
-    return 'ring-2 ring-red-accent' // did not qualify
+    return 'ring-2 ring-red-accent'
   }
 
   const hasAllRequired = hasThirdPlaceFeature
@@ -140,7 +150,7 @@ export function GroupPredictionCard({ group, prediction, onPredict, readonly, re
           />
         </div>
 
-        {!readonly && (
+        {!readonly && !hideSubmitButton && (
           <Button
             size="sm"
             disabled={!hasAllRequired || !changed}

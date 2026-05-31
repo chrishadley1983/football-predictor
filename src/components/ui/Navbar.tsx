@@ -153,6 +153,11 @@ export function Navbar() {
                 <Link href={`/tournament/${tournamentSlug}/predictions`} className={linkClass(pathname.includes('/predictions') && !pathname.includes('/predict/'))}>
                   Predictions
                 </Link>
+                {player && (
+                  <Link href={`/tournament/${tournamentSlug}/predict/groups`} className={linkClass(pathname.includes('/predict/'))}>
+                    My Predictions
+                  </Link>
+                )}
                 <Link href={`/tournament/${tournamentSlug}/posts`} className={linkClass(pathname.includes('/posts'))}>
                   Posts
                 </Link>
@@ -245,6 +250,11 @@ export function Navbar() {
                 <Link href={`/tournament/${tournamentSlug}/predictions`} className={mobileLinkClass} onClick={() => setMenuOpen(false)}>
                   Predictions
                 </Link>
+                {player && (
+                  <Link href={`/tournament/${tournamentSlug}/predict/groups`} className={mobileLinkClass} onClick={() => setMenuOpen(false)}>
+                    My Predictions
+                  </Link>
+                )}
                 <Link href={`/tournament/${tournamentSlug}/posts`} className={mobileLinkClass} onClick={() => setMenuOpen(false)}>
                   Posts
                 </Link>
