@@ -7,6 +7,7 @@ import { KnockoutBracket } from '@/components/bracket/KnockoutBracket'
 import { GoldenTicketModal } from '@/components/bracket/GoldenTicketModal'
 import { Button } from '@/components/ui/Button'
 import { getDeadlineStatus } from '@/lib/utils'
+import { getPredictionProgress } from '@/lib/predictions'
 import type { Tournament, KnockoutMatchWithTeams, KnockoutPrediction, GoldenTicket } from '@/lib/types'
 import type { EligibleSwap } from '@/lib/golden-ticket'
 
@@ -169,6 +170,15 @@ export default function KnockoutPredictionPage() {
   if (error && !tournament) return <p className="py-12 text-center text-red-accent">{error}</p>
 
   const pendingCount = Object.keys(pendingPredictions).length
+  const totalMatches = tournament?.knockout_matches?.length ?? 0
+  const knockoutPredictedCount = predictions.filter((p) => p.predicted_winner_id).length
+  // Dynamic save-button label mirroring the overview Knockout Predictions card.
+  const knockoutProgress = getPredictionProgress(
+    'knockout',
+    tournament?.status ?? 'knockout_open',
+    knockoutPredictedCount,
+    totalMatches,
+  )
 
   return (
     <div className="space-y-6">
@@ -246,18 +256,21 @@ export default function KnockoutPredictionPage() {
       )}
 
       {!isReadonly && (
-        <div className="flex items-center justify-between rounded-xl border border-border-custom bg-surface p-4">
+        <div className="sticky bottom-4 z-20 flex items-center justify-between gap-3 rounded-xl border border-border-custom bg-surface p-4 shadow-lg shadow-black/30">
           <span className="text-sm text-text-secondary">
-            {pendingCount > 0
-              ? `${pendingCount} unsaved prediction${pendingCount > 1 ? 's' : ''}`
-              : 'All changes saved'}
+            {knockoutPredictedCount} of {totalMatches} matches predicted
+            {pendingCount > 0 && (
+              <span className="ml-2 font-medium text-yellow-accent">
+                · {pendingCount} unsaved
+              </span>
+            )}
           </span>
           <Button
             onClick={handleSaveAll}
             loading={saving}
             disabled={pendingCount === 0}
           >
-            Save All Predictions
+            {knockoutProgress.title}
           </Button>
         </div>
       )}

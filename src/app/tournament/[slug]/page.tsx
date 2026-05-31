@@ -5,6 +5,7 @@ import { TournamentStatusBadge } from '@/components/ui/Badge'
 import { Card } from '@/components/ui/Card'
 import { PunditCard } from '@/components/pundit/PunditCard'
 import { formatCurrency, formatDate, getDeadlineStatus } from '@/lib/utils'
+import { getPredictionProgress } from '@/lib/predictions'
 import type { Tournament } from '@/lib/types'
 
 export default async function TournamentPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -30,8 +31,9 @@ export default async function TournamentPage({ params }: { params: Promise<{ slu
     .select('id', { count: 'exact', head: true })
     .eq('tournament_id', t.id)
 
-  // Has the current user already entered this tournament?
-  let hasEntered = false
+  // Has the current user already entered this tournament? If so, gather their
+  // prediction progress so the Group/Knockout cards can reflect it dynamically.
+  let entryId: string | null = null
   const { data: { user } } = await supabase.auth.getUser()
   if (user) {
     const { data: player } = await supabase
@@ -46,10 +48,30 @@ export default async function TournamentPage({ params }: { params: Promise<{ slu
         .eq('tournament_id', t.id)
         .eq('player_id', player.id)
         .maybeSingle()
-      hasEntered = !!entry
+      entryId = entry?.id ?? null
     }
   }
+  const hasEntered = entryId !== null
   const canEnter = t.status === 'group_stage_open' && !hasEntered
+
+  // Prediction progress (only meaningful for entered users).
+  let groupState = null as ReturnType<typeof getPredictionProgress> | null
+  let knockoutState = null as ReturnType<typeof getPredictionProgress> | null
+  if (entryId) {
+    const [
+      { count: totalGroups },
+      { count: groupsPredicted },
+      { count: totalKnockout },
+      { count: knockoutPredicted },
+    ] = await Promise.all([
+      supabase.from('groups').select('id', { count: 'exact', head: true }).eq('tournament_id', t.id),
+      supabase.from('group_predictions').select('id', { count: 'exact', head: true }).eq('entry_id', entryId),
+      supabase.from('knockout_matches').select('id', { count: 'exact', head: true }).eq('tournament_id', t.id),
+      supabase.from('knockout_predictions').select('id', { count: 'exact', head: true }).eq('entry_id', entryId),
+    ])
+    groupState = getPredictionProgress('group', t.status, groupsPredicted ?? 0, totalGroups ?? 0)
+    knockoutState = getPredictionProgress('knockout', t.status, knockoutPredicted ?? 0, totalKnockout ?? 0)
+  }
 
   return (
     <div className="space-y-6">
@@ -139,13 +161,21 @@ export default async function TournamentPage({ params }: { params: Promise<{ slu
 
       {/* Navigation links */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {['group_stage_open'].includes(t.status) && (
+        {groupState?.show && (
           <Link href={`/tournament/${slug}/predict/groups`}>
-            <Card className="border-gold/25 bg-gold/5 transition-all hover:border-gold/40 hover:bg-gold/10">
+            <Card
+              className={
+                groupState.view
+                  ? 'transition-all hover:border-gold/30'
+                  : 'border-gold/25 bg-gold/5 transition-all hover:border-gold/40 hover:bg-gold/10'
+              }
+            >
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="font-semibold text-gold-light">Group Predictions</h3>
-                  <p className="mt-1 text-sm text-text-secondary">Predict group stage outcomes</p>
+                  <h3 className={`font-semibold ${groupState.view ? 'text-foreground' : 'text-gold-light'}`}>
+                    {groupState.title}
+                  </h3>
+                  <p className="mt-1 text-sm text-text-secondary">{groupState.subtitle}</p>
                 </div>
                 <span className="text-text-muted opacity-0 transition-opacity group-hover:opacity-70">&rarr;</span>
               </div>
@@ -153,13 +183,21 @@ export default async function TournamentPage({ params }: { params: Promise<{ slu
           </Link>
         )}
 
-        {['knockout_open'].includes(t.status) && (
+        {knockoutState?.show && (
           <Link href={`/tournament/${slug}/predict/knockout`}>
-            <Card className="border-gold/25 bg-gold/5 transition-all hover:border-gold/40 hover:bg-gold/10">
+            <Card
+              className={
+                knockoutState.view
+                  ? 'transition-all hover:border-gold/30'
+                  : 'border-gold/25 bg-gold/5 transition-all hover:border-gold/40 hover:bg-gold/10'
+              }
+            >
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="font-semibold text-gold-light">Knockout Predictions</h3>
-                  <p className="mt-1 text-sm text-text-secondary">Fill in your bracket</p>
+                  <h3 className={`font-semibold ${knockoutState.view ? 'text-foreground' : 'text-gold-light'}`}>
+                    {knockoutState.title}
+                  </h3>
+                  <p className="mt-1 text-sm text-text-secondary">{knockoutState.subtitle}</p>
                 </div>
                 <span className="text-text-muted opacity-0 transition-opacity group-hover:opacity-70">&rarr;</span>
               </div>

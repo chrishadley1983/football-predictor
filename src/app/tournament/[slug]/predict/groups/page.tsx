@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Card } from '@/components/ui/Card'
 import { getDeadlineStatus } from '@/lib/utils'
+import { getPredictionProgress } from '@/lib/predictions'
 import type { Tournament, GroupWithTeams, GroupPrediction, GroupResult, TournamentEntry } from '@/lib/types'
 
 interface TournamentData extends Tournament {
@@ -224,6 +225,14 @@ export default function GroupPredictionPage() {
     return !!d.third
   }).length
 
+  // Dynamic submit-button label mirroring the overview Group Predictions card.
+  const groupProgress = getPredictionProgress(
+    'group',
+    tournament?.status ?? 'group_stage_open',
+    completedGroups,
+    groups.length,
+  )
+
   return (
     <div className="space-y-6">
       <div>
@@ -301,7 +310,7 @@ export default function GroupPredictionPage() {
             size="lg"
             className="w-full shadow-lg shadow-black/30"
           >
-            Submit Predictions ({completedGroups}/{groups.length} groups)
+            {groupProgress.title} ({completedGroups}/{groups.length} groups)
           </Button>
         </div>
       )}
