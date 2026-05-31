@@ -65,9 +65,11 @@ export function HonoursBoard({ honours }: HonoursBoardProps) {
     return <p className="py-8 text-center text-sm text-text-muted">No historical records yet.</p>
   }
 
-  // Group by tournament, sorted by year descending
+  // Group by tournament, sorted by year descending. Skip any honour whose
+  // tournament didn't resolve (e.g. RLS-hidden) rather than crashing the page.
   const tournaments = new Map<string, { name: string; year: number; honours: HonoursWithDetails[] }>()
   for (const h of honours) {
+    if (!h.tournament) continue
     const key = h.tournament_id
     if (!tournaments.has(key)) {
       tournaments.set(key, { name: h.tournament.name, year: h.tournament.year, honours: [] })

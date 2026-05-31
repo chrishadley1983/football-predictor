@@ -17,15 +17,13 @@ export default async function HomePage() {
 
   if (tournamentsErr) console.error('Failed to fetch tournaments:', tournamentsErr.message)
 
-  // Fetch honours
+  // Fetch honours via the honours_with_tournament view: it bypasses RLS so
+  // archived tournaments (is_visible=false) still resolve here, even though
+  // they can't be viewed via /tournament/[slug].
   const { data: honours, error: honoursErr } = await supabase
-    .from('honours')
-    .select(`
-      *,
-      tournament:tournaments (*),
-      player:players (id, display_name, nickname, avatar_url)
-    `)
-    .order('id')
+    .from('honours_with_tournament')
+    .select('*')
+    .order('sort_order', { ascending: true })
 
   if (honoursErr) console.error('Failed to fetch honours:', honoursErr.message)
 
