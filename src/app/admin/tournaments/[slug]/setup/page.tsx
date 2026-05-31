@@ -120,6 +120,9 @@ export default function SetupPage() {
   }, [slug])
 
   useEffect(() => {
+    // loadTournament sets state only after `await fetch` (asynchronously), so
+    // this is not a synchronous cascade — the rule misfires for async loaders.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadTournament()
   }, [loadTournament])
 

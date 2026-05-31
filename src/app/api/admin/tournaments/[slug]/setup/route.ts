@@ -554,9 +554,9 @@ export async function POST(
       return rest
     })
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: createdMatches, error: matchesErr } = await admin
       .from('knockout_matches')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- schema-drift workaround (scheduled_at/venue optional)
       .insert(cleanedMatches as any)
       .select()
 

@@ -1,6 +1,6 @@
 import 'server-only'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { KNOCKOUT_ROUNDS_ORDER, getExistingKnockoutRounds } from '@/lib/testing/seed-helpers'
+import { getExistingKnockoutRounds } from '@/lib/testing/seed-helpers'
 import type { KnockoutRound, KnockoutMatch, Team } from '@/lib/types'
 
 type AdminClient = ReturnType<typeof createAdminClient>

@@ -1,6 +1,5 @@
 'use client'
 
-import { cn } from '@/lib/utils'
 import type { KnockoutMatchWithTeams, KnockoutPrediction } from '@/lib/types'
 import { BracketTeam } from './BracketTeam'
 

@@ -158,6 +158,9 @@ export default function TestingPage() {
   }, [slug])
 
   useEffect(() => {
+    // loadState sets state only after `await` (asynchronously), so this is not
+    // a synchronous cascade — the rule misfires for async loaders.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadState()
   }, [loadState])
 

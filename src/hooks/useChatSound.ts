@@ -1,17 +1,16 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 
 const SOUND_KEY = 'chat-sound-enabled'
 
 export function useChatSound() {
-  const [enabled, setEnabled] = useState(false)
+  // Lazy initializer: read the persisted preference once during render.
+  // Guarded for SSR (no `window` on the server) so it never throws.
+  const [enabled, setEnabled] = useState<boolean>(
+    () => typeof window !== 'undefined' && localStorage.getItem(SOUND_KEY) === 'true'
+  )
   const audioRef = useRef<AudioContext | null>(null)
-
-  useEffect(() => {
-    const stored = localStorage.getItem(SOUND_KEY)
-    setEnabled(stored === 'true')
-  }, [])
 
   const toggle = useCallback(() => {
     setEnabled((prev) => {

@@ -12,7 +12,7 @@ interface MentionAutocompleteProps {
   onClose: () => void
 }
 
-export function MentionAutocomplete({ query, players, onSelect, onClose }: MentionAutocompleteProps) {
+export function MentionAutocomplete({ query, players, onSelect }: MentionAutocompleteProps) {
   const filtered = useMemo(() => {
     const q = query.toLowerCase()
     return players.filter((p) => {

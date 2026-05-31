@@ -29,6 +29,7 @@ export function PlayerAvatar({ avatarUrl, displayName, size = 'md', className }:
 
   if (avatarUrl) {
     return (
+      // eslint-disable-next-line @next/next/no-img-element -- user avatar from arbitrary URL / Supabase storage; next/image needs configured domains
       <img
         src={avatarUrl}
         alt={displayName}

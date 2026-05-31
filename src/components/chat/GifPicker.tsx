@@ -45,6 +45,8 @@ export function GifPicker({ onSelect, onClose }: GifPickerProps) {
       setLoading(false)
     }
     loadTrending()
+    // Mount-only: fetch trending once. fetchTrending is stable for this purpose.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   async function fetchTrending(): Promise<GifResult[]> {
@@ -149,6 +151,7 @@ export function GifPicker({ onSelect, onClose }: GifPickerProps) {
               onClick={() => onSelect(gif.url)}
               className="overflow-hidden rounded-md transition-opacity hover:opacity-80"
             >
+              {/* eslint-disable-next-line @next/next/no-img-element -- external Tenor GIFs; next/image unsuitable for arbitrary animated GIF hosts */}
               <img
                 src={gif.preview}
                 alt="GIF"

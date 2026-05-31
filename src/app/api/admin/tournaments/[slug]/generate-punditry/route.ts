@@ -111,7 +111,7 @@ export async function POST(
   }
 
   // Gather context
-  const [leaderboardRes, predictionsRes, resultsRes, chatRes, statsRes] = await Promise.all([
+  const [leaderboardRes, predictionsRes, resultsRes, chatRes] = await Promise.all([
     // Top 10 leaderboard
     admin
       .from('tournament_entries')
@@ -139,12 +139,6 @@ export async function POST(
       .eq('tournament_id', tournament.id)
       .order('created_at', { ascending: false })
       .limit(50),
-    // Tournament stats
-    admin
-      .from('tournament_stats')
-      .select('total_group_stage_goals')
-      .eq('tournament_id', tournament.id)
-      .single(),
   ])
 
   // Format context strings

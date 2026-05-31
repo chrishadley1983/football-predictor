@@ -4,7 +4,7 @@ import { useState, useRef, useCallback, useEffect, type ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 import { PlayerAvatar } from '@/components/ui/PlayerAvatar'
 import { ReactionPicker } from './ReactionPicker'
-import { isPunditPlayer, getPunditByPlayerId } from '@/lib/pundit-players'
+import { getPunditByPlayerId } from '@/lib/pundit-players'
 import type { ChatMessageWithPlayer, ReactionSummary } from '@/lib/types'
 
 function formatRelativeTime(dateStr: string): string {
@@ -310,6 +310,7 @@ export function ChatMessage({
 
           {/* Content */}
           {isGif ? (
+            // eslint-disable-next-line @next/next/no-img-element -- external Tenor GIF URL; next/image unsuitable for arbitrary animated GIF hosts
             <img
               src={message.content}
               alt="GIF"
