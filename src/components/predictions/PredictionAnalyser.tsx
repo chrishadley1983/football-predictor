@@ -101,11 +101,11 @@ export function PredictionAnalyser({
     return map
   }, [results])
 
-  function getTeamCode(teamId: string | null): string {
+  function getTeamName(teamId: string | null): string {
     if (!teamId) return '-'
     for (const g of groups) {
       for (const gt of g.group_teams) {
-        if (gt.team.id === teamId) return gt.team.code
+        if (gt.team.id === teamId) return gt.team.name
       }
     }
     return '?'
@@ -574,7 +574,7 @@ export function PredictionAnalyser({
                                   '-'
                                 ) : (
                                   <>
-                                    {getTeamCode(teamIdA ?? null)}
+                                    {getTeamName(teamIdA ?? null)}
                                     {isNQA && (
                                       <span className="ml-0.5 text-[9px] opacity-70">
                                         NQ
@@ -586,7 +586,7 @@ export function PredictionAnalyser({
                               {/* Actual Result — only show qualifiers (the 32 teams advancing) */}
                               <td className="px-2 py-1 text-center font-mono text-foreground bg-surface-light/30">
                                 {actualTeam && actualTeam.qualified
-                                  ? getTeamCode(actualTeam.team_id)
+                                  ? getTeamName(actualTeam.team_id)
                                   : '-'}
                               </td>
                               {/* Player B Prediction */}
@@ -603,7 +603,7 @@ export function PredictionAnalyser({
                                     '-'
                                   ) : (
                                     <>
-                                      {getTeamCode(teamIdB ?? null)}
+                                      {getTeamName(teamIdB ?? null)}
                                       {isNQB && (
                                         <span className="ml-0.5 text-[9px] opacity-70">
                                           NQ
@@ -752,8 +752,8 @@ export function PredictionAnalyser({
                             return (
                               <tr key={match.id}>
                                 <td className="px-2 py-1 font-mono text-foreground whitespace-nowrap">
-                                  {getTeamCode(match.home_team_id)} v{' '}
-                                  {getTeamCode(match.away_team_id)}
+                                  {getTeamName(match.home_team_id)} v{' '}
+                                  {getTeamName(match.away_team_id)}
                                 </td>
                                 <td
                                   className={cn(
@@ -770,14 +770,14 @@ export function PredictionAnalyser({
                                       {goldenTicketA && (
                                         <span title="Emergency Sub used" className="mr-0.5">🔄</span>
                                       )}
-                                      {getTeamCode(predA.predicted_winner_id)}
+                                      {getTeamName(predA.predicted_winner_id)}
                                     </>
                                   ) : '-'}
                                 </td>
                                 <td className="px-2 py-1 text-center font-mono text-foreground bg-surface-light/30">
                                   {match.winner_team_id ? (
                                     <>
-                                      {getTeamCode(match.winner_team_id)}
+                                      {getTeamName(match.winner_team_id)}
                                       {match.home_score !== null && match.away_score !== null && (
                                         <span className="ml-1 text-[9px] text-text-muted">
                                           ({match.home_score}-{match.away_score})
@@ -802,7 +802,7 @@ export function PredictionAnalyser({
                                         {goldenTicketB && (
                                           <span title="Emergency Sub used" className="mr-0.5">🔄</span>
                                         )}
-                                        {getTeamCode(predB.predicted_winner_id)}
+                                        {getTeamName(predB.predicted_winner_id)}
                                       </>
                                     ) : '-'}
                                   </td>
