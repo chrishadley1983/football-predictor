@@ -4,7 +4,10 @@ import { createClient } from '@/lib/supabase/server'
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
-  const next = searchParams.get('next') ?? '/'
+  const rawNext = searchParams.get('next') ?? '/'
+  // Only allow same-origin relative paths: a single leading slash, not "//" or
+  // "/\" (which browsers can treat as protocol-relative external URLs).
+  const next = /^\/(?![/\\])/.test(rawNext) ? rawNext : '/'
 
   if (code) {
     const supabase = await createClient()

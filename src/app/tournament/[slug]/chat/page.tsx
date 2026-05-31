@@ -51,7 +51,7 @@ export default async function ChatPage({ params }: { params: Promise<{ slug: str
             You need to be logged in to view the chat.
           </p>
           <Link
-            href="/login"
+            href="/auth/login"
             className="mt-3 inline-block rounded-lg bg-gold px-4 py-2 text-sm font-medium text-background hover:bg-gold/90"
           >
             Log in

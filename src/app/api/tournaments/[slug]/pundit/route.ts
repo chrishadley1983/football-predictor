@@ -68,6 +68,12 @@ export async function GET(
   const punditKey = s.pundit_key as PunditKey
   const pundit = PUNDITS[punditKey]
 
+  // Defensive: a snippet with an unknown pundit_key (e.g. after a schema/seed
+  // change) must not 500 a public endpoint — fall back to the empty response.
+  if (!pundit) {
+    return NextResponse.json({ pundit_key: null, content: null }, { status: 200 })
+  }
+
   return NextResponse.json({
     pundit_key: punditKey,
     name: pundit.name,

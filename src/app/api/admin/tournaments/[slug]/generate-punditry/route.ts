@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getPunditSystemPrompt } from '@/lib/pundit-prompts'
 import { PUNDIT_KEYS } from '@/lib/pundit-characters'
 import { PUNDIT_PLAYER_IDS } from '@/lib/pundit-players'
+import { secureEquals } from '@/lib/secure-compare'
 import type { PunditKey, PunditCategory } from '@/lib/types'
 
 interface SnippetOutput {
@@ -85,7 +86,7 @@ export async function POST(
   const cronSecret = request.headers.get('x-cron-secret')
   const expectedSecret = process.env.CRON_SECRET
 
-  if (cronSecret && expectedSecret && cronSecret === expectedSecret) {
+  if (cronSecret && expectedSecret && secureEquals(cronSecret, expectedSecret)) {
     // Authenticated via cron secret
   } else {
     // Fall back to admin user check

@@ -40,8 +40,8 @@ export function stripMarkdown(md: string): string {
     .replace(/__(.+?)__/g, '$1')        // bold alt
     .replace(/_(.+?)_/g, '$1')          // italic alt
     .replace(/~~(.+?)~~/g, '$1')        // strikethrough
+    .replace(/!\[([^\]]*)\]\([^)]+\)/g, '') // images (must run before links)
     .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // links
-    .replace(/!\[([^\]]*)\]\([^)]+\)/g, '') // images
     .replace(/`{1,3}[^`]*`{1,3}/g, '')  // inline code
     .replace(/^[-*+]\s+/gm, '')         // unordered list markers
     .replace(/^\d+\.\s+/gm, '')         // ordered list markers

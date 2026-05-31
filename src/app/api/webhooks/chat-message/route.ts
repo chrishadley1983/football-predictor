@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendAuditEmail } from '@/lib/email/audit'
+import { secureEquals } from '@/lib/secure-compare'
 import type { ChatMessageType } from '@/lib/email/audit'
 
 // POST: Called by Supabase trigger (via pg_net) after a chat_messages row is inserted.
@@ -14,7 +15,7 @@ export async function POST(request: Request) {
   }
 
   const received = request.headers.get('x-audit-secret')
-  if (received !== expected) {
+  if (!received || !secureEquals(received, expected)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

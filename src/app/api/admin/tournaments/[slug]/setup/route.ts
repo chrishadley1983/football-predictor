@@ -128,6 +128,19 @@ export async function POST(
       return NextResponse.json({ error: 'At least one group is required' }, { status: 400 })
     }
 
+    // Bracket generation only supports these group counts (see Step 6). Reject
+    // unsupported counts up-front, BEFORE the destructive delete-and-recreate
+    // below, so we never leave a tournament with groups but no knockout bracket.
+    const SUPPORTED_GROUP_COUNTS = [6, 8, 12]
+    if (!SUPPORTED_GROUP_COUNTS.includes(body.groups.length)) {
+      return NextResponse.json(
+        {
+          error: `Unsupported group count: ${body.groups.length}. Supported layouts are ${SUPPORTED_GROUP_COUNTS.join(', ')} groups.`,
+        },
+        { status: 422 }
+      )
+    }
+
     // Look up the tournament
     const { data: tournament, error: tournamentErr } = await admin
       .from('tournaments')

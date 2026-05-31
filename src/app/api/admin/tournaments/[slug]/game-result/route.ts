@@ -41,7 +41,7 @@ export async function POST(
     const body: GameResultPayload = await request.json()
 
     if (body.type === 'group') {
-      return handleGroupResult(admin, body)
+      return handleGroupResult(admin, tournament.id, body)
     } else if (body.type === 'knockout') {
       return handleKnockoutResult(admin, tournament.id, body)
     } else {
@@ -55,6 +55,7 @@ export async function POST(
 
 async function handleGroupResult(
   admin: ReturnType<typeof createAdminClient>,
+  tournamentId: string,
   payload: GroupResultPayload
 ) {
   const { group_id, team_id, final_position, qualified } = payload
@@ -63,6 +64,22 @@ async function handleGroupResult(
     return NextResponse.json(
       { error: 'group_id, team_id, and final_position are required' },
       { status: 400 }
+    )
+  }
+
+  // Verify the group belongs to this tournament before writing (prevents a
+  // malformed/cross-tournament group_id from mutating another tournament).
+  const { data: group } = await admin
+    .from('groups')
+    .select('id')
+    .eq('id', group_id)
+    .eq('tournament_id', tournamentId)
+    .single()
+
+  if (!group) {
+    return NextResponse.json(
+      { error: 'Group not found in this tournament' },
+      { status: 404 }
     )
   }
 
