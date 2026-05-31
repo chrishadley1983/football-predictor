@@ -41,4 +41,11 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-.vercel
+# nested old project snapshot (not part of current app)
+/Football Prediction Game/
+
+# one-off local utilities (not deployed)
+/scripts/
+
+# local screenshots
+/*.png
