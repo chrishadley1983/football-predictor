@@ -8,21 +8,21 @@ import type { KnockoutRound, BracketSide } from '@/lib/types'
 const WC2026_GROUPS: Record<string, { name: string; code: string; flag_emoji: string }[]> = {
   A: [
     { name: 'Mexico', code: 'MEX', flag_emoji: '\u{1F1F2}\u{1F1FD}' },
-    { name: 'South Korea', code: 'KOR', flag_emoji: '\u{1F1F0}\u{1F1F7}' },
     { name: 'South Africa', code: 'RSA', flag_emoji: '\u{1F1FF}\u{1F1E6}' },
+    { name: 'South Korea', code: 'KOR', flag_emoji: '\u{1F1F0}\u{1F1F7}' },
     { name: 'Czech Republic', code: 'CZE', flag_emoji: '\u{1F1E8}\u{1F1FF}' },
   ],
   B: [
     { name: 'Canada', code: 'CAN', flag_emoji: '\u{1F1E8}\u{1F1E6}' },
-    { name: 'Switzerland', code: 'SUI', flag_emoji: '\u{1F1E8}\u{1F1ED}' },
-    { name: 'Qatar', code: 'QAT', flag_emoji: '\u{1F1F6}\u{1F1E6}' },
     { name: 'Bosnia and Herzegovina', code: 'BIH', flag_emoji: '\u{1F1E7}\u{1F1E6}' },
+    { name: 'Qatar', code: 'QAT', flag_emoji: '\u{1F1F6}\u{1F1E6}' },
+    { name: 'Switzerland', code: 'SUI', flag_emoji: '\u{1F1E8}\u{1F1ED}' },
   ],
   C: [
     { name: 'Brazil', code: 'BRA', flag_emoji: '\u{1F1E7}\u{1F1F7}' },
     { name: 'Morocco', code: 'MAR', flag_emoji: '\u{1F1F2}\u{1F1E6}' },
-    { name: 'Scotland', code: 'SCO', flag_emoji: '🏴󠁧󠁢󠁳󠁣󠁴󠁿' },
     { name: 'Haiti', code: 'HAI', flag_emoji: '\u{1F1ED}\u{1F1F9}' },
+    { name: 'Scotland', code: 'SCO', flag_emoji: '🏴󠁧󠁢󠁳󠁣󠁴󠁿' },
   ],
   D: [
     { name: 'USA', code: 'USA', flag_emoji: '\u{1F1FA}\u{1F1F8}' },
@@ -32,151 +32,152 @@ const WC2026_GROUPS: Record<string, { name: string; code: string; flag_emoji: st
   ],
   E: [
     { name: 'Germany', code: 'GER', flag_emoji: '\u{1F1E9}\u{1F1EA}' },
-    { name: 'Ecuador', code: 'ECU', flag_emoji: '\u{1F1EA}\u{1F1E8}' },
-    { name: 'Ivory Coast', code: 'CIV', flag_emoji: '\u{1F1E8}\u{1F1EE}' },
     { name: 'Curaçao', code: 'CUW', flag_emoji: '\u{1F1E8}\u{1F1FC}' },
+    { name: 'Ivory Coast', code: 'CIV', flag_emoji: '\u{1F1E8}\u{1F1EE}' },
+    { name: 'Ecuador', code: 'ECU', flag_emoji: '\u{1F1EA}\u{1F1E8}' },
   ],
   F: [
     { name: 'Netherlands', code: 'NED', flag_emoji: '\u{1F1F3}\u{1F1F1}' },
     { name: 'Japan', code: 'JPN', flag_emoji: '\u{1F1EF}\u{1F1F5}' },
-    { name: 'Tunisia', code: 'TUN', flag_emoji: '\u{1F1F9}\u{1F1F3}' },
     { name: 'Sweden', code: 'SWE', flag_emoji: '\u{1F1F8}\u{1F1EA}' },
+    { name: 'Tunisia', code: 'TUN', flag_emoji: '\u{1F1F9}\u{1F1F3}' },
   ],
   G: [
     { name: 'Belgium', code: 'BEL', flag_emoji: '\u{1F1E7}\u{1F1EA}' },
-    { name: 'Iran', code: 'IRN', flag_emoji: '\u{1F1EE}\u{1F1F7}' },
     { name: 'Egypt', code: 'EGY', flag_emoji: '\u{1F1EA}\u{1F1EC}' },
+    { name: 'Iran', code: 'IRN', flag_emoji: '\u{1F1EE}\u{1F1F7}' },
     { name: 'New Zealand', code: 'NZL', flag_emoji: '\u{1F1F3}\u{1F1FF}' },
   ],
   H: [
     { name: 'Spain', code: 'ESP', flag_emoji: '\u{1F1EA}\u{1F1F8}' },
-    { name: 'Uruguay', code: 'URU', flag_emoji: '\u{1F1FA}\u{1F1FE}' },
-    { name: 'Saudi Arabia', code: 'KSA', flag_emoji: '\u{1F1F8}\u{1F1E6}' },
     { name: 'Cape Verde', code: 'CPV', flag_emoji: '\u{1F1E8}\u{1F1FB}' },
+    { name: 'Saudi Arabia', code: 'KSA', flag_emoji: '\u{1F1F8}\u{1F1E6}' },
+    { name: 'Uruguay', code: 'URU', flag_emoji: '\u{1F1FA}\u{1F1FE}' },
   ],
   I: [
     { name: 'France', code: 'FRA', flag_emoji: '\u{1F1EB}\u{1F1F7}' },
     { name: 'Senegal', code: 'SEN', flag_emoji: '\u{1F1F8}\u{1F1F3}' },
-    { name: 'Norway', code: 'NOR', flag_emoji: '\u{1F1F3}\u{1F1F4}' },
     { name: 'Iraq', code: 'IRQ', flag_emoji: '\u{1F1EE}\u{1F1F6}' },
+    { name: 'Norway', code: 'NOR', flag_emoji: '\u{1F1F3}\u{1F1F4}' },
   ],
   J: [
     { name: 'Argentina', code: 'ARG', flag_emoji: '\u{1F1E6}\u{1F1F7}' },
-    { name: 'Austria', code: 'AUT', flag_emoji: '\u{1F1E6}\u{1F1F9}' },
     { name: 'Algeria', code: 'ALG', flag_emoji: '\u{1F1E9}\u{1F1FF}' },
+    { name: 'Austria', code: 'AUT', flag_emoji: '\u{1F1E6}\u{1F1F9}' },
     { name: 'Jordan', code: 'JOR', flag_emoji: '\u{1F1EF}\u{1F1F4}' },
   ],
   K: [
     { name: 'Portugal', code: 'POR', flag_emoji: '\u{1F1F5}\u{1F1F9}' },
-    { name: 'Colombia', code: 'COL', flag_emoji: '\u{1F1E8}\u{1F1F4}' },
-    { name: 'Uzbekistan', code: 'UZB', flag_emoji: '\u{1F1FA}\u{1F1FF}' },
     { name: 'DR Congo', code: 'COD', flag_emoji: '\u{1F1E8}\u{1F1E9}' },
+    { name: 'Uzbekistan', code: 'UZB', flag_emoji: '\u{1F1FA}\u{1F1FF}' },
+    { name: 'Colombia', code: 'COL', flag_emoji: '\u{1F1E8}\u{1F1F4}' },
   ],
   L: [
     { name: 'England', code: 'ENG', flag_emoji: '🏴󠁧󠁢󠁥󠁮󠁧󠁿' },
     { name: 'Croatia', code: 'CRO', flag_emoji: '\u{1F1ED}\u{1F1F7}' },
-    { name: 'Panama', code: 'PAN', flag_emoji: '\u{1F1F5}\u{1F1E6}' },
     { name: 'Ghana', code: 'GHA', flag_emoji: '\u{1F1EC}\u{1F1ED}' },
+    { name: 'Panama', code: 'PAN', flag_emoji: '\u{1F1F5}\u{1F1E6}' },
   ],
 }
 
-// Group stage fixtures: [home_code, away_code, YYYY-MM-DD, venue]
-const GROUP_FIXTURES: Record<string, [string, string, string, string][]> = {
+// Group stage fixtures (FIFA final draw, 5 Dec 2025): [home_code, away_code, kickoff_utc_iso, city, stadium]
+// Kick-off times are in UTC; cities are FIFA host-city labels, stadium is the venue name.
+const GROUP_FIXTURES: Record<string, [string, string, string, string, string][]> = {
   A: [
-    ['MEX', 'RSA', '2026-06-11', 'Mexico City'],
-    ['KOR', 'CZE', '2026-06-12', 'Guadalajara'],
-    ['MEX', 'KOR', '2026-06-18', 'Guadalajara'],
-    ['CZE', 'RSA', '2026-06-18', 'Atlanta'],
-    ['CZE', 'MEX', '2026-06-25', 'Mexico City'],
-    ['RSA', 'KOR', '2026-06-25', 'Monterrey'],
+    ['MEX', 'RSA', '2026-06-11T19:00:00Z', 'Mexico City', 'Estadio Azteca'],
+    ['KOR', 'CZE', '2026-06-12T02:00:00Z', 'Guadalajara', 'Estadio Akron'],
+    ['CZE', 'RSA', '2026-06-18T16:00:00Z', 'Atlanta', 'Mercedes-Benz Stadium'],
+    ['MEX', 'KOR', '2026-06-19T01:00:00Z', 'Guadalajara', 'Estadio Akron'],
+    ['CZE', 'MEX', '2026-06-25T01:00:00Z', 'Mexico City', 'Estadio Azteca'],
+    ['RSA', 'KOR', '2026-06-25T01:00:00Z', 'Monterrey', 'Estadio BBVA'],
   ],
   B: [
-    ['CAN', 'BIH', '2026-06-12', 'Toronto'],
-    ['QAT', 'SUI', '2026-06-13', 'San Francisco'],
-    ['SUI', 'BIH', '2026-06-18', 'Los Angeles'],
-    ['CAN', 'QAT', '2026-06-18', 'Vancouver'],
-    ['SUI', 'CAN', '2026-06-24', 'Vancouver'],
-    ['BIH', 'QAT', '2026-06-24', 'Seattle'],
+    ['CAN', 'BIH', '2026-06-12T19:00:00Z', 'Toronto', 'BMO Field'],
+    ['QAT', 'SUI', '2026-06-13T19:00:00Z', 'San Francisco', "Levi's Stadium"],
+    ['SUI', 'BIH', '2026-06-18T19:00:00Z', 'Los Angeles', 'SoFi Stadium'],
+    ['CAN', 'QAT', '2026-06-18T22:00:00Z', 'Vancouver', 'BC Place'],
+    ['SUI', 'CAN', '2026-06-24T19:00:00Z', 'Vancouver', 'BC Place'],
+    ['BIH', 'QAT', '2026-06-24T19:00:00Z', 'Seattle', 'Lumen Field'],
   ],
   C: [
-    ['BRA', 'MAR', '2026-06-13', 'New York/New Jersey'],
-    ['HAI', 'SCO', '2026-06-14', 'Boston'],
-    ['SCO', 'MAR', '2026-06-19', 'Boston'],
-    ['BRA', 'HAI', '2026-06-20', 'Philadelphia'],
-    ['MAR', 'HAI', '2026-06-24', 'Atlanta'],
-    ['SCO', 'BRA', '2026-06-24', 'Miami'],
+    ['BRA', 'MAR', '2026-06-13T22:00:00Z', 'New York/New Jersey', 'MetLife Stadium'],
+    ['HAI', 'SCO', '2026-06-14T01:00:00Z', 'Boston', 'Gillette Stadium'],
+    ['SCO', 'MAR', '2026-06-19T22:00:00Z', 'Boston', 'Gillette Stadium'],
+    ['BRA', 'HAI', '2026-06-20T00:30:00Z', 'Philadelphia', 'Lincoln Financial Field'],
+    ['SCO', 'BRA', '2026-06-24T22:00:00Z', 'Miami', 'Hard Rock Stadium'],
+    ['MAR', 'HAI', '2026-06-24T22:00:00Z', 'Atlanta', 'Mercedes-Benz Stadium'],
   ],
   D: [
-    ['USA', 'PAR', '2026-06-13', 'Los Angeles'],
-    ['AUS', 'TUR', '2026-06-14', 'Vancouver'],
-    ['USA', 'AUS', '2026-06-19', 'Seattle'],
-    ['TUR', 'USA', '2026-06-26', 'Los Angeles'],
-    ['PAR', 'AUS', '2026-06-26', 'San Francisco'],
-    ['TUR', 'PAR', '2026-06-26', 'San Francisco'],
+    ['USA', 'PAR', '2026-06-13T01:00:00Z', 'Los Angeles', 'SoFi Stadium'],
+    ['AUS', 'TUR', '2026-06-13T04:00:00Z', 'Vancouver', 'BC Place'],
+    ['USA', 'AUS', '2026-06-19T19:00:00Z', 'Seattle', 'Lumen Field'],
+    ['TUR', 'PAR', '2026-06-20T03:00:00Z', 'San Francisco', "Levi's Stadium"],
+    ['TUR', 'USA', '2026-06-26T02:00:00Z', 'Los Angeles', 'SoFi Stadium'],
+    ['PAR', 'AUS', '2026-06-26T02:00:00Z', 'San Francisco', "Levi's Stadium"],
   ],
   E: [
-    ['GER', 'CUW', '2026-06-14', 'Houston'],
-    ['CIV', 'ECU', '2026-06-15', 'Philadelphia'],
-    ['GER', 'CIV', '2026-06-20', 'Toronto'],
-    ['ECU', 'CUW', '2026-06-21', 'Kansas City'],
-    ['CUW', 'CIV', '2026-06-25', 'Philadelphia'],
-    ['ECU', 'GER', '2026-06-25', 'New York/New Jersey'],
+    ['GER', 'CUW', '2026-06-14T17:00:00Z', 'Houston', 'NRG Stadium'],
+    ['CIV', 'ECU', '2026-06-14T23:00:00Z', 'Philadelphia', 'Lincoln Financial Field'],
+    ['GER', 'CIV', '2026-06-20T20:00:00Z', 'Toronto', 'BMO Field'],
+    ['ECU', 'CUW', '2026-06-21T00:00:00Z', 'Kansas City', 'Arrowhead Stadium'],
+    ['CUW', 'CIV', '2026-06-25T20:00:00Z', 'Philadelphia', 'Lincoln Financial Field'],
+    ['ECU', 'GER', '2026-06-25T20:00:00Z', 'New York/New Jersey', 'MetLife Stadium'],
   ],
   F: [
-    ['NED', 'JPN', '2026-06-14', 'Dallas'],
-    ['SWE', 'TUN', '2026-06-15', 'Monterrey'],
-    ['NED', 'SWE', '2026-06-20', 'Houston'],
-    ['TUN', 'JPN', '2026-06-21', 'Monterrey'],
-    ['TUN', 'NED', '2026-06-26', 'Kansas City'],
-    ['JPN', 'SWE', '2026-06-26', 'Dallas'],
+    ['NED', 'JPN', '2026-06-14T20:00:00Z', 'Dallas', 'AT&T Stadium'],
+    ['SWE', 'TUN', '2026-06-15T02:00:00Z', 'Monterrey', 'Estadio BBVA'],
+    ['TUN', 'JPN', '2026-06-20T04:00:00Z', 'Monterrey', 'Estadio BBVA'],
+    ['NED', 'SWE', '2026-06-20T17:00:00Z', 'Houston', 'NRG Stadium'],
+    ['JPN', 'SWE', '2026-06-25T23:00:00Z', 'Dallas', 'AT&T Stadium'],
+    ['TUN', 'NED', '2026-06-25T23:00:00Z', 'Kansas City', 'Arrowhead Stadium'],
   ],
   G: [
-    ['BEL', 'EGY', '2026-06-15', 'Seattle'],
-    ['IRN', 'NZL', '2026-06-16', 'Los Angeles'],
-    ['BEL', 'IRN', '2026-06-21', 'Los Angeles'],
-    ['NZL', 'EGY', '2026-06-21', 'Vancouver'],
-    ['NZL', 'BEL', '2026-06-27', 'Vancouver'],
-    ['EGY', 'IRN', '2026-06-27', 'Seattle'],
+    ['BEL', 'EGY', '2026-06-15T19:00:00Z', 'Seattle', 'Lumen Field'],
+    ['IRN', 'NZL', '2026-06-16T01:00:00Z', 'Los Angeles', 'SoFi Stadium'],
+    ['BEL', 'IRN', '2026-06-21T19:00:00Z', 'Los Angeles', 'SoFi Stadium'],
+    ['NZL', 'EGY', '2026-06-22T01:00:00Z', 'Vancouver', 'BC Place'],
+    ['EGY', 'IRN', '2026-06-27T03:00:00Z', 'Seattle', 'Lumen Field'],
+    ['NZL', 'BEL', '2026-06-27T03:00:00Z', 'Vancouver', 'BC Place'],
   ],
   H: [
-    ['ESP', 'CPV', '2026-06-15', 'Atlanta'],
-    ['KSA', 'URU', '2026-06-15', 'Miami'],
-    ['ESP', 'KSA', '2026-06-21', 'Atlanta'],
-    ['URU', 'CPV', '2026-06-21', 'Miami'],
-    ['CPV', 'KSA', '2026-06-27', 'Houston'],
-    ['URU', 'ESP', '2026-06-27', 'Guadalajara'],
+    ['ESP', 'CPV', '2026-06-15T16:00:00Z', 'Atlanta', 'Mercedes-Benz Stadium'],
+    ['KSA', 'URU', '2026-06-15T22:00:00Z', 'Miami', 'Hard Rock Stadium'],
+    ['ESP', 'KSA', '2026-06-21T16:00:00Z', 'Atlanta', 'Mercedes-Benz Stadium'],
+    ['URU', 'CPV', '2026-06-21T22:00:00Z', 'Miami', 'Hard Rock Stadium'],
+    ['CPV', 'KSA', '2026-06-27T00:00:00Z', 'Houston', 'NRG Stadium'],
+    ['URU', 'ESP', '2026-06-27T00:00:00Z', 'Guadalajara', 'Estadio Akron'],
   ],
   I: [
-    ['FRA', 'SEN', '2026-06-16', 'New York/New Jersey'],
-    ['IRQ', 'NOR', '2026-06-16', 'Boston'],
-    ['FRA', 'IRQ', '2026-06-22', 'Philadelphia'],
-    ['NOR', 'SEN', '2026-06-23', 'Toronto'],
-    ['NOR', 'FRA', '2026-06-26', 'Boston'],
-    ['SEN', 'IRQ', '2026-06-26', 'Toronto'],
+    ['FRA', 'SEN', '2026-06-16T19:00:00Z', 'New York/New Jersey', 'MetLife Stadium'],
+    ['IRQ', 'NOR', '2026-06-16T22:00:00Z', 'Boston', 'Gillette Stadium'],
+    ['FRA', 'IRQ', '2026-06-22T21:00:00Z', 'Philadelphia', 'Lincoln Financial Field'],
+    ['NOR', 'SEN', '2026-06-23T00:00:00Z', 'Philadelphia', 'Lincoln Financial Field'],
+    ['NOR', 'FRA', '2026-06-26T19:00:00Z', 'Boston', 'Gillette Stadium'],
+    ['SEN', 'IRQ', '2026-06-26T19:00:00Z', 'Toronto', 'BMO Field'],
   ],
   J: [
-    ['ARG', 'ALG', '2026-06-17', 'Kansas City'],
-    ['AUT', 'JOR', '2026-06-17', 'San Francisco'],
-    ['ARG', 'AUT', '2026-06-22', 'Dallas'],
-    ['JOR', 'ALG', '2026-06-23', 'San Francisco'],
-    ['ALG', 'AUT', '2026-06-28', 'Kansas City'],
-    ['JOR', 'ARG', '2026-06-28', 'Dallas'],
+    ['ARG', 'ALG', '2026-06-17T01:00:00Z', 'Kansas City', 'Arrowhead Stadium'],
+    ['AUT', 'JOR', '2026-06-17T04:00:00Z', 'San Francisco', "Levi's Stadium"],
+    ['ARG', 'AUT', '2026-06-22T17:00:00Z', 'Dallas', 'AT&T Stadium'],
+    ['JOR', 'ALG', '2026-06-23T03:00:00Z', 'San Francisco', "Levi's Stadium"],
+    ['JOR', 'ARG', '2026-06-28T02:00:00Z', 'Dallas', 'AT&T Stadium'],
+    ['ALG', 'AUT', '2026-06-28T02:00:00Z', 'Kansas City', 'Arrowhead Stadium'],
   ],
   K: [
-    ['POR', 'COD', '2026-06-17', 'Houston'],
-    ['UZB', 'COL', '2026-06-18', 'Mexico City'],
-    ['POR', 'UZB', '2026-06-23', 'Houston'],
-    ['COL', 'COD', '2026-06-24', 'Guadalajara'],
-    ['COL', 'POR', '2026-06-28', 'Miami'],
-    ['COD', 'UZB', '2026-06-28', 'Atlanta'],
+    ['POR', 'COD', '2026-06-17T17:00:00Z', 'Houston', 'NRG Stadium'],
+    ['UZB', 'COL', '2026-06-18T02:00:00Z', 'Mexico City', 'Estadio Azteca'],
+    ['POR', 'UZB', '2026-06-23T17:00:00Z', 'Houston', 'NRG Stadium'],
+    ['COL', 'COD', '2026-06-24T02:00:00Z', 'Guadalajara', 'Estadio Akron'],
+    ['COL', 'POR', '2026-06-27T23:30:00Z', 'Miami', 'Hard Rock Stadium'],
+    ['COD', 'UZB', '2026-06-27T23:30:00Z', 'Atlanta', 'Mercedes-Benz Stadium'],
   ],
   L: [
-    ['ENG', 'CRO', '2026-06-17', 'Dallas'],
-    ['GHA', 'PAN', '2026-06-18', 'Toronto'],
-    ['ENG', 'GHA', '2026-06-23', 'Boston'],
-    ['PAN', 'CRO', '2026-06-24', 'Boston'],
-    ['PAN', 'ENG', '2026-06-27', 'New York/New Jersey'],
-    ['CRO', 'GHA', '2026-06-27', 'Philadelphia'],
+    ['ENG', 'CRO', '2026-06-17T20:00:00Z', 'Dallas', 'AT&T Stadium'],
+    ['GHA', 'PAN', '2026-06-17T23:00:00Z', 'Toronto', 'BMO Field'],
+    ['ENG', 'GHA', '2026-06-23T20:00:00Z', 'Boston', 'Gillette Stadium'],
+    ['PAN', 'CRO', '2026-06-23T23:00:00Z', 'Toronto', 'BMO Field'],
+    ['PAN', 'ENG', '2026-06-27T21:00:00Z', 'New York/New Jersey', 'MetLife Stadium'],
+    ['CRO', 'GHA', '2026-06-27T21:00:00Z', 'Philadelphia', 'Lincoln Financial Field'],
   ],
 }
 
@@ -258,6 +259,26 @@ const KNOCKOUT_SCHEDULE: Record<number, [string, string]> = {
   29: ['2026-07-14', 'Dallas'],
   30: ['2026-07-15', 'Atlanta'],
   31: ['2026-07-19', 'New York/New Jersey'],
+}
+
+// Stadium name for each FIFA host-city label (one WC venue per city)
+const STADIUM_BY_CITY: Record<string, string> = {
+  'Mexico City': 'Estadio Azteca',
+  Guadalajara: 'Estadio Akron',
+  Monterrey: 'Estadio BBVA',
+  Toronto: 'BMO Field',
+  Vancouver: 'BC Place',
+  'San Francisco': "Levi's Stadium",
+  'Los Angeles': 'SoFi Stadium',
+  Seattle: 'Lumen Field',
+  'New York/New Jersey': 'MetLife Stadium',
+  Boston: 'Gillette Stadium',
+  Philadelphia: 'Lincoln Financial Field',
+  Atlanta: 'Mercedes-Benz Stadium',
+  Miami: 'Hard Rock Stadium',
+  Houston: 'NRG Stadium',
+  Dallas: 'AT&T Stadium',
+  'Kansas City': 'Arrowhead Stadium',
 }
 
 function isoAt(dateStr: string, hourUtc = 18): string {
@@ -396,19 +417,21 @@ export async function POST() {
       match_number: number
       scheduled_at: string
       venue: string
+      stadium: string
       sort_order: number
     }[] = []
 
     for (const [letter, fixtures] of Object.entries(GROUP_FIXTURES)) {
       for (let i = 0; i < fixtures.length; i++) {
-        const [homeCode, awayCode, dateStr, venue] = fixtures[i]
+        const [homeCode, awayCode, kickoffUtc, venue, stadium] = fixtures[i]
         groupMatchRecords.push({
           group_id: groupIdByLetter[letter],
           home_team_id: teamIdByCode[homeCode],
           away_team_id: teamIdByCode[awayCode],
           match_number: i + 1,
-          scheduled_at: isoAt(dateStr),
+          scheduled_at: kickoffUtc,
           venue,
+          stadium,
           sort_order: i + 1,
         })
       }
@@ -457,6 +480,7 @@ export async function POST() {
       sort_order: number
       scheduled_at: string | null
       venue: string | null
+      stadium: string | null
     }[] = []
 
     function pushKnockout(
@@ -468,6 +492,7 @@ export async function POST() {
       points: number
     ) {
       const schedule = KNOCKOUT_SCHEDULE[matchNum]
+      const venue = schedule ? schedule[1] : null
       knockoutMatches.push({
         tournament_id: tournamentId,
         round,
@@ -478,7 +503,8 @@ export async function POST() {
         points_value: points,
         sort_order: matchNum,
         scheduled_at: schedule ? isoAt(schedule[0]) : null,
-        venue: schedule ? schedule[1] : null,
+        venue,
+        stadium: venue ? STADIUM_BY_CITY[venue] ?? null : null,
       })
     }
 
