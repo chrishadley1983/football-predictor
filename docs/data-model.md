@@ -85,8 +85,9 @@ ranking, payment, or ownership columns.
 1:1 with tournament. `total_group_stage_goals` — the actual total used for the tiebreaker.
 
 ### `golden_tickets`
-One per entry (UNIQUE). Records a played golden ticket: `original_match_id`, `original_team_id`,
-`new_team_id`, `played_after_round`.
+One per entry (UNIQUE). Records a played **Emergency Sub** (the table keeps the original
+"golden ticket" name): `original_match_id`, `original_team_id`, `new_team_id`,
+`played_after_round`.
 
 ### `player_achievements`
 Earned badges: `badge_type`, `description`, `earned_at`. UNIQUE(entry, badge_type).

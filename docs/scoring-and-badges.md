@@ -1,4 +1,4 @@
-# Scoring, Ranking, Golden Ticket & Badges
+# Scoring, Ranking, Emergency Sub & Badges
 
 All scoring logic lives in `src/lib/scoring.ts`, achievements in `src/lib/achievements.ts`, and
 golden-ticket mechanics in `src/lib/golden-ticket.ts`. Scoring is **recalculated on demand** by
@@ -44,9 +44,11 @@ For each knockout prediction on a **decided** match (one with a `winner_team_id`
 Later rounds carry higher `points_value` (configured per round in `knockout_round_config`), so
 correctly predicting deep runs is worth more.
 
-**Golden-ticket exception:** the specific match a player used their golden ticket on always
-scores **0 points**, even though the swapped-in pick is "correct" by construction. Points only
-resume from the next round onward. Undecided matches are skipped.
+**Emergency Sub exception:** the specific match a player used their Emergency Sub on always
+scores a **−6 point penalty**, even though the swapped-in pick is "correct" by construction.
+Points resume normally from the next round onward. Undecided matches are skipped.
+(The Emergency Sub is the user-facing name for what the code/database still call the "golden
+ticket" — `golden_tickets` table, `golden-ticket.ts`.)
 
 The per-entry total is written to `tournament_entries.knockout_points`.
 
@@ -82,9 +84,10 @@ the same rank, and the next distinct entry skips ahead (e.g. `1, 1, 3`).
 
 ---
 
-## Golden ticket
+## Emergency Sub (a.k.a. golden ticket)
 
-A once-per-tournament retroactive correction for knockout predictions
+The **Emergency Sub** is the user-facing name for a once-per-tournament retroactive correction
+for knockout predictions. The code and database still use the original "golden ticket" naming
 (`src/lib/golden-ticket.ts`, table `golden_tickets`, UNIQUE per entry).
 
 **When the window is open** (`getGoldenTicketWindow`): a round is **fully decided** (every match
@@ -101,11 +104,12 @@ match.
    via `W{matchNumber}` source references) has the player's pick forced to the new team.
 3. An audit row is inserted into `golden_tickets` (original team, new team, round).
 
-**Scoring impact:** the ticket match scores 0 (see above); the cascaded picks score normally
-from the next round.
+**Scoring impact:** the Emergency Sub match scores a **−6 penalty** (see above); the cascaded
+picks score normally from the next round. Using it is a calculated gamble — you fix a wrong
+pick and carry the right team forward, but eat 6 points on the swapped match.
 
-The admin test harness can simulate AI players using golden tickets (`processAIGoldenTickets` in
-`seed-helpers.ts`) with archetype-based probabilities.
+The admin test harness can simulate AI players using the Emergency Sub (`processAIGoldenTickets`
+in `seed-helpers.ts`) with archetype-based probabilities.
 
 ---
 
@@ -130,7 +134,7 @@ badges for the tournament each run). Display metadata (emoji/name/hint) is in
 | **Crystal Ball** | 🔮 | Anyone who correctly predicted the **tournament winner** (the final) |
 | **Giant Killer** | ⚔️ | The **sole** correct predictor of a knockout match |
 | **Hot Streak** | 🔥 | A player with **5+ consecutive** correct knockout picks (ordered by match sort order) |
-| **Golden Touch** | 🎫 | A player whose **golden-ticket** team went on to win its next match |
+| **Golden Touch** | 🎫 | A player whose **Emergency Sub** team went on to win its next match |
 
 ### End-of-tournament badges (only when `status` is `knockout_closed` or `completed`)
 | Badge | Emoji | Awarded to |

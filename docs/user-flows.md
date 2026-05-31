@@ -75,11 +75,12 @@ every picked team actually belongs to the group and that there are no duplicates
 then "Save All Predictions" batches them to `POST …/predictions/knockout`. The API validates that
 each predicted winner is one of the two teams in that match. Locked after the knockout deadline.
 
-### Golden ticket
+### Emergency Sub
 On the knockout page, after a round finishes, `GET …/golden-ticket` returns the window state and
-the player's eligible swaps (their wrong picks in the just-completed round). A gold banner opens
+the player's eligible swaps (their wrong picks in the just-completed round). A banner opens
 the modal → choose a wrong pick → `POST …/golden-ticket` swaps it to the actual winner and
-cascades it forward. One per tournament, irreversible; the ticket match scores 0.
+cascades it forward. One per tournament, irreversible; the swapped match scores a −6 penalty.
+(The API route/table are still named `golden-ticket`/`golden_tickets`.)
 
 ### View predictions / leaderboard / results
 - **Predictions** (hidden until the group deadline): solo & head-to-head analyser with per-group

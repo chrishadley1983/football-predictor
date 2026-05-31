@@ -1,11 +1,13 @@
-# Football Predictor — Functional Documentation
+# Freemo's Prediction Game — Functional Documentation
+
+(Repo: `football-predictor`. The live product is branded **"Freemo's Prediction Game"**.)
 
 A web app for running a **football tournament prediction game** (FIFA World Cup / UEFA Euros)
 among a private group of players. Players pay an entry fee, predict group-stage finishing
 positions and the full knockout bracket, earn points as real results come in, compete on a
-leaderboard, collect achievement badges, get one retroactive "golden ticket" do-over, banter in
-a realtime chat, and read takes from four AI pundit characters. An admin runs the tournament
-lifecycle, enters results, and triggers scoring.
+leaderboard, collect achievement badges, get one retroactive **"Emergency Sub"** do-over (at a
+6-point cost), banter in a realtime chat, and read takes from four AI pundit characters. An
+admin runs the tournament lifecycle, enters results, and triggers scoring.
 
 > **Note on "aims":** the repository contains no committed PRD/spec, though the scoring code
 > references an external "spec section 7.x". This documentation reconstructs the intended
@@ -18,7 +20,7 @@ lifecycle, enters results, and triggers scoring.
 |-----|--------------|
 | [`overview.md`](./overview.md) | Product summary, tech stack, tournament lifecycle, glossary |
 | [`data-model.md`](./data-model.md) | All database tables, columns, relationships, RLS, triggers, views |
-| [`scoring-and-badges.md`](./scoring-and-badges.md) | Group/knockout scoring, tiebreaker, ranking, golden ticket, all 11 badges |
+| [`scoring-and-badges.md`](./scoring-and-badges.md) | Group/knockout scoring, tiebreaker, ranking, Emergency Sub, all 11 badges |
 | [`user-flows.md`](./user-flows.md) | Every page and the end-to-end player journeys |
 | [`api-reference.md`](./api-reference.md) | Every API route: method, auth, inputs, outputs |
 | [`admin-guide.md`](./admin-guide.md) | Admin tools, tournament setup, results entry, test/time-machine harness |

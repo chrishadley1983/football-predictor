@@ -67,7 +67,7 @@ All require `requireAdmin()` and use the service-role client.
 | `POST /api/admin/tournaments/[slug]/seed-results` | Force-complete group stage + walk knockout to a target phase + seed picks + recalc |
 | `POST /api/admin/tournaments/[slug]/reset-test-data` | Requires `{confirm:true}`; deletes predictions/entries/results/honours + test players; resets status |
 | `POST /api/admin/tournaments/[slug]/force-complete` | Force-complete the group stage or one knockout round (simulated) |
-| `POST /api/admin/tournaments/[slug]/time-machine` | One-click reset → seed entries → results → AI golden tickets → scores → achievements to a target phase |
+| `POST /api/admin/tournaments/[slug]/time-machine` | One-click reset → seed entries → results → AI Emergency Subs → scores → achievements to a target phase |
 
 ## Webhooks / cron
 

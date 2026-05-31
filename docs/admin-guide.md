@@ -27,7 +27,7 @@ gated server-side; all admin APIs independently call `requireAdmin()`.
 8. **Open / run the knockout** — advance to `knockout_open`, let players predict, then
    `knockout_closed`. Enter each knockout result; **`game-result` advances the winner** into the
    next bracket match automatically.
-9. **Golden-ticket windows** open automatically between fully-decided rounds (no admin action).
+9. **Emergency Sub windows** open automatically between fully-decided rounds (no admin action).
 10. **Complete** — advance to `completed`. Recalculate scores and achievements; populate the
     **honours** board.
 

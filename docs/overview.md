@@ -2,8 +2,9 @@
 
 ## What the app is for
 
-Football Predictor runs a **sweepstake-style prediction competition** for a major international
-football tournament. It is built for a small, private group (friends/colleagues) — registration
+**Freemo's Prediction Game** (repo: `football-predictor`) runs a **sweepstake-style prediction
+competition** for a major international football tournament. It is built for a small, private
+group (friends/colleagues) — registration
 is open but accounts are auto-confirmed and audit emails go to a single inbox, so it is not a
 public, multi-tenant SaaS.
 
@@ -26,8 +27,9 @@ for the winners and a "Wall of Shame" for the wooden-spoon / worst-tiebreaker aw
 - **Group predictions** — per-group 1st/2nd/3rd selectors plus an optional 3rd-place-qualifier
   mechanism (modern World Cup format) and a goals **tiebreaker** guess.
 - **Knockout predictions** — an interactive bracket; pick the winner of each tie.
-- **Golden ticket** — once per tournament, after a knockout round completes, retroactively swap
-  one wrong pick to the team that actually won; the swap carries forward through the bracket.
+- **Emergency Sub** — once per tournament, after a knockout round completes, retroactively swap
+  one wrong pick to the team that actually won; the swap carries forward through the bracket, at
+  a 6-point cost. (Internally still the "golden ticket": `golden_tickets` / `golden-ticket.ts`.)
 - **Scoring & leaderboard** — automatic group/knockout scoring, multi-criteria ranking, a
   sortable leaderboard, and a side-by-side prediction analyser.
 - **Achievement badges** — 11 badge types (see `scoring-and-badges.md`).
@@ -56,7 +58,7 @@ draft → group_stage_open → group_stage_closed → knockout_open → knockout
 | `group_stage_open` | Entry + group predictions open | Enter tournament; submit/edit group predictions (until deadline) |
 | `group_stage_closed` | Group predictions locked | View others' group predictions; await results |
 | `knockout_open` | Knockout predictions open | Submit/edit bracket picks (until deadline) |
-| `knockout_closed` | Bracket locked | View all predictions; golden-ticket window opens between rounds |
+| `knockout_closed` | Bracket locked | View all predictions; Emergency Sub window opens between rounds |
 | `completed` | Tournament finished | View final leaderboard, honours, badges |
 
 Deadlines (`group_stage_deadline`, `knockout_stage_deadline`) provide a second, time-based lock
@@ -82,4 +84,5 @@ that the prediction APIs enforce independently of status.
   describe how the bracket fills in.
 - **Tiebreaker** — each player guesses the total number of goals in the group stage; the
   absolute difference from the actual total breaks ranking ties.
-- **Golden ticket** — a one-time retroactive correction of a wrong knockout pick.
+- **Emergency Sub** — a one-time retroactive correction of a wrong knockout pick (−6 points on
+  the swapped match). Internally the "golden ticket".
