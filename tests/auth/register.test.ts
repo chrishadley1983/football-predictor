@@ -3,9 +3,11 @@ import { makeFakeAdmin, type FakeAdminClient } from '../helpers/fake-supabase'
 
 let admin: FakeAdminClient
 vi.mock('@/lib/supabase/admin', () => ({ createAdminClient: () => admin }))
-// Audit email is fire-and-forget; stub it so tests don't touch Resend / after().
+// Audit + user emails are fire-and-forget; stub them so tests don't touch Resend / after().
 const scheduleAuditEmail = vi.fn()
+const scheduleUserEmail = vi.fn()
 vi.mock('@/lib/email/audit', () => ({ scheduleAuditEmail: (...a: unknown[]) => scheduleAuditEmail(...a) }))
+vi.mock('@/lib/email/user', () => ({ scheduleUserEmail: (...a: unknown[]) => scheduleUserEmail(...a) }))
 
 import { POST } from '@/app/api/auth/register/route'
 
@@ -17,9 +19,20 @@ function req(body: unknown): Request {
   })
 }
 
+// Mimic Postgres-side defaults the migration added so tests can assert on the
+// unsubscribe_token/notificationsEnabled values that the route forwards to
+// scheduleUserEmail.
+const PLAYER_COLUMN_DEFAULTS = {
+  players: {
+    unsubscribe_token: 'unsub-token-fake-uuid',
+    email_notifications_enabled: true,
+  },
+} as const
+
 beforeEach(() => {
   scheduleAuditEmail.mockClear()
-  admin = makeFakeAdmin({ players: [] })
+  scheduleUserEmail.mockClear()
+  admin = makeFakeAdmin({ players: [] }, { columnDefaults: PLAYER_COLUMN_DEFAULTS })
 })
 
 describe('POST /api/auth/register', () => {
@@ -34,13 +47,31 @@ describe('POST /api/auth/register', () => {
   })
 
   it('201 and inserts a player on success', async () => {
-    admin = makeFakeAdmin({ players: [] })
+    admin = makeFakeAdmin({ players: [] }, { columnDefaults: PLAYER_COLUMN_DEFAULTS })
     const res = await POST(req({ email: 'Ada@B.c', password: 'secret1', displayName: 'Ada', nickname: 'Ace' }))
     expect(res.status).toBe(201)
     expect(admin.tables.players).toHaveLength(1)
     // email is normalised to lowercase/trimmed
     expect(admin.tables.players[0]).toMatchObject({ email: 'ada@b.c', display_name: 'Ada', nickname: 'Ace' })
     expect(scheduleAuditEmail).toHaveBeenCalledOnce()
+  })
+
+  it('schedules a welcome email to the new player on success', async () => {
+    admin = makeFakeAdmin({ players: [] }, { columnDefaults: PLAYER_COLUMN_DEFAULTS })
+    const res = await POST(req({ email: 'Welcome@test.com', password: 'secret1', displayName: 'Welcome User' }))
+    expect(res.status).toBe(201)
+    expect(scheduleUserEmail).toHaveBeenCalledOnce()
+    expect(scheduleUserEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: 'welcome',
+        player: expect.objectContaining({
+          displayName: 'Welcome User',
+          email: 'welcome@test.com',
+          unsubscribeToken: 'unsub-token-fake-uuid',
+          notificationsEnabled: true,
+        }),
+      })
+    )
   })
 
   it('409 when the auth user already exists', async () => {
@@ -66,10 +97,12 @@ describe('POST /api/auth/register', () => {
     // orphaned auth user must be cleaned up
     expect(admin.deletedUsers).toContain('orphan-1')
     expect(scheduleAuditEmail).not.toHaveBeenCalled()
+    // and the welcome email must NOT fire either when registration aborts
+    expect(scheduleUserEmail).not.toHaveBeenCalled()
   })
 
   it('does NOT grant any admin role on registration', async () => {
-    admin = makeFakeAdmin({ players: [] })
+    admin = makeFakeAdmin({ players: [] }, { columnDefaults: PLAYER_COLUMN_DEFAULTS })
     await POST(req({ email: 'plain@b.c', password: 'secret1', displayName: 'Plain' }))
     // the created auth user carries no app_metadata.role — admin must be granted out-of-band
     expect(admin.tables.players[0].auth_user_id).toBeDefined()

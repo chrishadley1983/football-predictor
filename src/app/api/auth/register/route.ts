@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { scheduleAuditEmail } from '@/lib/email/audit'
+import { scheduleUserEmail } from '@/lib/email/user'
 
 type Body = {
   email?: string
@@ -79,7 +80,7 @@ export async function POST(request: Request) {
     )
   }
 
-  // Step 3: fire audit email (fire-and-forget)
+  // Step 3: fire audit email to admin (fire-and-forget)
   scheduleAuditEmail({
     event: 'sign_up',
     player: {
@@ -89,6 +90,20 @@ export async function POST(request: Request) {
       email: player.email,
     },
     createdAt: player.created_at,
+  })
+
+  // Step 4: fire welcome email to the new player (fire-and-forget). Bcc'd to
+  // admin via the helper. Suppressed if the player has somehow already opted
+  // out, though for a brand-new row the default is enabled.
+  scheduleUserEmail({
+    event: 'welcome',
+    player: {
+      id: player.id,
+      displayName: player.display_name,
+      email: player.email,
+      unsubscribeToken: player.unsubscribe_token,
+      notificationsEnabled: player.email_notifications_enabled,
+    },
   })
 
   return NextResponse.json({ ok: true }, { status: 201 })

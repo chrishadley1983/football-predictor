@@ -66,7 +66,12 @@ class QueryBuilder<T = any> implements PromiseLike<{ data: T; error: any }> {
   private rangeFrom: number | null = null
   private rangeTo: number | null = null
 
-  constructor(private tables: Tables, private table: string, private failOn: FailMap = {}) {}
+  constructor(
+    private tables: Tables,
+    private table: string,
+    private failOn: FailMap = {},
+    private columnDefaults: Row = {}
+  ) {}
 
   // ---- operations ----
   select(_projection?: string) {
@@ -214,7 +219,8 @@ class QueryBuilder<T = any> implements PromiseLike<{ data: T; error: any }> {
       const incoming = Array.isArray(this.payload) ? this.payload : [this.payload]
       const inserted: Row[] = []
       for (const r of incoming) {
-        const withId = { id: r.id ?? nextId(), ...r }
+        // Defaults applied first so caller-supplied values win.
+        const withId = { ...this.columnDefaults, id: r.id ?? nextId(), ...r }
         if (withId.id === undefined || withId.id === null) withId.id = nextId()
         store.push(withId)
         inserted.push(withId)
@@ -285,6 +291,13 @@ export interface FakeOptions {
   createUser?: (attrs: Record<string, unknown>) => { data: { user: AuthUser | null }; error: { message: string } | null }
   /** Capture admin.deleteUser calls (rollback tests). */
   deleteUser?: (id: string) => { error: { message: string } | null }
+  /**
+   * Per-table column defaults applied on insert when the caller doesn't supply
+   * the column. Simulates Postgres DEFAULT clauses (e.g. uuid generators,
+   * boolean defaults) so tests can assert on values that production-side would
+   * be populated by the database.
+   */
+  columnDefaults?: Record<string, Row>
 }
 
 export class FakeAdminClient {
@@ -292,7 +305,12 @@ export class FakeAdminClient {
   constructor(public tables: Tables, public options: FakeOptions = {}) {}
 
   from(table: string) {
-    return new QueryBuilder(this.tables, table, this.options.failOn ?? {})
+    return new QueryBuilder(
+      this.tables,
+      table,
+      this.options.failOn ?? {},
+      this.options.columnDefaults?.[table] ?? {}
+    )
   }
 
   auth = {
