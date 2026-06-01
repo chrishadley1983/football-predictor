@@ -1,11 +1,8 @@
 import { NextResponse } from 'next/server'
-import { after } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { requireAuth } from '@/lib/auth'
 import { scheduleAuditEmail } from '@/lib/email/audit'
-import { getResendClient, isAuditEmailEnabled } from '@/lib/email/client'
-import { AUDIT_FROM, AUDIT_RECIPIENTS } from '@/lib/email/recipients'
-import { renderPredictionConfirmation } from '@/lib/email/templates/prediction-confirmation'
+import { scheduleUserEmail } from '@/lib/email/user'
 import type { GroupPredictionChange, GroupPredictionSnapshot } from '@/lib/email/audit'
 
 // GET: Get player's group predictions
@@ -272,7 +269,14 @@ export async function POST(
 
 async function fireGroupPredictionsAudit(opts: {
   supabase: Awaited<ReturnType<typeof createClient>>
-  player: { id: string; display_name: string; nickname: string | null; email: string }
+  player: {
+    id: string
+    display_name: string
+    nickname: string | null
+    email: string
+    unsubscribe_token: string
+    email_notifications_enabled: boolean
+  }
   tournament: { id: string; name: string; slug: string; year: number }
   diffs: Diff[]
   oldTiebreaker: number | null
@@ -356,30 +360,28 @@ async function fireGroupPredictionsAudit(opts: {
       : null,
   })
 
-  // Send prediction confirmation email to the player (CC admin)
-  after(async () => {
-    try {
-      if (!isAuditEmailEnabled()) return
-      const resend = getResendClient()
-      if (!resend) return
+  // First submission = every diff had no prior row. Drives subject/heading wording.
+  const isFirstSubmission = diffs.every((d) => d.old === null)
 
-      const { subject, html, text } = renderPredictionConfirmation({
-        playerName: player.display_name,
-        tournamentName: tournament.name,
-        changes,
-        tiebreaker: newTiebreaker,
-      })
-
-      await resend.emails.send({
-        from: AUDIT_FROM,
-        to: [player.email],
-        cc: [...AUDIT_RECIPIENTS],
-        subject,
-        html,
-        text,
-      })
-    } catch (err) {
-      console.error('[prediction-confirmation] email failed', err)
-    }
+  // Send confirmation to the player. Honours opt-out, uses PLAYER_EMAIL_FROM,
+  // bcc'd to admin via the helper for traceability.
+  scheduleUserEmail({
+    event: 'group_predictions_confirmation',
+    player: {
+      id: player.id,
+      displayName: player.display_name,
+      email: player.email,
+      unsubscribeToken: player.unsubscribe_token,
+      notificationsEnabled: player.email_notifications_enabled,
+    },
+    tournament: {
+      id: tournament.id,
+      name: tournament.name,
+      slug: tournament.slug,
+      year: tournament.year,
+    },
+    changes,
+    tiebreaker: newTiebreaker,
+    isFirstSubmission,
   })
 }

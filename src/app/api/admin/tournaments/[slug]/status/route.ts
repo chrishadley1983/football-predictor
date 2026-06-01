@@ -1,7 +1,12 @@
-import { NextResponse } from 'next/server'
+import { NextResponse, after } from 'next/server'
 import { requireAdmin } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { scheduleAuditEmail } from '@/lib/email/audit'
+import { sendUserBroadcast } from '@/lib/email/user'
+import {
+  buildKnockoutOpenEvents,
+  buildTournamentCompletedEvents,
+} from '@/lib/email/broadcasts'
 import type { TournamentStatus } from '@/lib/types'
 
 const VALID_STATUSES: TournamentStatus[] = [
@@ -76,6 +81,22 @@ export async function PATCH(
       return NextResponse.json({ error: error.message }, { status: 400 })
     }
 
+    // Player-facing broadcasts on key transitions. Built before the audit email
+    // so we can include the recipient count in the admin summary.
+    const newStatus = body.status as TournamentStatus
+    let broadcastRecipients = 0
+    if (newStatus === 'knockout_open') {
+      const events = await buildKnockoutOpenEvents(admin, tournament.id)
+      broadcastRecipients = events.length
+      // Defer the actual send so the HTTP response flushes first; sendUserBroadcast
+      // never rejects, all errors are logged.
+      after(() => sendUserBroadcast(events))
+    } else if (newStatus === 'completed') {
+      const events = await buildTournamentCompletedEvents(admin, tournament.id)
+      broadcastRecipients = events.length
+      after(() => sendUserBroadcast(events))
+    }
+
     scheduleAuditEmail({
       event: 'admin_action',
       action: 'status_change',
@@ -85,8 +106,15 @@ export async function PATCH(
         slug: tournament.slug,
         year: tournament.year,
       },
-      summary: `Tournament status ${currentStatus} → ${body.status}`,
-      details: { old_status: currentStatus, new_status: body.status },
+      summary:
+        broadcastRecipients > 0
+          ? `Tournament status ${currentStatus} → ${body.status}. Broadcast sent to ${broadcastRecipients} player${broadcastRecipients === 1 ? '' : 's'}.`
+          : `Tournament status ${currentStatus} → ${body.status}`,
+      details: {
+        old_status: currentStatus,
+        new_status: body.status,
+        broadcast_recipients: broadcastRecipients,
+      },
     })
 
     return NextResponse.json(updated)

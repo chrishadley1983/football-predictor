@@ -140,6 +140,8 @@ export interface Player {
   nickname: string | null
   email: string
   avatar_url: string | null
+  email_notifications_enabled: boolean
+  unsubscribe_token: string
   created_at: string
 }
 

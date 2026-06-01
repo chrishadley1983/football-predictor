@@ -1,8 +1,10 @@
-import { NextResponse } from 'next/server'
+import { NextResponse, after } from 'next/server'
 import { requireAdmin } from '@/lib/auth'
 import { testHarnessDisabledResponse } from '@/lib/test-harness-guard'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { scheduleAuditEmail } from '@/lib/email/audit'
+import { sendUserBroadcast } from '@/lib/email/user'
+import { buildTournamentCompletedEvents } from '@/lib/email/broadcasts'
 import {
   forceCompleteGroupStageLogic,
   forceCompleteKnockoutRoundLogic,
@@ -98,6 +100,11 @@ export async function POST(
             .from('tournaments')
             .update({ status: 'completed' })
             .eq('id', tournament.id)
+
+          // Fan out the tournament-completed announcement to every non-refunded entry.
+          // Same shape the status PATCH route uses on a manual transition to completed.
+          const events = await buildTournamentCompletedEvents(admin, tournament.id)
+          after(() => sendUserBroadcast(events))
         }
 
         scheduleAuditEmail({

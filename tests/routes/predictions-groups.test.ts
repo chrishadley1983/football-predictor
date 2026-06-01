@@ -2,16 +2,19 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { makeFakeServer, type FakeAdminClient, type Tables } from '../helpers/fake-supabase'
 
 let server: FakeAdminClient
-const player = { id: 'p1', display_name: 'Ada', nickname: null, email: 'a@b.c' }
+const player = {
+  id: 'p1',
+  display_name: 'Ada',
+  nickname: null,
+  email: 'a@b.c',
+  unsubscribe_token: 'unsub-p1',
+  email_notifications_enabled: true,
+}
+const scheduleUserEmail = vi.fn()
 vi.mock('@/lib/auth', () => ({ requireAuth: async () => player }))
 vi.mock('@/lib/supabase/server', () => ({ createClient: async () => server }))
 vi.mock('@/lib/email/audit', () => ({ scheduleAuditEmail: vi.fn(), sendAuditEmail: vi.fn() }))
-// The route uses next/server's after() for the player confirmation email, which
-// throws outside a request scope. Keep NextResponse real; stub after().
-vi.mock('next/server', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('next/server')>()
-  return { ...actual, after: () => {} }
-})
+vi.mock('@/lib/email/user', () => ({ scheduleUserEmail: (...a: unknown[]) => scheduleUserEmail(...a) }))
 
 import { POST } from '@/app/api/tournaments/[slug]/predictions/groups/route'
 
@@ -40,6 +43,7 @@ const goodPred = { predictions: [{ group_id: 'g1', predicted_1st: 'A', predicted
 
 beforeEach(() => {
   server = makeFakeServer(seed())
+  scheduleUserEmail.mockClear()
 })
 
 describe('POST predictions/groups — gating', () => {
@@ -104,5 +108,29 @@ describe('POST predictions/groups — success', () => {
     expect(res.status).toBe(200)
     expect(server.tables.group_predictions).toHaveLength(1)
     expect(server.tables.group_predictions[0]).toMatchObject({ id: 'gp1', predicted_1st: 'A', predicted_2nd: 'B', points_earned: 3 })
+  })
+
+  it('schedules a confirmation email to the player with isFirstSubmission=true', async () => {
+    await POST(req(goodPred), params)
+    expect(scheduleUserEmail).toHaveBeenCalledOnce()
+    expect(scheduleUserEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: 'group_predictions_confirmation',
+        isFirstSubmission: true,
+        tiebreaker: 120,
+        player: expect.objectContaining({
+          email: 'a@b.c',
+          unsubscribeToken: 'unsub-p1',
+          notificationsEnabled: true,
+        }),
+      })
+    )
+  })
+
+  it('marks isFirstSubmission=false when a prediction already existed', async () => {
+    server = makeFakeServer(seed({ group_predictions: [{ id: 'gp1', entry_id: 'e1', group_id: 'g1', predicted_1st: 'B', predicted_2nd: 'A', predicted_3rd: 'C', points_earned: 3 }] }))
+    await POST(req(goodPred), params)
+    expect(scheduleUserEmail).toHaveBeenCalledOnce()
+    expect(scheduleUserEmail).toHaveBeenCalledWith(expect.objectContaining({ isFirstSubmission: false }))
   })
 })

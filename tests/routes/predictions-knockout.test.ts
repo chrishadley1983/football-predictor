@@ -2,14 +2,19 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { makeFakeServer, type FakeAdminClient, type Tables } from '../helpers/fake-supabase'
 
 let server: FakeAdminClient
-const player = { id: 'p1', display_name: 'Ada', nickname: null, email: 'a@b.c' }
+const player = {
+  id: 'p1',
+  display_name: 'Ada',
+  nickname: null,
+  email: 'a@b.c',
+  unsubscribe_token: 'unsub-p1',
+  email_notifications_enabled: true,
+}
+const scheduleUserEmail = vi.fn()
 vi.mock('@/lib/auth', () => ({ requireAuth: async () => player }))
 vi.mock('@/lib/supabase/server', () => ({ createClient: async () => server }))
 vi.mock('@/lib/email/audit', () => ({ scheduleAuditEmail: vi.fn(), sendAuditEmail: vi.fn() }))
-vi.mock('next/server', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('next/server')>()
-  return { ...actual, after: () => {} }
-})
+vi.mock('@/lib/email/user', () => ({ scheduleUserEmail: (...a: unknown[]) => scheduleUserEmail(...a) }))
 
 import { POST } from '@/app/api/tournaments/[slug]/predictions/knockout/route'
 
@@ -30,6 +35,7 @@ function seed(overrides: Partial<Tables> = {}): Tables {
 
 beforeEach(() => {
   server = makeFakeServer(seed())
+  scheduleUserEmail.mockClear()
 })
 
 describe('POST predictions/knockout', () => {
@@ -53,5 +59,21 @@ describe('POST predictions/knockout', () => {
     expect(res.status).toBe(200)
     expect(server.tables.knockout_predictions).toHaveLength(1)
     expect(server.tables.knockout_predictions[0]).toMatchObject({ entry_id: 'e1', match_id: 'm1', predicted_winner_id: 'A' })
+  })
+
+  it('schedules a knockout confirmation email to the player', async () => {
+    await POST(req({ predictions: [{ match_id: 'm1', predicted_winner_id: 'A' }] }), params)
+    expect(scheduleUserEmail).toHaveBeenCalledOnce()
+    expect(scheduleUserEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: 'knockout_predictions_confirmation',
+        isFirstSubmission: true,
+        player: expect.objectContaining({
+          email: 'a@b.c',
+          unsubscribeToken: 'unsub-p1',
+          notificationsEnabled: true,
+        }),
+      })
+    )
   })
 })

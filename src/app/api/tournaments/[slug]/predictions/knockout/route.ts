@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { requireAuth } from '@/lib/auth'
 import { scheduleAuditEmail } from '@/lib/email/audit'
+import { scheduleUserEmail } from '@/lib/email/user'
 import type { KnockoutPredictionChange } from '@/lib/email/audit'
 
 // GET: Get player's knockout predictions
@@ -249,7 +250,14 @@ export async function POST(
 
 async function fireKnockoutPredictionsAudit(opts: {
   supabase: Awaited<ReturnType<typeof createClient>>
-  player: { id: string; display_name: string; nickname: string | null; email: string }
+  player: {
+    id: string
+    display_name: string
+    nickname: string | null
+    email: string
+    unsubscribe_token: string
+    email_notifications_enabled: boolean
+  }
   tournament: { id: string; name: string; slug: string; year: number }
   diffs: Diff[]
   matches: MatchInfo[]
@@ -307,5 +315,27 @@ async function fireKnockoutPredictionsAudit(opts: {
       year: tournament.year,
     },
     changes,
+  })
+
+  // First submission when every diff had no prior pick. Drives subject wording.
+  const isFirstSubmission = diffs.every((d) => d.old === null)
+
+  scheduleUserEmail({
+    event: 'knockout_predictions_confirmation',
+    player: {
+      id: player.id,
+      displayName: player.display_name,
+      email: player.email,
+      unsubscribeToken: player.unsubscribe_token,
+      notificationsEnabled: player.email_notifications_enabled,
+    },
+    tournament: {
+      id: tournament.id,
+      name: tournament.name,
+      slug: tournament.slug,
+      year: tournament.year,
+    },
+    changes,
+    isFirstSubmission,
   })
 }
