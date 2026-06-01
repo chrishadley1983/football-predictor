@@ -1,7 +1,15 @@
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { Card } from '@/components/ui/Card'
-import type { Tournament } from '@/lib/types'
+import type { Tournament, KnockoutRoundConfig } from '@/lib/types'
+
+const ROUND_LABELS: Record<string, string> = {
+  round_of_32: 'Round of 32',
+  round_of_16: 'Round of 16',
+  quarter_final: 'Quarter-Finals',
+  semi_final: 'Semi-Finals',
+  final: 'Final',
+}
 
 export default async function RulesPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
@@ -17,6 +25,31 @@ export default async function RulesPage({ params }: { params: Promise<{ slug: st
   if (!tournament) notFound()
 
   const t = tournament as Tournament
+
+  // Maxes are computed from this tournament's actual config so the numbers
+  // stay accurate across formats (WC2026 = 64+80=144, Euros 2024 = 32+64=96, etc.)
+  const { data: groupsData } = await supabase
+    .from('groups')
+    .select('id')
+    .eq('tournament_id', t.id)
+  const groupCount = groupsData?.length ?? 0
+  const thirdPlaceQualifiers = t.third_place_qualifiers_count ?? groupCount
+
+  // 2 points per correctly-positioned qualifier: top 2 from every group + any
+  // configured third-place qualifiers. Formula: (groups × 2 top spots × 2 pts)
+  // + (third-place qualifiers × 2 pts).
+  const groupMax = groupCount * 4 + thirdPlaceQualifiers * 2
+
+  const { data: roundConfig } = await supabase
+    .from('knockout_round_config')
+    .select('*')
+    .eq('tournament_id', t.id)
+    .order('sort_order', { ascending: true })
+
+  const rounds: KnockoutRoundConfig[] = roundConfig ?? []
+  const knockoutMax = rounds.reduce((sum, r) => sum + r.points_value * r.match_count, 0)
+  const knockoutBreakdown = rounds.map((r) => `${r.match_count}×${r.points_value}`).join(' + ')
+  const totalMax = groupMax + knockoutMax
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -44,7 +77,8 @@ export default async function RulesPage({ params }: { params: Promise<{ slug: st
             </tbody>
           </table>
           <p className="text-xs text-text-muted">
-            Maximum: 2 points per qualifying team predicted correctly in the right position.
+            Maximum group-stage points: <strong className="text-foreground">{groupMax}</strong>
+            {' '}({groupCount} groups × 2 spots × 2 points{thirdPlaceQualifiers > 0 ? ` + ${thirdPlaceQualifiers} 3rd-place qualifiers × 2 points` : ''}).
           </p>
         </div>
       </Card>
@@ -60,32 +94,26 @@ export default async function RulesPage({ params }: { params: Promise<{ slug: st
               </tr>
             </thead>
             <tbody className="divide-y divide-border-custom">
-              <tr>
-                <td className="py-2">Round of 32</td>
-                <td className="py-2 text-right font-bold">1 point</td>
-              </tr>
-              <tr>
-                <td className="py-2">Round of 16</td>
-                <td className="py-2 text-right font-bold">2 points</td>
-              </tr>
-              <tr>
-                <td className="py-2">Quarter-Finals</td>
-                <td className="py-2 text-right font-bold">4 points</td>
-              </tr>
-              <tr>
-                <td className="py-2">Semi-Finals</td>
-                <td className="py-2 text-right font-bold">8 points</td>
-              </tr>
-              <tr>
-                <td className="py-2">Final</td>
-                <td className="py-2 text-right font-bold">16 points</td>
-              </tr>
+              {rounds.length > 0 ? (
+                rounds.map((r) => (
+                  <tr key={r.id}>
+                    <td className="py-2">{ROUND_LABELS[r.round] ?? r.round}</td>
+                    <td className="py-2 text-right font-bold">{r.points_value} {r.points_value === 1 ? 'point' : 'points'}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td className="py-2" colSpan={2}>Knockout configuration not yet set.</td>
+                </tr>
+              )}
             </tbody>
           </table>
-          <p className="text-xs text-text-muted">
-            Maximum knockout points: 80 (16x1 + 8x2 + 4x4 + 2x8 + 1x16).
-            Maximum total: 112 points (32 group + 80 knockout).
-          </p>
+          {knockoutMax > 0 && (
+            <p className="text-xs text-text-muted">
+              Maximum knockout points: <strong className="text-foreground">{knockoutMax}</strong>{knockoutBreakdown ? ` (${knockoutBreakdown})` : ''}.
+              Maximum total: <strong className="text-foreground">{totalMax}</strong> points ({groupMax} group + {knockoutMax} knockout).
+            </p>
+          )}
         </div>
       </Card>
 

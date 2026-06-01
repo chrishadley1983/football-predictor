@@ -135,6 +135,14 @@ export default function GroupPredictionPage() {
     setError('')
     setSuccessMsg('')
 
+    // Tiebreaker is required: an unanswered tiebreaker leaves us with no way to
+    // separate level-on-points entries at the end of the group stage.
+    if (!tiebreaker.trim()) {
+      setError('Please enter the tiebreaker (your predicted total group-stage goals) before submitting.')
+      setSaving(false)
+      return
+    }
+
     const hasThirdPlaceFeature = (tournament?.third_place_qualifiers_count ?? null) !== null
 
     // Build predictions array from drafts
@@ -214,6 +222,15 @@ export default function GroupPredictionPage() {
   const selectedCount = Object.values(thirdPlaceSelections).filter(Boolean).length
   const limitReached = thirdPlaceCount !== null && selectedCount >= thirdPlaceCount
 
+  // Total group-stage matches = sum across groups of n*(n-1)/2 where n is the
+  // number of teams. Lets the tiebreaker hint state "There are 72 group games"
+  // dynamically — works for any tournament shape (WC2026 = 12×6 = 72,
+  // Euros 2024 = 6×6 = 36, etc.).
+  const groupMatchCount = groups.reduce((sum, g) => {
+    const n = g.group_teams?.length ?? 0
+    return sum + (n * (n - 1)) / 2
+  }, 0)
+
   // Count how many groups have complete predictions in drafts
   const hasThirdPlaceFeature = thirdPlaceCount !== null
   const completedGroups = groups.filter((g) => {
@@ -286,7 +303,7 @@ export default function GroupPredictionPage() {
       </div>
 
       {/* Tiebreaker */}
-      <Card header={<h2 className="font-semibold text-foreground">Tiebreaker</h2>}>
+      <Card header={<h2 className="font-semibold text-foreground">Tiebreaker <span className="text-xs font-normal text-red-accent">(required)</span></h2>}>
         <div className="flex-1">
           <Input
             label="Total goals scored in the group stage"
@@ -298,6 +315,11 @@ export default function GroupPredictionPage() {
             disabled={isReadonly}
             placeholder="e.g. 120"
           />
+          {groupMatchCount > 0 && (
+            <p className="mt-2 text-xs text-text-muted">
+              There {groupMatchCount === 1 ? 'is' : 'are'} <strong className="text-foreground">{groupMatchCount}</strong> group {groupMatchCount === 1 ? 'game' : 'games'} in this tournament — take a guess at the combined total goals scored across all of them.
+            </p>
+          )}
         </div>
       </Card>
 
@@ -307,8 +329,10 @@ export default function GroupPredictionPage() {
           <Button
             onClick={handleSubmitAll}
             loading={saving}
+            disabled={!tiebreaker.trim()}
             size="lg"
             className="w-full shadow-lg shadow-black/30"
+            title={!tiebreaker.trim() ? 'Enter the tiebreaker first' : undefined}
           >
             {groupProgress.title} ({completedGroups}/{groups.length} groups)
           </Button>
