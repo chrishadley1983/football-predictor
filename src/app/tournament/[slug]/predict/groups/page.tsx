@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { GroupPredictionCard } from '@/components/groups/GroupPredictionCard'
 import { Button } from '@/components/ui/Button'
@@ -17,6 +17,7 @@ interface TournamentData extends Tournament {
 
 export default function GroupPredictionPage() {
   const { slug } = useParams<{ slug: string }>()
+  const router = useRouter()
   const [tournament, setTournament] = useState<TournamentData | null>(null)
   const [entry, setEntry] = useState<TournamentEntry | null>(null)
   const [predictions, setPredictions] = useState<GroupPrediction[]>([])
@@ -28,7 +29,6 @@ export default function GroupPredictionPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-  const [successMsg, setSuccessMsg] = useState('')
 
   useEffect(() => {
     async function load() {
@@ -133,7 +133,6 @@ export default function GroupPredictionPage() {
     if (!entry || isReadonly) return
     setSaving(true)
     setError('')
-    setSuccessMsg('')
 
     // Tiebreaker is required: an unanswered tiebreaker leaves us with no way to
     // separate level-on-points entries at the end of the group stage.
@@ -184,34 +183,7 @@ export default function GroupPredictionPage() {
       return
     }
 
-    // Update local predictions state
-    setPredictions((prev) => {
-      const updated = [...prev]
-      for (const payload of predictionPayload) {
-        if (!payload) continue
-        const idx = updated.findIndex((p) => p.group_id === payload.group_id)
-        const newPred: GroupPrediction = {
-          id: idx >= 0 ? updated[idx].id : '',
-          entry_id: entry.id,
-          group_id: payload.group_id,
-          predicted_1st: payload.predicted_1st,
-          predicted_2nd: payload.predicted_2nd,
-          predicted_3rd: payload.predicted_3rd,
-          points_earned: idx >= 0 ? updated[idx].points_earned : 0,
-          submitted_at: new Date().toISOString(),
-        }
-        if (idx >= 0) {
-          updated[idx] = newPred
-        } else {
-          updated.push(newPred)
-        }
-      }
-      return updated
-    })
-
-    setSuccessMsg('All predictions saved!')
-    setTimeout(() => setSuccessMsg(''), 3000)
-    setSaving(false)
+    router.push(`/tournament/${slug}`)
   }
 
   if (loading) return <p className="py-12 text-center text-text-muted">Loading...</p>
@@ -269,9 +241,6 @@ export default function GroupPredictionPage() {
 
       {error && (
         <div className="rounded-md bg-red-accent/10 p-3 text-sm text-red-accent">{error}</div>
-      )}
-      {successMsg && (
-        <div className="rounded-md bg-green-accent/10 p-3 text-sm text-green-accent">{successMsg}</div>
       )}
 
       {thirdPlaceCount !== null && (

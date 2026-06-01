@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { KnockoutBracket } from '@/components/bracket/KnockoutBracket'
 import { GoldenTicketModal } from '@/components/bracket/GoldenTicketModal'
@@ -17,13 +17,13 @@ interface TournamentData extends Tournament {
 
 export default function KnockoutPredictionPage() {
   const { slug } = useParams<{ slug: string }>()
+  const router = useRouter()
   const [tournament, setTournament] = useState<TournamentData | null>(null)
   const [predictions, setPredictions] = useState<KnockoutPrediction[]>([])
   const [entryId, setEntryId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-  const [successMsg, setSuccessMsg] = useState('')
   // Track unsaved changes: matchId -> teamId
   const [pendingPredictions, setPendingPredictions] = useState<Record<string, string>>({})
   // Golden ticket state
@@ -138,7 +138,6 @@ export default function KnockoutPredictionPage() {
     if (!entryId || Object.keys(pendingPredictions).length === 0) return
     setSaving(true)
     setError('')
-    setSuccessMsg('')
 
     const predictionsPayload = Object.entries(pendingPredictions).map(
       ([matchId, teamId]) => ({
@@ -160,10 +159,7 @@ export default function KnockoutPredictionPage() {
       return
     }
 
-    setPendingPredictions({})
-    setSuccessMsg('All predictions saved!')
-    setTimeout(() => setSuccessMsg(''), 3000)
-    setSaving(false)
+    router.push(`/tournament/${slug}`)
   }
 
   if (loading) return <p className="py-12 text-center text-text-muted">Loading bracket...</p>
@@ -199,9 +195,6 @@ export default function KnockoutPredictionPage() {
 
       {error && (
         <div className="rounded-md bg-red-accent/10 p-3 text-sm text-red-accent">{error}</div>
-      )}
-      {successMsg && (
-        <div className="rounded-md bg-green-accent/10 p-3 text-sm text-green-accent">{successMsg}</div>
       )}
 
       <KnockoutBracket

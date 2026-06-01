@@ -12,9 +12,47 @@ recommended fix. Findings marked **✅ verified** were confirmed directly in sou
 
 ---
 
+## Status summary (as of 2026-05-31)
+
+The bulk of the findings were addressed in the batch landed on `main` alongside this document.
+Re-verified by inspection of the current source.
+
+| ID | Severity | Status |
+|----|----------|--------|
+| **H1** Chat UPDATE policy open to all users | High | ✅ **Fixed** — `supabase/migrations/20260531000001_fix_chat_update_policy.sql` (now `USING (is_admin())`) |
+| **H2** Broken `/register` & `/login` CTAs | High | ✅ **Fixed** — all references rewritten to `/auth/register` and `/auth/login` |
+| **M1** `setup` produces no bracket for unsupported group counts | Medium | ✅ **Fixed** — `setup/route.ts` validates `SUPPORTED_GROUP_COUNTS = [6, 8, 12]` and returns 422 before any destructive write |
+| **M2** Bulk `…/results` didn't advance knockout winners | Medium | ✅ **Fixed** — `tournaments/[slug]/results/route.ts` now calls `advanceWinnerLogic` per match; both result paths also verify the row belongs to the tournament |
+| **M3** Destructive routes guarded only by `requireAdmin` | Medium | ✅ **Fixed** — new `src/lib/test-harness-guard.ts`; applied to `time-machine`, `seed-results`, `seed-entries`, `reset-test-data`, `generate-punditry`, `force-complete`. Returns 403 unless `ENABLE_TEST_HARNESS=true` or `NODE_ENV !== 'production'` |
+| **M4** No input validation library; admin/seed routes trust body | Medium | ❌ **Outstanding** — `zod` still absent from `package.json`. Some ad-hoc hardening landed (FK-belongs-to-tournament checks in game-result and bulk results), but no shared schema layer |
+| **M5** Hardcoded prod webhook URL in migration | Medium | ✅ **Fixed** — `supabase/migrations/20260531000002_chat_audit_webhook_url_from_vault.sql`; webhook URL now read from Vault (`chat_audit_webhook_url` secret), missing secret skips the call |
+| **M6** 1,000-row Supabase cap ignored | Medium | ✅ **Fixed** — new `src/lib/supabase/fetch-all.ts` (`fetchAllRows` paginator); used in `scoring.ts`, `achievements.ts`, the predictions page, `predictions/all` route, and the leaderboard route |
+| **L1** `stripMarkdown` never strips images | Low | ✅ **Fixed** — `utils.ts` now runs the image regex before links |
+| **L2** Public `GET …/pundit` could 500 | Low | ✅ **Fixed** — `pundit/route.ts` null-guards `PUNDITS[punditKey]` and falls back to an empty 200 |
+| **L3** Auth callback `next` not restricted to relative paths | Low | ✅ **Fixed** — `callback/route.ts` regex rejects `//` and `/\` |
+| **L4** Webhook/cron secrets compared with plain `===` | Low | ✅ **Fixed** — new `src/lib/secure-compare.ts` (SHA-256 + `timingSafeEqual`); used in `webhooks/chat-message` and `generate-punditry` |
+| **L5** Tenor (GIF) API key hardcoded client-side | Low | ❌ **Outstanding** — still committed at `GifPicker.tsx:18` |
+| **L6** No global loading / error / not-found UI | Low | ❌ **Outstanding** — no `loading.tsx` / `error.tsx` / `not-found.tsx` under `src/app/` |
+| **L7** Logged-out users on prediction pages see a bare error | Low | ❌ **Outstanding** — not specifically addressed in the recent batch |
+| **L8** Navbar unread poll closes over stale state | Low | ✅ **Fixed** — `Navbar.tsx` now reads from `playerIdRef.current` |
+| **L9** Honours has no DB-level uniqueness | Low | ❌ **Outstanding** — no new constraint; uniqueness still app-enforced |
+| **L10** Dead/confusing code in chat | Low | ✅ **Fixed** — no-op ternary removed; the `setMessages` block is now a real de-dupe |
+
+**Outstanding:** M4, L5, L6, L7, L9 (5 of 18 — all Medium or Low).
+
+A test suite covering most of the pure game logic (68+ tests under `tests/`) also landed in the
+same batch; route-handler tests and an RLS regression suite remain on the "to do" list from
+[Test & quality recommendations](#test--quality-recommendations) below.
+
+The detailed findings below are kept as a historical record — each is prefixed with its current
+status. Severity, location, and reasoning are unchanged from the original review.
+
+---
+
 ## Critical / High
 
-### H1 — Any authenticated user can edit, pin, or delete-content of *any* chat message ✅ verified
+### H1 — Any authenticated user can edit, pin, or delete-content of *any* chat message
+**Status:** ✅ **Fixed** in `supabase/migrations/20260531000001_fix_chat_update_policy.sql` — policy now `USING (is_admin()) WITH CHECK (is_admin())`.
 **Where:** `supabase/migrations/20260228200000_chat_phase2_3.sql:94-98`
 ```sql
 CREATE POLICY "Admins can update messages"
@@ -33,7 +71,8 @@ the database does not enforce that, so a crafted request bypasses the UI.
 edit *their own* messages, add a separate, narrow self-update policy
 (`USING (player_id = get_player_id())`) limited to the `content` column via a trigger.
 
-### H2 — Two primary call-to-action links 404 ✅ verified
+### H2 — Two primary call-to-action links 404
+**Status:** ✅ **Fixed** — both `src/app/page.tsx` and `src/app/tournament/[slug]/chat/page.tsx` now use `/auth/register` and `/auth/login`.
 **Where:** `src/app/page.tsx:65` (`href="/register"`) and
 `src/app/tournament/[slug]/chat/page.tsx:54` (`href="/login"`).
 **Problem:** the real routes are `/auth/register` and `/auth/login` (the navbar uses the correct
@@ -48,6 +87,7 @@ getting players in.
 ## Medium
 
 ### M1 — Tournament `setup` silently produces no bracket for unsupported group counts
+**Status:** ✅ **Fixed** — `setup/route.ts` validates `SUPPORTED_GROUP_COUNTS = [6, 8, 12]` up-front and returns 422 before the destructive delete-and-recreate runs.
 **Where:** `src/app/api/admin/tournaments/[slug]/setup/route.ts` (bracket generation branches on
 `groups.length` ∈ {6, 8, 12}; no `else`).
 **Problem:** if an admin configures any other number of groups, teams/groups are created but **no
@@ -58,6 +98,7 @@ nothing to predict. Contradicts the aim of a complete, runnable competition.
 supported counts; or generalise bracket generation.
 
 ### M2 — Two result-entry paths with different behaviour invite inconsistent brackets
+**Status:** ✅ **Fixed** — `tournaments/[slug]/results/route.ts` now calls `advanceWinnerLogic` per match (parity with `game-result`), and both paths scope the match to the tournament.
 **Where:** `POST …/game-result` advances the knockout winner into the next match;
 `POST …/tournaments/[slug]/results` (bulk) does **not**.
 **Problem:** functional overlap with a silent semantic difference. Using the bulk path for
@@ -68,6 +109,7 @@ correctness risk for the core game.
 document the difference loudly in the admin UI.
 
 ### M3 — Destructive seed/reset routes run against live data, guarded only by `requireAdmin`
+**Status:** ✅ **Fixed** — new `src/lib/test-harness-guard.ts` (`testHarnessDisabledResponse()`) returns 403 unless `ENABLE_TEST_HARNESS=true` or `NODE_ENV !== 'production'`. Applied to `time-machine`, `seed-results`, `seed-entries`, `reset-test-data`, `generate-punditry`, and `force-complete`.
 **Where:** `…/reset-test-data` (mass deletes incl. `players.email LIKE '%@test.predictor.local'`),
 `…/seed-*`, `…/time-machine`, `…/setup` (delete-and-recreate).
 **Problem:** these perform mass deletes in the same app/database as production. `reset-test-data`
@@ -78,6 +120,7 @@ Against the aim of a dependable competition of record.
 require typed confirmation on all destructive routes; never expose them in a production build.
 
 ### M4 — No input validation library; admin/seed routes trust the request body
+**Status:** ❌ **Outstanding** — `zod` is still not a dependency. The specific `game-result` cross-tournament gap called out below was fixed (the handler now verifies `group_id` belongs to the tournament), and the bulk `results` path likewise scopes by tournament, but other admin routes remain hand-validated without a shared schema layer.
 **Where:** all routes (no Zod). Player-write routes validate by hand reasonably well; admin/setup
 routes largely `as`-cast the body (e.g. `setup`, `game-result`).
 **Problem:** the project's sibling conventions (and good practice) call for schema validation.
@@ -88,6 +131,7 @@ possible. Lower likelihood (admin-only) but high blast radius.
 tournament.
 
 ### M5 — Hardcoded production webhook URL in a migration
+**Status:** ✅ **Fixed** — `supabase/migrations/20260531000002_chat_audit_webhook_url_from_vault.sql` rewrites `chat_messages_audit_notify()` to read the URL from a `chat_audit_webhook_url` Vault secret per environment; missing secret skips the call (no cross-env leakage).
 **Where:** `supabase/migrations/20260421120000_chat_audit_webhook.sql:33` — `net.http_post` to
 `https://football-predictor-six.vercel.app/...`.
 **Problem:** every database this migration runs against (preview branches, a forked dev DB, the
@@ -96,6 +140,7 @@ tournament.
 **Fix:** read the target URL from Vault/GUC like the secret already is, set per environment.
 
 ### M6 — Pagination / 1,000-row cap ignored on growing tables
+**Status:** ✅ **Fixed** — new `src/lib/supabase/fetch-all.ts` (`fetchAllRows`) pages in 1,000-row windows; applied in `scoring.ts`, `achievements.ts`, the predictions page, the `predictions/all` route, and the leaderboard route.
 **Where:** `…/leaderboard`, `…/predictions/all`, `predictions/page.tsx`, `ChatRoom` (100-msg
 load), punditry context queries.
 **Problem:** Supabase returns max 1,000 rows by default; these read entries/predictions without
@@ -109,7 +154,8 @@ scales. (The sibling project's CLAUDE.md explicitly warns about this cap.)
 
 ## Low
 
-### L1 — `stripMarkdown` never strips images ✅ verified (test-pinned)
+### L1 — `stripMarkdown` never strips images
+**Status:** ✅ **Fixed** — `utils.ts` now runs the image regex **before** the link regex, so `![alt](url)` is removed cleanly.
 **Where:** `src/lib/utils.ts:35-52`.
 **Problem:** the link-replacement regex runs **before** the image regex, so `![alt](url)` is
 reduced to `!alt` (the image regex then finds no brackets to match). Images are never removed.
@@ -117,7 +163,8 @@ reduced to `!alt` (the image regex then finds no brackets to match). Images are 
 **Fix:** run the image regex before the link regex. A characterization test in
 `tests/unit/utils.test.ts` pins the current behaviour; update it when fixed.
 
-### L2 — Public `GET …/pundit` can throw an unhandled 500 ✅ verified
+### L2 — Public `GET …/pundit` can throw an unhandled 500
+**Status:** ✅ **Fixed** — `pundit/route.ts` null-guards `PUNDITS[punditKey]` and falls back to an empty 200 response.
 **Where:** `src/app/api/tournaments/[slug]/pundit/route.ts:69-76` — `PUNDITS[punditKey]` is used
 without a null guard and the handler has no try/catch.
 **Problem:** if a snippet's `pundit_key` is not in the `PUNDITS` map, `pundit.name`/`pundit.color`
@@ -126,6 +173,7 @@ is latent rather than live — but it is one schema/seed change away from a publ
 **Fix:** guard `pundit` (fallback to `{pundit_key:null}`) and wrap the handler in try/catch.
 
 ### L3 — Auth callback `next` parameter is not restricted to relative paths
+**Status:** ✅ **Fixed** — `callback/route.ts` uses `/^\/(?![/\\])/.test(rawNext)` to accept only single-slash relative paths, rejecting `//evil.com` and `/\evil.com`.
 **Where:** `src/app/auth/callback/route.ts:7`.
 **Problem:** `next` is interpolated into the redirect after the trusted origin. It's origin-
 prefixed (so not a classic open redirect), but a value like `//evil.com` can still resolve
@@ -133,18 +181,21 @@ oddly.
 **Fix:** accept only values starting with a single `/` (reject `//` and absolute URLs).
 
 ### L4 — Webhook/cron secrets compared with plain string equality
+**Status:** ✅ **Fixed** — new `src/lib/secure-compare.ts` (`secureEquals`) SHA-256 hashes both inputs and uses `crypto.timingSafeEqual`; applied in `webhooks/chat-message` and `generate-punditry`.
 **Where:** `generate-punditry/route.ts` (`x-cron-secret`), `webhooks/chat-message/route.ts`
 (`x-audit-secret`).
 **Problem:** non-constant-time comparison (timing side-channel) on shared bearer secrets.
 **Fix:** use a constant-time compare (`crypto.timingSafeEqual`).
 
 ### L5 — Tenor (GIF) API key hardcoded client-side
+**Status:** ❌ **Outstanding** — key still committed at `src/components/chat/GifPicker.tsx:18`.
 **Where:** `src/components/chat/GifPicker.tsx:18`.
 **Problem:** the key is committed and unrestricted in the client bundle.
 **Fix:** proxy GIF search through a server route, or at least restrict the key by referrer and
 move it to env.
 
 ### L6 — No global loading / error / not-found UI; server fetch errors are swallowed
+**Status:** ❌ **Outstanding** — no `loading.tsx` / `error.tsx` / `not-found.tsx` exist under `src/app/`.
 **Where:** no `loading.tsx`/`error.tsx`/`not-found.tsx` anywhere in `app/`; many server
 components `console.error` and render empty sections (e.g. `page.tsx`, `leaderboard/page.tsx`,
 `MiniChat.tsx`).
@@ -153,6 +204,7 @@ components `console.error` and render empty sections (e.g. `page.tsx`, `leaderbo
 failure.
 
 ### L7 — Prediction pages give logged-out / non-entered users a bare error string
+**Status:** ❌ **Outstanding** — not addressed in the recent batch.
 **Where:** `predict/groups/page.tsx`, `predict/knockout/page.tsx`; hub action cards
 (`tournament/[slug]/page.tsx`) render for the right status regardless of auth.
 **Impact:** clicking "Group Predictions" while logged out lands on a red error string instead of a
@@ -160,6 +212,7 @@ login/enter CTA — a confusing dead end.
 **Fix:** detect the unauthenticated/not-entered states and redirect to login or the enter page.
 
 ### L8 — Navbar unread-count poll closes over stale state
+**Status:** ✅ **Fixed** — `Navbar.tsx` now reads `playerIdRef.current` inside the interval, so it picks up the current player even when the user logs in after mount.
 **Where:** `src/components/ui/Navbar.tsx:93-104`.
 **Problem:** the 30 s interval captures `player` from first render (empty dep array), so periodic
 unread refresh never runs for a user who logged in after mount until a reload/auth change.
@@ -167,6 +220,7 @@ unread refresh never runs for a user who logged in after mount until a reload/au
 player.
 
 ### L9 — Honours has no DB-level uniqueness
+**Status:** ❌ **Outstanding** — no new constraint; uniqueness is still app-enforced.
 **Where:** the original `UNIQUE(tournament_id, prize_type)` was dropped in
 `20260209230000_fix_honours_unique.sql`; uniqueness now relies on app logic.
 **Impact:** duplicate awards are possible if anything writes honours outside the intended path.
@@ -174,6 +228,7 @@ player.
 flexibility (e.g. multiple `custom` prizes).
 
 ### L10 — Minor dead/confusing code in chat
+**Status:** ✅ **Fixed** — no-op `message_type: isGif ? 'user' : 'user'` ternary removed; the `setMessages` block that always `return prev`'d is now a real id-based de-dupe inside the insert handler.
 **Where:** `ChatRoom.tsx:220-224` (an INSERT-handler `setMessages` that always `return prev`),
 `ChatRoom.tsx:430` (`message_type: isGif ? 'user' : 'user'` — a no-op ternary).
 **Impact:** none functionally; obscures intent and risks future bugs.
