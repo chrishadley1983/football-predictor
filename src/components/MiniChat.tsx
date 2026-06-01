@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { Card } from '@/components/ui/Card'
 import { isPunditPlayer, getPunditByPlayerId } from '@/lib/pundit-players'
 
@@ -20,7 +20,10 @@ function timeAgo(dateStr: string) {
 }
 
 export async function MiniChat({ tournamentId, tournamentSlug }: MiniChatProps) {
-  const supabase = await createClient()
+  // Read-only teaser: use the service-role client so recent chat shows to
+  // everyone on the home page, even though the full chat page is gated to
+  // registered entrants by RLS.
+  const supabase = createAdminClient()
 
   const { data: messages } = await supabase
     .from('chat_messages')

@@ -43,11 +43,15 @@ export default async function HomePage() {
   const currentTournament = allTournaments.find((t) => t.status !== 'completed')
   const previousTournaments = allTournaments.filter((t) => t.status === 'completed')
 
-  // Show the "Join Now" CTA to anyone not yet in the current tournament. Hide it
-  // once a logged-in player has already entered (or when there's nothing to join).
-  let showJoin = !user
-  let joinHref = '/auth/register'
-  if (user && currentTournament) {
+  // Homepage CTA:
+  //  - logged out             -> "Join Now" (register)
+  //  - logged in, not entered -> "Enter Tournament" (enter page)
+  //  - logged in & entered    -> no CTA (View Tournament still shows)
+  let ctaLabel: string | null = null
+  let ctaHref = '/auth/register'
+  if (!user) {
+    ctaLabel = 'Join Now'
+  } else if (currentTournament) {
     const { data: player } = await supabase
       .from('players')
       .select('id')
@@ -63,8 +67,10 @@ export default async function HomePage() {
         .maybeSingle()
       entered = entry !== null
     }
-    showJoin = !entered
-    joinHref = `/tournament/${currentTournament.slug}/enter`
+    if (!entered) {
+      ctaLabel = 'Enter Tournament'
+      ctaHref = `/tournament/${currentTournament.slug}/enter`
+    }
   }
 
   return (
@@ -84,12 +90,12 @@ export default async function HomePage() {
           Emergency Sub could change everything &ndash; who will take home the prize?
         </p>
         <div className="mt-6 flex flex-wrap gap-3">
-          {showJoin && (
+          {ctaLabel && (
             <Link
-              href={joinHref}
+              href={ctaHref}
               className="inline-block rounded-lg bg-gold px-6 py-2.5 font-heading text-sm font-bold text-background transition-colors hover:bg-gold-light"
             >
-              Join Now
+              {ctaLabel}
             </Link>
           )}
           {currentTournament && (
