@@ -54,7 +54,7 @@ function matches(row: Row, filters: Filter[]): boolean {
 
 export type FailMap = Record<string, Partial<Record<'select' | 'insert' | 'update' | 'delete' | 'upsert', { message: string; code?: string }>>>
 
-class QueryBuilder<T = any> implements PromiseLike<{ data: T; error: any }> {
+class QueryBuilder<T = any> implements PromiseLike<{ data: T; error: any; count?: number }> {
   private filters: Filter[] = []
   private op: 'select' | 'update' | 'insert' | 'delete' | 'upsert' = 'select'
   private payload: any = null
@@ -65,6 +65,8 @@ class QueryBuilder<T = any> implements PromiseLike<{ data: T; error: any }> {
   private limitN: number | null = null
   private rangeFrom: number | null = null
   private rangeTo: number | null = null
+  private headMode = false
+  private countMode: 'exact' | 'planned' | 'estimated' | null = null
 
   constructor(
     private tables: Tables,
@@ -74,10 +76,12 @@ class QueryBuilder<T = any> implements PromiseLike<{ data: T; error: any }> {
   ) {}
 
   // ---- operations ----
-  select(_projection?: string) {
+  select(_projection?: string, opts?: { count?: 'exact' | 'planned' | 'estimated'; head?: boolean }) {
     // For write ops, `.insert(...).select()` just asks for the affected rows to
     // be returned — it must NOT turn the chain back into a read query. The op
     // already defaults to 'select' for pure reads, so this is a safe no-op.
+    if (opts?.head) this.headMode = true
+    if (opts?.count) this.countMode = opts.count
     return this
   }
   update(patch: Row) {
@@ -195,13 +199,20 @@ class QueryBuilder<T = any> implements PromiseLike<{ data: T; error: any }> {
         result = result.slice(this.rangeFrom, to + 1) // inclusive upper bound
       }
 
+      // head:true + count:'exact' — used by routes that just need the row count
+      // (e.g. counting cascade victims before a delete). Mirrors PostgREST:
+      // data is null, count is populated.
+      if (this.headMode) {
+        return { data: null, count: this.countMode ? result.length : undefined, error: null }
+      }
+
       if (this.isSingle) {
         if (result.length === 0) {
           return { data: null, error: { code: 'PGRST116', message: 'No rows found' } }
         }
         return { data: { ...result[0] }, error: null }
       }
-      return { data: result.map((r) => ({ ...r })), error: null }
+      return { data: result.map((r) => ({ ...r })), count: this.countMode ? result.length : undefined, error: null }
     }
 
     if (this.op === 'update') {

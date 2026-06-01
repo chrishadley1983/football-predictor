@@ -119,6 +119,8 @@ export type AdminAction =
   | 'reset_test_data'
   | 'force_complete'
   | 'status_change'
+  | 'entry_removed'
+  | 'entry_predictions_reset'
 
 export type AdminActionEvent = {
   event: 'admin_action'

@@ -6,6 +6,8 @@ const ACTION_LABELS: Record<AdminActionEvent['action'], string> = {
   reset_test_data: 'Reset test data',
   force_complete: 'Force-complete',
   status_change: 'Status change',
+  entry_removed: 'Entry removed',
+  entry_predictions_reset: 'Predictions reset',
 }
 
 export function renderAdminAction(

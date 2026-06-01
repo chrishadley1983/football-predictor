@@ -82,6 +82,48 @@ export default function EntriesPage() {
     )
   }
 
+  // Two-step confirmation for destructive actions, scoped per row + per action.
+  // First click sets `pending`; second click on the same button executes; any
+  // other interaction (other row, other action) resets and starts fresh.
+  const [pending, setPending] = useState<{ entryId: string; type: 'reset' | 'remove' } | null>(null)
+  const [busy, setBusy] = useState<string | null>(null)
+
+  async function handleReset(entryId: string) {
+    if (pending?.entryId !== entryId || pending.type !== 'reset') {
+      setPending({ entryId, type: 'reset' })
+      return
+    }
+    setPending(null)
+    setError('')
+    setBusy(`reset:${entryId}`)
+    const res = await fetch(`/api/admin/entries/${entryId}/predictions`, { method: 'DELETE' })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      setError(data.error || 'Failed to reset predictions')
+    }
+    setBusy(null)
+  }
+
+  async function handleRemove(entryId: string) {
+    if (pending?.entryId !== entryId || pending.type !== 'remove') {
+      setPending({ entryId, type: 'remove' })
+      return
+    }
+    setPending(null)
+    setError('')
+    setBusy(`remove:${entryId}`)
+    const res = await fetch(`/api/admin/entries/${entryId}`, { method: 'DELETE' })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      setError(data.error || 'Failed to remove entry')
+      setBusy(null)
+      return
+    }
+    // Drop the row from local state so the table reflects the delete immediately.
+    setEntries((prev) => prev.filter((e) => e.id !== entryId))
+    setBusy(null)
+  }
+
   if (loading) return <p className="py-12 text-center text-text-muted">Loading...</p>
   if (!tournament) return <p className="py-12 text-center text-red-accent">{error || 'Tournament not found'}</p>
 
@@ -146,7 +188,7 @@ export default function EntriesPage() {
                     <PaymentStatusBadge status={entry.payment_status} />
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 text-center">
-                    <div className="flex justify-center gap-1">
+                    <div className="flex flex-wrap justify-center gap-1">
                       {entry.payment_status !== 'paid' && (
                         <Button
                           size="sm"
@@ -163,6 +205,50 @@ export default function EntriesPage() {
                           onClick={() => handlePaymentChange(entry.id, 'pending')}
                         >
                           Mark Pending
+                        </Button>
+                      )}
+
+                      {pending?.entryId === entry.id && pending.type === 'reset' ? (
+                        <Button
+                          size="sm"
+                          variant="primary"
+                          loading={busy === `reset:${entry.id}`}
+                          onClick={() => handleReset(entry.id)}
+                          title="Wipes group + knockout predictions, achievements, and golden tickets for this entry. The entry itself stays."
+                        >
+                          Confirm reset?
+                        </Button>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={busy !== null}
+                          onClick={() => handleReset(entry.id)}
+                          title="Reset this player's predictions (entry stays)"
+                        >
+                          Reset
+                        </Button>
+                      )}
+
+                      {pending?.entryId === entry.id && pending.type === 'remove' ? (
+                        <Button
+                          size="sm"
+                          variant="danger"
+                          loading={busy === `remove:${entry.id}`}
+                          onClick={() => handleRemove(entry.id)}
+                          title="Removes the entry entirely. Cascades through their predictions. Player account is preserved."
+                        >
+                          Confirm remove?
+                        </Button>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={busy !== null}
+                          onClick={() => handleRemove(entry.id)}
+                          title="Remove this player from the tournament"
+                        >
+                          Remove
                         </Button>
                       )}
                     </div>
