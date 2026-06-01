@@ -40,14 +40,22 @@ function aggregateReactions(
   return Array.from(map, ([emoji, data]) => ({ emoji, ...data }))
 }
 
+type ReplyTarget = {
+  id: string
+  content: string
+  player: { display_name: string; nickname: string | null } | null
+}
+
 function mapRowToMessage(
   row: Record<string, unknown>,
-  currentPlayerId: string | null
+  currentPlayerId: string | null,
+  repliesById?: Map<string, ReplyTarget>
 ): MessageWithStatus {
-  const replyRaw = row.reply_to as {
-    id: string; content: string;
-    player: { display_name: string; nickname: string | null }
-  } | null
+  // Resolve the reply preview from messages already loaded rather than via a
+  // nested self-join embed (PostgREST's schema cache can drop that FK, which
+  // would 400 the whole query and leave the room empty).
+  const replyId = row.reply_to_id as string | null
+  const replyTarget = replyId ? repliesById?.get(replyId) ?? null : null
 
   return {
     id: row.id as string,
@@ -60,16 +68,31 @@ function mapRowToMessage(
     metadata: row.metadata as Record<string, unknown> | null,
     is_pinned: (row.is_pinned as boolean) ?? false,
     player: row.player as { display_name: string; nickname: string | null; avatar_url: string | null },
-    reply_to: replyRaw ? {
-      id: replyRaw.id,
-      content: replyRaw.content,
-      player: replyRaw.player,
+    reply_to: replyTarget ? {
+      id: replyTarget.id,
+      content: replyTarget.content,
+      player: replyTarget.player ?? { display_name: 'Unknown', nickname: null },
     } : null,
     reactions: aggregateReactions(
       (row.reactions as Array<{ emoji: string; player_id: string }>) ?? [],
       currentPlayerId
     ),
   }
+}
+
+// Build a lookup of message id -> reply preview from a set of loaded rows.
+function buildRepliesById(
+  rows: Array<{ id: string; content: string; player?: unknown }>
+): Map<string, ReplyTarget> {
+  const map = new Map<string, ReplyTarget>()
+  for (const r of rows) {
+    map.set(r.id, {
+      id: r.id,
+      content: r.content,
+      player: (r.player as ReplyTarget['player']) ?? null,
+    })
+  }
+  return map
 }
 
 export function ChatRoom({ tournamentId, currentPlayerId, isAdmin }: ChatRoomProps) {
@@ -142,23 +165,22 @@ export function ChatRoom({ tournamentId, currentPlayerId, isAdmin }: ChatRoomPro
 
   const fetchMessages = useCallback(async () => {
     const supabase = supabaseRef.current
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('chat_messages')
       .select(`
         *,
         player:players!chat_messages_player_id_fkey(display_name, nickname, avatar_url),
-        reply_to:chat_messages!chat_messages_reply_to_id_fkey(
-          id, content,
-          player:players!chat_messages_player_id_fkey(display_name, nickname)
-        ),
         reactions:chat_reactions(emoji, player_id)
       `)
       .eq('tournament_id', tournamentId)
       .order('created_at', { ascending: true })
       .limit(100)
 
+    if (error) console.error('Failed to load chat messages:', error.message)
+
     if (data) {
-      const mapped = data.map((row) => mapRowToMessage(row as unknown as Record<string, unknown>, currentPlayerId))
+      const repliesById = buildRepliesById(data as unknown as Array<{ id: string; content: string; player?: unknown }>)
+      const mapped = data.map((row) => mapRowToMessage(row as unknown as Record<string, unknown>, currentPlayerId, repliesById))
       setMessages(mapped)
     }
     return data
@@ -225,19 +247,17 @@ export function ChatRoom({ tournamentId, currentPlayerId, isAdmin }: ChatRoomPro
             .select(`
               *,
               player:players!chat_messages_player_id_fkey(display_name, nickname, avatar_url),
-              reply_to:chat_messages!chat_messages_reply_to_id_fkey(
-                id, content,
-                player:players!chat_messages_player_id_fkey(display_name, nickname)
-              ),
               reactions:chat_reactions(emoji, player_id)
             `)
             .eq('id', newId)
             .single()
 
           if (data) {
-            const msg = mapRowToMessage(data as unknown as Record<string, unknown>, currentPlayerId)
             setMessages((prev) => {
-              if (prev.some((m) => m.id === msg.id)) return prev
+              if (prev.some((m) => m.id === (data as { id: string }).id)) return prev
+              // Resolve any reply preview against messages already loaded.
+              const repliesById = buildRepliesById(prev as Array<{ id: string; content: string; player?: unknown }>)
+              const msg = mapRowToMessage(data as unknown as Record<string, unknown>, currentPlayerId, repliesById)
               return [...prev, msg]
             })
 
