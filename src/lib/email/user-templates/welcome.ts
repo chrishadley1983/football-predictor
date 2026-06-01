@@ -19,7 +19,7 @@ export function renderWelcome(e: WelcomeEvent): { subject: string; html: string;
     `  - Lock in your group-stage predictions before kickoff.`,
     `  - Watch the leaderboard and chat with the other players.`,
     ``,
-    `Sign in here: ${siteUrl}/login`,
+    `Sign in here: ${siteUrl}/auth/login`,
     ``,
     `Good luck!`,
     `- Freemo's Prediction Game`,
@@ -40,7 +40,7 @@ export function renderWelcome(e: WelcomeEvent): { subject: string; html: string;
       <li>Watch the leaderboard and chat with the other players.</li>
     </ul>
     <p style="margin: 24px 0;">
-      <a href="${escapeHtml(siteUrl)}/login" style="display: inline-block; background: #1a5c3a; color: #f5c542; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 14px;">
+      <a href="${escapeHtml(siteUrl)}/auth/login" style="display: inline-block; background: #1a5c3a; color: #f5c542; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 14px;">
         Sign in
       </a>
     </p>
