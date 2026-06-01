@@ -8,6 +8,8 @@ import type { Tournament, HonoursWithDetails } from '@/lib/types'
 export default async function HomePage() {
   const supabase = await createClient()
 
+  const { data: { user } } = await supabase.auth.getUser()
+
   // Fetch tournaments
   const { data: tournaments, error: tournamentsErr } = await supabase
     .from('tournaments')
@@ -48,22 +50,24 @@ export default async function HomePage() {
         <h1 className="shimmer-text font-heading text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">
           Freemo&apos;s Prediction Game
         </h1>
-        <p className="mt-4 max-w-2xl text-lg leading-relaxed text-text-secondary">
+        <p className="mt-4 text-lg leading-relaxed text-text-secondary">
           Think you know football? Prove it. Predict group stage outcomes and knockout bracket results
           for major international tournaments. Compete against your mates for bragging rights, prizes,
           and a spot on the Honours Board.
         </p>
-        <p className="mt-3 max-w-2xl text-text-muted">
-          AI pundits roast your predictions. A live chat fuels the banter.
-          And one Emergency Sub could change everything.
+        <p className="mt-3 text-text-muted">
+          Our pundits roast your predictions, chat live with your competitors and remember one
+          Emergency Sub could change everything &ndash; who will take home the prize?
         </p>
         <div className="mt-6 flex flex-wrap gap-3">
-          <Link
-            href="/auth/register"
-            className="inline-block rounded-lg bg-gold px-6 py-2.5 font-heading text-sm font-bold text-background transition-colors hover:bg-gold-light"
-          >
-            Join Now
-          </Link>
+          {!user && (
+            <Link
+              href="/auth/register"
+              className="inline-block rounded-lg bg-gold px-6 py-2.5 font-heading text-sm font-bold text-background transition-colors hover:bg-gold-light"
+            >
+              Join Now
+            </Link>
+          )}
           {currentTournament && (
             <Link
               href={`/tournament/${currentTournament.slug}`}
