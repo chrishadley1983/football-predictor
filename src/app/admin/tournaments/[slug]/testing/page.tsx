@@ -280,7 +280,7 @@ export default function TestingPage() {
     setActionLoading('punditry')
 
     try {
-      const res = await fetch(`/api/admin/tournaments/${slug}/generate-punditry`, {
+      const res = await fetch(`/api/admin/tournaments/${slug}/generate-punditry?force=true`, {
         method: 'POST',
       })
       const data = await res.json()

@@ -179,92 +179,102 @@ export async function POST(
     tournamentName: tournament.name,
   }
 
-  // Delete existing snippets for today (idempotent)
+  // Generate the day's snippets once. The chat post is spread across several
+  // scheduled runs per day, and we don't want each run re-calling Claude — so
+  // only (re)generate when forced (the admin button) or when today has none yet.
   const today = new Date().toISOString().split('T')[0]
-  await admin
+  const force = request.nextUrl.searchParams.get('force') === 'true'
+
+  const { count: existingForToday } = await admin
     .from('pundit_snippets')
-    .delete()
+    .select('id', { count: 'exact', head: true })
     .eq('tournament_id', tournament.id)
     .eq('generated_date', today)
 
-  // Generate for all 4 pundits
   const validCategories: PunditCategory[] = ['leaderboard', 'predictions', 'results', 'chat', 'news', 'wildcard']
   const results: Record<string, number> = {}
   let totalInserted = 0
 
-  for (const punditKey of PUNDIT_KEYS) {
-    try {
-      // Cap at 3 per pundit even if the model over-produces — these feed the
-      // pop-up/card rotation and we want it tight.
-      const snippets = (await generateForPundit(punditKey, context)).slice(0, 3)
-      results[punditKey] = snippets.length
+  if (force || (existingForToday ?? 0) === 0) {
+    // Clear today's snippets, then regenerate (capped at 3 per pundit).
+    await admin
+      .from('pundit_snippets')
+      .delete()
+      .eq('tournament_id', tournament.id)
+      .eq('generated_date', today)
 
-      if (snippets.length > 0) {
-        const rows = snippets.map((s) => ({
-          tournament_id: tournament.id,
-          pundit_key: punditKey,
-          content: s.content,
-          category: (validCategories.includes(s.category as PunditCategory) ? s.category : 'wildcard') as PunditCategory,
-          generated_date: today,
-        }))
+    for (const punditKey of PUNDIT_KEYS) {
+      try {
+        // Cap at 3 per pundit even if the model over-produces — these feed the
+        // pop-up/card rotation and we want it tight.
+        const snippets = (await generateForPundit(punditKey, context)).slice(0, 3)
+        results[punditKey] = snippets.length
 
-        const { error } = await admin.from('pundit_snippets').insert(rows)
-        if (error) {
-          console.error(`[generate-punditry] Insert error for ${punditKey}:`, error.message)
-        } else {
-          totalInserted += rows.length
+        if (snippets.length > 0) {
+          const rows = snippets.map((s) => ({
+            tournament_id: tournament.id,
+            pundit_key: punditKey,
+            content: s.content,
+            category: (validCategories.includes(s.category as PunditCategory) ? s.category : 'wildcard') as PunditCategory,
+            generated_date: today,
+          }))
+
+          const { error } = await admin.from('pundit_snippets').insert(rows)
+          if (error) {
+            console.error(`[generate-punditry] Insert error for ${punditKey}:`, error.message)
+          } else {
+            totalInserted += rows.length
+          }
         }
+      } catch (err) {
+        console.error(`[generate-punditry] Failed for ${punditKey}:`, err)
+        results[punditKey] = 0
       }
-    } catch (err) {
-      console.error(`[generate-punditry] Failed for ${punditKey}:`, err)
-      results[punditKey] = 0
     }
   }
 
-  // Post at most ONE pundit chat message per day (total), from a single pundit's
-  // substantive take (results/predictions/leaderboard) — never a chat-about-chat
-  // snippet. The bubble/card rotates through all of today's snippets separately.
+  // Post ONE pundit's chat message per call — the next pundit who hasn't posted
+  // today. Scheduled across several runs a day, so each of the four pundits ends
+  // up posting once, spread across the day. Never a chat-about-chat snippet.
   let chatMessagesInserted = 0
   try {
-    // If a pundit already posted to chat today, don't add another (one per day).
     const { data: postedToday } = await admin
       .from('chat_messages')
-      .select('id')
+      .select('player_id')
       .eq('tournament_id', tournament.id)
       .eq('message_type', 'pundit')
       .gte('created_at', `${today}T00:00:00Z`)
-      .limit(1)
+    const posted = new Set((postedToday ?? []).map((m) => m.player_id))
+    const unposted = PUNDIT_KEYS.filter((k) => !posted.has(PUNDIT_PLAYER_IDS[k]))
 
-    if (!postedToday || postedToday.length === 0) {
-      const { data: todaySnippets } = await admin
+    if (unposted.length > 0) {
+      // Random pundit among those who haven't posted yet today.
+      const punditKey = unposted[Math.floor(Math.random() * unposted.length)]
+      const { data: snips } = await admin
         .from('pundit_snippets')
         .select('*')
         .eq('tournament_id', tournament.id)
         .eq('generated_date', today)
+        .eq('pundit_key', punditKey)
         .neq('category', 'chat')
 
-      if (todaySnippets && todaySnippets.length > 0) {
-        // Prefer football-substance categories, then pick one at random within
-        // the best available tier (varies the pundit/take day to day).
+      if (snips && snips.length > 0) {
+        // Prefer football-substance categories, then pick one at random in tier.
         const PREFERRED: PunditCategory[] = ['results', 'predictions', 'leaderboard', 'news', 'wildcard']
-        const bestRank = Math.min(
-          ...todaySnippets.map((s) => {
-            const r = PREFERRED.indexOf(s.category as PunditCategory)
-            return r === -1 ? PREFERRED.length : r
-          })
-        )
-        const tier = todaySnippets.filter((s) => {
-          const r = PREFERRED.indexOf(s.category as PunditCategory)
-          return (r === -1 ? PREFERRED.length : r) === bestRank
-        })
+        const rank = (c: string) => {
+          const r = PREFERRED.indexOf(c as PunditCategory)
+          return r === -1 ? PREFERRED.length : r
+        }
+        const bestRank = Math.min(...snips.map((s) => rank(s.category)))
+        const tier = snips.filter((s) => rank(s.category) === bestRank)
         const chosen = tier[Math.floor(Math.random() * tier.length)]
 
         const { error: chatErr } = await admin.from('chat_messages').insert({
           tournament_id: tournament.id,
-          player_id: PUNDIT_PLAYER_IDS[chosen.pundit_key as PunditKey],
+          player_id: PUNDIT_PLAYER_IDS[punditKey],
           content: chosen.content,
           message_type: 'pundit' as const,
-          metadata: { pundit_key: chosen.pundit_key, snippet_id: chosen.id },
+          metadata: { pundit_key: punditKey, snippet_id: chosen.id },
           created_at: new Date().toISOString(),
         })
         if (chatErr) {
