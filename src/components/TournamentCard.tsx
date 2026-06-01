@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { Card } from '@/components/ui/Card'
 import { TournamentStatusBadge } from '@/components/ui/Badge'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { formatCurrency, formatDate, getDeadlineStatus } from '@/lib/utils'
 import type { Tournament } from '@/lib/types'
 
@@ -8,9 +9,18 @@ interface TournamentCardProps {
   tournament: Tournament
 }
 
-export function TournamentCard({ tournament }: TournamentCardProps) {
+export async function TournamentCard({ tournament }: TournamentCardProps) {
   const groupDeadline = getDeadlineStatus(tournament.group_stage_deadline)
   const knockoutDeadline = getDeadlineStatus(tournament.knockout_stage_deadline)
+
+  // Live prize pool = entry fee × number of entries (matches the overview page).
+  // Service-role count because tournament_entries RLS hides other players' rows
+  // during the group stage.
+  const { count } = await createAdminClient()
+    .from('tournament_entries')
+    .select('id', { count: 'exact', head: true })
+    .eq('tournament_id', tournament.id)
+  const prizePool = (count ?? 0) * Number(tournament.entry_fee_gbp)
 
   return (
     <Link href={`/tournament/${tournament.slug}`} className="block transition-all hover:shadow-lg hover:shadow-black/30">
@@ -32,14 +42,12 @@ export function TournamentCard({ tournament }: TournamentCardProps) {
               {formatCurrency(tournament.entry_fee_gbp)}
             </span>
           </div>
-          {tournament.prize_pool_gbp !== null && (
-            <div>
-              <span className="text-text-secondary">Prize Pool:</span>{' '}
-              <span className="font-medium text-gold">
-                {formatCurrency(tournament.prize_pool_gbp)}
-              </span>
-            </div>
-          )}
+          <div>
+            <span className="text-text-secondary">Prize Pool:</span>{' '}
+            <span className="font-medium text-gold">
+              {formatCurrency(prizePool)}
+            </span>
+          </div>
         </div>
 
         {tournament.status !== 'completed' && tournament.status !== 'draft' && (
