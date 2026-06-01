@@ -21,6 +21,7 @@ export default async function ChatPage({ params }: { params: Promise<{ slug: str
   // Get current player and admin status if authenticated
   let currentPlayerId: string | null = null
   let isAdmin = false
+  let isEntrant = false
   const { data: { user } } = await supabase.auth.getUser()
   if (user) {
     isAdmin = user.app_metadata?.role === 'admin'
@@ -30,6 +31,19 @@ export default async function ChatPage({ params }: { params: Promise<{ slug: str
       .eq('auth_user_id', user.id)
       .single()
     currentPlayerId = player?.id ?? null
+
+    // Chat is for registered entrants of this tournament (admins always allowed).
+    if (isAdmin) {
+      isEntrant = true
+    } else if (currentPlayerId) {
+      const { data: entry } = await supabase
+        .from('tournament_entries')
+        .select('id')
+        .eq('tournament_id', t.id)
+        .eq('player_id', currentPlayerId)
+        .maybeSingle()
+      isEntrant = entry !== null
+    }
   }
 
   return (
@@ -55,6 +69,18 @@ export default async function ChatPage({ params }: { params: Promise<{ slug: str
             className="mt-3 inline-block rounded-lg bg-gold px-4 py-2 text-sm font-medium text-background hover:bg-gold/90"
           >
             Log in
+          </Link>
+        </div>
+      ) : !isEntrant ? (
+        <div className="rounded-xl border border-border-custom bg-surface p-8 text-center">
+          <p className="text-sm text-text-secondary">
+            The chat is for players who have entered this tournament. Enter to join the banter.
+          </p>
+          <Link
+            href={`/tournament/${slug}/enter`}
+            className="mt-3 inline-block rounded-lg bg-gold px-4 py-2 text-sm font-medium text-background hover:bg-gold/90"
+          >
+            Enter Tournament &rarr;
           </Link>
         </div>
       ) : (
