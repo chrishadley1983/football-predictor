@@ -15,6 +15,9 @@ export function Navbar() {
   const [isAdmin, setIsAdmin] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
+  // Slug of the current tournament, used to keep the tournament menu visible on
+  // non-tournament pages (home, /honours, /profile) instead of having it vanish.
+  const [fallbackSlug, setFallbackSlug] = useState<string | null>(null)
   // Mirrors the current player id so the periodic poll below (mounted once)
   // always sees the latest player instead of a stale closure value.
   const playerIdRef = useRef<string | null>(null)
@@ -108,6 +111,21 @@ export function Navbar() {
     }
   }, [])
 
+  // Load the current tournament's slug once so the menu can fall back to it on
+  // pages that aren't under /tournament/[slug].
+  useEffect(() => {
+    const supabase = createClient()
+    supabase
+      .from('tournaments')
+      .select('slug')
+      .neq('status', 'draft')
+      .neq('status', 'completed')
+      .order('year', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => setFallbackSlug(data?.slug ?? null))
+  }, [])
+
   async function handleLogout() {
     const supabase = createClient()
     await supabase.auth.signOut()
@@ -117,9 +135,10 @@ export function Navbar() {
     router.refresh()
   }
 
-  // Extract tournament slug from path if we're on a tournament page
+  // Extract tournament slug from path if we're on a tournament page; otherwise
+  // fall back to the current tournament so the menu stays consistent everywhere.
   const tournamentMatch = pathname.match(/^\/tournament\/([^/]+)/)
-  const tournamentSlug = tournamentMatch ? tournamentMatch[1] : null
+  const tournamentSlug = tournamentMatch ? tournamentMatch[1] : fallbackSlug
 
   const linkClass = (active: boolean) =>
     cn(

@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { TournamentStatusBadge } from '@/components/ui/Badge'
 import { Card } from '@/components/ui/Card'
 import { PunditCard } from '@/components/pundit/PunditCard'
@@ -25,11 +26,17 @@ export default async function TournamentPage({ params }: { params: Promise<{ slu
   const groupDeadline = getDeadlineStatus(t.group_stage_deadline)
   const knockoutDeadline = getDeadlineStatus(t.knockout_stage_deadline)
 
-  // Get entry count
-  const { count: entryCount } = await supabase
+  // Get total entry count. Uses the service-role client because the
+  // tournament_entries RLS policy hides other players' rows until the group
+  // stage closes — a normal client would only count the viewer's own entry.
+  const { count: entryCount } = await createAdminClient()
     .from('tournament_entries')
     .select('id', { count: 'exact', head: true })
     .eq('tournament_id', t.id)
+
+  const entries = entryCount ?? 0
+  // Prize pool = entry fee × number of entries.
+  const prizePool = entries * Number(t.entry_fee_gbp)
 
   // Has the current user already entered this tournament? If so, gather their
   // prediction progress so the Group/Knockout cards can reflect it dynamically.
@@ -97,14 +104,14 @@ export default async function TournamentPage({ params }: { params: Promise<{ slu
           <div className="text-center">
             <p className="text-[10px] font-semibold uppercase tracking-widest text-text-muted">Prize Pool</p>
             <p className="font-heading text-2xl font-bold text-gold">
-              {t.prize_pool_gbp !== null ? formatCurrency(t.prize_pool_gbp) : 'TBD'}
+              {formatCurrency(prizePool)}
             </p>
           </div>
         </Card>
         <Card>
           <div className="text-center">
             <p className="text-[10px] font-semibold uppercase tracking-widest text-text-muted">Entries</p>
-            <p className="font-heading text-2xl font-bold text-foreground">{entryCount ?? 0}</p>
+            <p className="font-heading text-2xl font-bold text-foreground">{entries}</p>
           </div>
         </Card>
         <Card>

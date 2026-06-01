@@ -43,6 +43,30 @@ export default async function HomePage() {
   const currentTournament = allTournaments.find((t) => t.status !== 'completed')
   const previousTournaments = allTournaments.filter((t) => t.status === 'completed')
 
+  // Show the "Join Now" CTA to anyone not yet in the current tournament. Hide it
+  // once a logged-in player has already entered (or when there's nothing to join).
+  let showJoin = !user
+  let joinHref = '/auth/register'
+  if (user && currentTournament) {
+    const { data: player } = await supabase
+      .from('players')
+      .select('id')
+      .eq('auth_user_id', user.id)
+      .single()
+    let entered = false
+    if (player) {
+      const { data: entry } = await supabase
+        .from('tournament_entries')
+        .select('id')
+        .eq('tournament_id', currentTournament.id)
+        .eq('player_id', player.id)
+        .maybeSingle()
+      entered = entry !== null
+    }
+    showJoin = !entered
+    joinHref = `/tournament/${currentTournament.slug}/enter`
+  }
+
   return (
     <div className="space-y-14">
       {/* Section 1: Intro */}
@@ -60,9 +84,9 @@ export default async function HomePage() {
           Emergency Sub could change everything &ndash; who will take home the prize?
         </p>
         <div className="mt-6 flex flex-wrap gap-3">
-          {!user && (
+          {showJoin && (
             <Link
-              href="/auth/register"
+              href={joinHref}
               className="inline-block rounded-lg bg-gold px-6 py-2.5 font-heading text-sm font-bold text-background transition-colors hover:bg-gold-light"
             >
               Join Now

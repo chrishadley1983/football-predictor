@@ -28,10 +28,13 @@ export function GroupFixtures({ groupName, matches }: GroupFixturesProps) {
             )}
 
             {/* Home team */}
-            <div className="flex flex-1 items-center justify-end">
+            <div className="flex flex-1 items-center justify-end gap-1.5">
               <span className="font-mono font-medium text-foreground">
                 {match.home_team?.code ?? 'TBC'}
               </span>
+              {match.home_team?.flag_emoji && (
+                <span className="text-sm">{match.home_team.flag_emoji}</span>
+              )}
             </div>
 
             {/* Score */}
@@ -42,7 +45,10 @@ export function GroupFixtures({ groupName, matches }: GroupFixturesProps) {
             </div>
 
             {/* Away team */}
-            <div className="flex flex-1 items-center">
+            <div className="flex flex-1 items-center gap-1.5">
+              {match.away_team?.flag_emoji && (
+                <span className="text-sm">{match.away_team.flag_emoji}</span>
+              )}
               <span className="font-mono font-medium text-foreground">
                 {match.away_team?.code ?? 'TBC'}
               </span>

@@ -41,6 +41,7 @@ export function GroupResultsCard({ group, results }: GroupResultsCardProps) {
                 <span className="w-5 text-center text-sm font-bold text-text-muted">
                   {result?.final_position ?? '-'}
                 </span>
+                {team.flag_emoji && <span className="text-sm">{team.flag_emoji}</span>}
                 <span className="font-mono text-sm font-medium text-foreground">{team.code}</span>
               </div>
               {result?.qualified && (
