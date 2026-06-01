@@ -239,8 +239,9 @@ export async function POST(
         content: s.content,
         message_type: 'pundit' as const,
         metadata: { pundit_key: s.pundit_key, snippet_id: s.id },
-        // Stagger by 5 minutes so they appear naturally spaced
-        created_at: new Date(Date.now() + i * 5 * 60 * 1000).toISOString(),
+        // Stagger into the recent past (not the future) so they appear naturally
+        // spaced without floating above genuinely newer user messages.
+        created_at: new Date(Date.now() - (shuffled.length - 1 - i) * 5 * 60 * 1000).toISOString(),
       }))
 
       const { error: chatErr } = await admin.from('chat_messages').insert(chatMessages)
