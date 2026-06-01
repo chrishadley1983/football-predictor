@@ -111,13 +111,13 @@ LATEST RESULTS:
 ${context.resultsSummary}
 
 YOUR TASK:
-Generate exactly 15 punditry snippets as a JSON array. Each snippet should be 1-3 sentences, sharp, funny, and completely in character.
+Generate exactly 3 punditry snippets as a JSON array. Each snippet should be 1-3 sentences, sharp, funny, and completely in character.
 
-CONTENT MIX (aim for this distribution):
-- ~5 about player predictions (bold picks, consensus calls, who's looking smart/foolish)
-- ~5 about match results and fixtures (upsets, expected results, what it means) — if no results yet, talk about the upcoming games and what each group is shaping up to be
-- ~3 about the leaderboard/standings (who's rising, falling, streaking) — if the standings are still flat, talk about the predictions race instead
-- ~2 about World Cup news, the teams, or the tournament in general
+CONTENT (vary the three across these — all about the FOOTBALL):
+- player predictions (bold picks, consensus calls, who's looking smart/foolish)
+- match results and fixtures (or, if no results yet, the upcoming games and how each group is shaping up)
+- the leaderboard/standings (or the predictions race if the standings are still flat)
+- World Cup news, the teams, or the tournament in general
 
 CRITICAL RULES:
 - Keep EVERY take about the FOOTBALL: predictions, results, fixtures, teams, and the standings. That is the entire job.
@@ -127,13 +127,12 @@ CRITICAL RULES:
 - Be opinionated — pundits don't sit on the fence
 - Keep each snippet punchy — this appears in a small card on screen
 - NO hashtags, NO emojis, NO markdown formatting
-- If there's no data for a category (e.g., no results yet), fill those slots with extra takes about predictions and the teams
 
-OUTPUT FORMAT (strict JSON):
+OUTPUT FORMAT (strict JSON — exactly 3 items):
 [
-  { "content": "Your punditry snippet here", "category": "leaderboard" },
-  { "content": "Another snippet", "category": "predictions" },
-  ...
+  { "content": "Your punditry snippet here", "category": "predictions" },
+  { "content": "Another snippet", "category": "results" },
+  { "content": "A third snippet", "category": "leaderboard" }
 ]
 
 Return ONLY the JSON array, no other text.`

@@ -219,64 +219,61 @@ export async function POST(
     }
   }
 
-  // Post at most ONE pundit chat message per pundit per day, drawn from each
-  // pundit's substantive takes (results/predictions/leaderboard) — never a
-  // chat-about-the-chat snippet.
+  // Post at most ONE pundit chat message per day (total), from a single pundit's
+  // substantive take (results/predictions/leaderboard) — never a chat-about-chat
+  // snippet. The bubble/card rotates through all of today's snippets separately.
   let chatMessagesInserted = 0
   try {
-    const { data: todaySnippets } = await admin
-      .from('pundit_snippets')
-      .select('*')
-      .eq('tournament_id', tournament.id)
-      .eq('generated_date', today)
-
-    // Pundits who already posted to chat today, so re-runs don't duplicate.
+    // If a pundit already posted to chat today, don't add another (one per day).
     const { data: postedToday } = await admin
       .from('chat_messages')
-      .select('player_id')
+      .select('id')
       .eq('tournament_id', tournament.id)
       .eq('message_type', 'pundit')
       .gte('created_at', `${today}T00:00:00Z`)
-    const alreadyPosted = new Set((postedToday ?? []).map((m) => m.player_id))
+      .limit(1)
 
-    // Prefer football-substance categories; never inject 'chat'-category takes.
-    const PREFERRED: PunditCategory[] = ['results', 'predictions', 'leaderboard', 'news', 'wildcard']
-    const picks: { punditKey: PunditKey; content: string; snippetId: string }[] = []
-    for (const punditKey of PUNDIT_KEYS) {
-      const playerId = PUNDIT_PLAYER_IDS[punditKey]
-      if (alreadyPosted.has(playerId)) continue
-      const candidates = (todaySnippets ?? [])
-        .filter((s) => s.pundit_key === punditKey && s.category !== 'chat')
-        .sort(
-          (a, b) =>
-            PREFERRED.indexOf(a.category as PunditCategory) -
-            PREFERRED.indexOf(b.category as PunditCategory)
+    if (!postedToday || postedToday.length === 0) {
+      const { data: todaySnippets } = await admin
+        .from('pundit_snippets')
+        .select('*')
+        .eq('tournament_id', tournament.id)
+        .eq('generated_date', today)
+        .neq('category', 'chat')
+
+      if (todaySnippets && todaySnippets.length > 0) {
+        // Prefer football-substance categories, then pick one at random within
+        // the best available tier (varies the pundit/take day to day).
+        const PREFERRED: PunditCategory[] = ['results', 'predictions', 'leaderboard', 'news', 'wildcard']
+        const bestRank = Math.min(
+          ...todaySnippets.map((s) => {
+            const r = PREFERRED.indexOf(s.category as PunditCategory)
+            return r === -1 ? PREFERRED.length : r
+          })
         )
-      if (candidates.length === 0) continue
-      picks.push({ punditKey, content: candidates[0].content, snippetId: candidates[0].id })
-    }
+        const tier = todaySnippets.filter((s) => {
+          const r = PREFERRED.indexOf(s.category as PunditCategory)
+          return (r === -1 ? PREFERRED.length : r) === bestRank
+        })
+        const chosen = tier[Math.floor(Math.random() * tier.length)]
 
-    if (picks.length > 0) {
-      const chatMessages = picks.map((p, i) => ({
-        tournament_id: tournament.id,
-        player_id: PUNDIT_PLAYER_IDS[p.punditKey],
-        content: p.content,
-        message_type: 'pundit' as const,
-        metadata: { pundit_key: p.punditKey, snippet_id: p.snippetId },
-        // Stagger into the recent past (not the future) so they appear naturally
-        // spaced without floating above genuinely newer user messages.
-        created_at: new Date(Date.now() - (picks.length - 1 - i) * 5 * 60 * 1000).toISOString(),
-      }))
-
-      const { error: chatErr } = await admin.from('chat_messages').insert(chatMessages)
-      if (chatErr) {
-        console.error('[generate-punditry] Failed to insert chat messages:', chatErr.message)
-      } else {
-        chatMessagesInserted = chatMessages.length
+        const { error: chatErr } = await admin.from('chat_messages').insert({
+          tournament_id: tournament.id,
+          player_id: PUNDIT_PLAYER_IDS[chosen.pundit_key as PunditKey],
+          content: chosen.content,
+          message_type: 'pundit' as const,
+          metadata: { pundit_key: chosen.pundit_key, snippet_id: chosen.id },
+          created_at: new Date().toISOString(),
+        })
+        if (chatErr) {
+          console.error('[generate-punditry] Failed to insert chat message:', chatErr.message)
+        } else {
+          chatMessagesInserted = 1
+        }
       }
     }
   } catch (err) {
-    console.error('[generate-punditry] Error inserting chat messages:', err)
+    console.error('[generate-punditry] Error inserting chat message:', err)
   }
 
   return NextResponse.json({
