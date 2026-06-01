@@ -110,28 +110,24 @@ ${context.predictionsSummary}
 LATEST RESULTS:
 ${context.resultsSummary}
 
-RECENT CHAT MESSAGES:
-${context.chatSummary}
-
 YOUR TASK:
 Generate exactly 15 punditry snippets as a JSON array. Each snippet should be 1-3 sentences, sharp, funny, and completely in character.
 
 CONTENT MIX (aim for this distribution):
-- ~3 about the leaderboard/standings (who's rising, falling, streaking)
-- ~3 about player predictions (bold picks, consensus calls, who's looking smart/foolish)
-- ~3 reacting to match results (upsets, expected results, what it means)
-- ~2 reacting to what people are saying in the chat
-- ~2 about World Cup news, football in general, or made-up pundit observations
-- ~2 completely random society observations that have nothing to do with football (self-checkout machines, meal deals, oat milk, parking, weather, etc.) — delivered entirely in your character voice
+- ~5 about player predictions (bold picks, consensus calls, who's looking smart/foolish)
+- ~5 about match results and fixtures (upsets, expected results, what it means) — if no results yet, talk about the upcoming games and what each group is shaping up to be
+- ~3 about the leaderboard/standings (who's rising, falling, streaking) — if the standings are still flat, talk about the predictions race instead
+- ~2 about World Cup news, the teams, or the tournament in general
 
 CRITICAL RULES:
+- Keep EVERY take about the FOOTBALL: predictions, results, fixtures, teams, and the standings. That is the entire job.
+- Do NOT comment on the in-app group chat or on what other users are typing in chat. Ignore the chat entirely as a subject.
 - Stay 100% in character for every single snippet
 - Reference specific player names and nicknames from the leaderboard where possible
 - Be opinionated — pundits don't sit on the fence
 - Keep each snippet punchy — this appears in a small card on screen
 - NO hashtags, NO emojis, NO markdown formatting
-- The wildcard society comments should feel completely natural and in-character, not forced
-- If there's no data for a category (e.g., no results yet), fill those slots with extra takes from other categories
+- If there's no data for a category (e.g., no results yet), fill those slots with extra takes about predictions and the teams
 
 OUTPUT FORMAT (strict JSON):
 [

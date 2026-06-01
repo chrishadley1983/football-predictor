@@ -219,29 +219,53 @@ export async function POST(
     }
   }
 
-  // Insert 'chat' category snippets as pundit messages in the chat
+  // Post at most ONE pundit chat message per pundit per day, drawn from each
+  // pundit's substantive takes (results/predictions/leaderboard) — never a
+  // chat-about-the-chat snippet.
   let chatMessagesInserted = 0
   try {
-    const { data: chatSnippets } = await admin
+    const { data: todaySnippets } = await admin
       .from('pundit_snippets')
       .select('*')
       .eq('tournament_id', tournament.id)
       .eq('generated_date', today)
-      .eq('category', 'chat')
 
-    if (chatSnippets && chatSnippets.length > 0) {
-      // Shuffle and pick up to 4 across different pundits
-      const shuffled = chatSnippets.sort(() => Math.random() - 0.5).slice(0, 4)
+    // Pundits who already posted to chat today, so re-runs don't duplicate.
+    const { data: postedToday } = await admin
+      .from('chat_messages')
+      .select('player_id')
+      .eq('tournament_id', tournament.id)
+      .eq('message_type', 'pundit')
+      .gte('created_at', `${today}T00:00:00Z`)
+    const alreadyPosted = new Set((postedToday ?? []).map((m) => m.player_id))
 
-      const chatMessages = shuffled.map((s, i) => ({
+    // Prefer football-substance categories; never inject 'chat'-category takes.
+    const PREFERRED: PunditCategory[] = ['results', 'predictions', 'leaderboard', 'news', 'wildcard']
+    const picks: { punditKey: PunditKey; content: string; snippetId: string }[] = []
+    for (const punditKey of PUNDIT_KEYS) {
+      const playerId = PUNDIT_PLAYER_IDS[punditKey]
+      if (alreadyPosted.has(playerId)) continue
+      const candidates = (todaySnippets ?? [])
+        .filter((s) => s.pundit_key === punditKey && s.category !== 'chat')
+        .sort(
+          (a, b) =>
+            PREFERRED.indexOf(a.category as PunditCategory) -
+            PREFERRED.indexOf(b.category as PunditCategory)
+        )
+      if (candidates.length === 0) continue
+      picks.push({ punditKey, content: candidates[0].content, snippetId: candidates[0].id })
+    }
+
+    if (picks.length > 0) {
+      const chatMessages = picks.map((p, i) => ({
         tournament_id: tournament.id,
-        player_id: PUNDIT_PLAYER_IDS[s.pundit_key as PunditKey],
-        content: s.content,
+        player_id: PUNDIT_PLAYER_IDS[p.punditKey],
+        content: p.content,
         message_type: 'pundit' as const,
-        metadata: { pundit_key: s.pundit_key, snippet_id: s.id },
+        metadata: { pundit_key: p.punditKey, snippet_id: p.snippetId },
         // Stagger into the recent past (not the future) so they appear naturally
         // spaced without floating above genuinely newer user messages.
-        created_at: new Date(Date.now() - (shuffled.length - 1 - i) * 5 * 60 * 1000).toISOString(),
+        created_at: new Date(Date.now() - (picks.length - 1 - i) * 5 * 60 * 1000).toISOString(),
       }))
 
       const { error: chatErr } = await admin.from('chat_messages').insert(chatMessages)
