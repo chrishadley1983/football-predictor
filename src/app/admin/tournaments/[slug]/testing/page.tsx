@@ -275,6 +275,26 @@ export default function TestingPage() {
     setActionLoading(null)
   }
 
+  async function handleGeneratePunditry() {
+    clearMessages()
+    setActionLoading('punditry')
+
+    try {
+      const res = await fetch(`/api/admin/tournaments/${slug}/generate-punditry`, {
+        method: 'POST',
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setError(data.error || 'Punditry generation failed')
+      } else {
+        setSuccess(`Punditry generated: ${data.totalInserted ?? 0} snippets, ${data.chatMessagesInserted ?? 0} chat messages.`)
+      }
+    } catch {
+      setError('Punditry request failed')
+    }
+    setActionLoading(null)
+  }
+
   async function handleRecalculate() {
     clearMessages()
     setActionLoading('recalculate')
@@ -441,6 +461,22 @@ export default function TestingPage() {
                 </Button>
               ))}
             </div>
+          </div>
+
+          <div className="border-t border-border-custom pt-4">
+            <h3 className="mb-2 text-sm font-medium text-text-secondary">AI Punditry</h3>
+            <p className="mb-2 text-xs text-text-muted">
+              Generate today&apos;s pundit takes (via Claude) and inject a few into chat. Runs daily via cron; use this to refresh on demand. Requires ANTHROPIC_API_KEY in the environment.
+            </p>
+            <Button
+              onClick={handleGeneratePunditry}
+              loading={actionLoading === 'punditry'}
+              disabled={!!actionLoading}
+              variant="secondary"
+              size="sm"
+            >
+              Generate Punditry Now
+            </Button>
           </div>
 
           <div className="border-t border-border-custom pt-4">
