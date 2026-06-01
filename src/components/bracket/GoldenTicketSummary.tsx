@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
+import { Flag } from '@/components/ui/Flag'
 import type { GoldenTicketWithDetails } from '@/lib/types'
 import type { EntryInfo } from '@/components/predictions/PredictionAnalyser'
 
@@ -86,13 +87,15 @@ export function GoldenTicketSummary({ tickets, entries }: GoldenTicketSummaryPro
                         {ROUND_NAMES[ticket.played_after_round] ?? ticket.played_after_round}
                       </td>
                       <td className="px-3 py-2 text-center">
-                        <span className="text-red-accent line-through">
-                          {ticket.original_team?.flag_emoji} {ticket.original_team?.code}
+                        <span className="inline-flex items-center gap-1.5 text-red-accent">
+                          <Flag emoji={ticket.original_team?.flag_emoji} name={ticket.original_team?.name} />
+                          <span className="line-through">{ticket.original_team?.code}</span>
                         </span>
                       </td>
                       <td className="px-3 py-2 text-center">
-                        <span className="text-green-accent font-medium">
-                          {ticket.new_team?.flag_emoji} {ticket.new_team?.code}
+                        <span className="inline-flex items-center gap-1.5 text-green-accent font-medium">
+                          <Flag emoji={ticket.new_team?.flag_emoji} name={ticket.new_team?.name} />
+                          {ticket.new_team?.code}
                         </span>
                       </td>
                       <td className="px-3 py-2 text-center font-mono text-text-muted">

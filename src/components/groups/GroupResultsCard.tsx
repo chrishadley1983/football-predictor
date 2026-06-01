@@ -1,5 +1,6 @@
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
+import { Flag } from '@/components/ui/Flag'
 import { cn } from '@/lib/utils'
 import type { GroupWithTeams, GroupResult } from '@/lib/types'
 
@@ -41,7 +42,7 @@ export function GroupResultsCard({ group, results }: GroupResultsCardProps) {
                 <span className="w-5 text-center text-sm font-bold text-text-muted">
                   {result?.final_position ?? '-'}
                 </span>
-                {team.flag_emoji && <span className="text-sm">{team.flag_emoji}</span>}
+                <Flag emoji={team.flag_emoji} name={team.name} />
                 <span className="font-mono text-sm font-medium text-foreground">{team.code}</span>
               </div>
               {result?.qualified && (

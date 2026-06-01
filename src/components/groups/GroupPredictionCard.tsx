@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Card } from '@/components/ui/Card'
 import { Select } from '@/components/ui/Select'
 import { Button } from '@/components/ui/Button'
+import { Flag } from '@/components/ui/Flag'
 import type { GroupWithTeams, GroupPrediction, GroupResult } from '@/lib/types'
 
 interface GroupPredictionCardProps {
@@ -88,8 +89,8 @@ export function GroupPredictionCard({ group, prediction, onPredict, readonly, re
         {/* Team list */}
         <div className="flex flex-wrap gap-2">
           {teams.map((t) => (
-            <span key={t.id} className="inline-flex items-center gap-1 rounded bg-surface-light px-2 py-1 text-xs text-text-secondary">
-              {t.flag_emoji && <span>{t.flag_emoji}</span>}
+            <span key={t.id} className="inline-flex items-center gap-1.5 rounded bg-surface-light px-2 py-1 text-xs text-text-secondary">
+              <Flag emoji={t.flag_emoji} name={t.name} />
               {t.name}
             </span>
           ))}

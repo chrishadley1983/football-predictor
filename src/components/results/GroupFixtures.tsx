@@ -1,4 +1,5 @@
 import { Card } from '@/components/ui/Card'
+import { Flag } from '@/components/ui/Flag'
 import { formatDate } from '@/lib/utils'
 import type { GroupMatchWithTeams } from '@/lib/types'
 
@@ -32,9 +33,7 @@ export function GroupFixtures({ groupName, matches }: GroupFixturesProps) {
               <span className="font-mono font-medium text-foreground">
                 {match.home_team?.code ?? 'TBC'}
               </span>
-              {match.home_team?.flag_emoji && (
-                <span className="text-sm">{match.home_team.flag_emoji}</span>
-              )}
+              <Flag emoji={match.home_team?.flag_emoji} name={match.home_team?.name} />
             </div>
 
             {/* Score */}
@@ -46,9 +45,7 @@ export function GroupFixtures({ groupName, matches }: GroupFixturesProps) {
 
             {/* Away team */}
             <div className="flex flex-1 items-center gap-1.5">
-              {match.away_team?.flag_emoji && (
-                <span className="text-sm">{match.away_team.flag_emoji}</span>
-              )}
+              <Flag emoji={match.away_team?.flag_emoji} name={match.away_team?.name} />
               <span className="font-mono font-medium text-foreground">
                 {match.away_team?.code ?? 'TBC'}
               </span>

@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/Button'
+import { Flag } from '@/components/ui/Flag'
 import type { EligibleSwap } from '@/lib/golden-ticket'
 
 interface GoldenTicketModalProps {
@@ -88,12 +89,14 @@ export function GoldenTicketModal({ slug, eligibleSwaps, onSuccess, onClose }: G
 
                     {/* Your wrong pick → actual winner */}
                     <div className="flex items-center gap-2 text-sm">
-                      <span className="text-red-accent line-through">
-                        {swap.wrong_team.flag_emoji} {swap.wrong_team.code}
+                      <span className="inline-flex items-center gap-1.5 text-red-accent">
+                        <Flag emoji={swap.wrong_team.flag_emoji} name={swap.wrong_team.name} />
+                        <span className="line-through">{swap.wrong_team.code}</span>
                       </span>
                       <span className="text-text-muted">→</span>
-                      <span className="text-green-accent font-medium">
-                        {swap.winner_team.flag_emoji} {swap.winner_team.code}
+                      <span className="inline-flex items-center gap-1.5 text-green-accent font-medium">
+                        <Flag emoji={swap.winner_team.flag_emoji} name={swap.winner_team.name} />
+                        {swap.winner_team.code}
                       </span>
                     </div>
                   </div>

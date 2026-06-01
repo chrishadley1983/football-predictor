@@ -1,6 +1,7 @@
 'use client'
 
 import { cn } from '@/lib/utils'
+import { Flag } from '@/components/ui/Flag'
 import type { Team } from '@/lib/types'
 
 interface BracketTeamProps {
@@ -46,7 +47,7 @@ export function BracketTeam({ team, score, selected, correct, isWinner, isLoser,
         !clickable && 'cursor-default'
       )}
     >
-      {team.flag_emoji && <span className="text-sm">{team.flag_emoji}</span>}
+      <Flag emoji={team.flag_emoji} name={team.name} />
       <span className={cn('truncate', isLoser ? 'text-text-muted' : 'text-foreground')}>
         {team.code}
       </span>
