@@ -141,8 +141,10 @@ export async function sendUserEmail(event: UserEmailEvent): Promise<void> {
  * Used for tournament-wide announcements (knockout open, tournament completed)
  * where every player gets a similarly-shaped (but potentially personalised) email.
  *
- * Does NOT bcc admin per-message — at 50+ players that would flood your inbox.
- * Fire a separate admin audit email summarising the broadcast.
+ * Admin observers (AUDIT_RECIPIENTS) are BCC'd on every message — at 50+
+ * players that's a heavy inbox load, but the explicit ask is to keep all
+ * admins on the loop for every outbound. Bcc rather than cc so the admin
+ * address isn't exposed to player recipients.
  *
  * Resend's batch endpoint accepts up to 100 messages per call; this helper
  * chunks larger broadcasts automatically.
@@ -167,6 +169,7 @@ export async function sendUserBroadcast(events: UserEmailEvent[]): Promise<void>
       return {
         from,
         to: [event.player.email],
+        bcc: [...AUDIT_RECIPIENTS],
         subject,
         html,
         text,
