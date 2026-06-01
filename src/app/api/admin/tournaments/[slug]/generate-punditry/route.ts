@@ -194,7 +194,9 @@ export async function POST(
 
   for (const punditKey of PUNDIT_KEYS) {
     try {
-      const snippets = await generateForPundit(punditKey, context)
+      // Cap at 3 per pundit even if the model over-produces — these feed the
+      // pop-up/card rotation and we want it tight.
+      const snippets = (await generateForPundit(punditKey, context)).slice(0, 3)
       results[punditKey] = snippets.length
 
       if (snippets.length > 0) {
