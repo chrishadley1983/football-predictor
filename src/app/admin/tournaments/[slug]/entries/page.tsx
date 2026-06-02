@@ -27,7 +27,12 @@ export default function EntriesPage() {
   }, [router])
 
   const [tournament, setTournament] = useState<Tournament | null>(null)
+  const [groupCount, setGroupCount] = useState(0)
+  const [knockoutCount, setKnockoutCount] = useState(0)
+  const [thirdPlaceQuota, setThirdPlaceQuota] = useState<number | null>(null)
   const [entries, setEntries] = useState<EntryWithPlayer[]>([])
+  const [groupStats, setGroupStats] = useState<Record<string, { groups: number; thirds: number }>>({})
+  const [knockoutCounts, setKnockoutCounts] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -41,6 +46,9 @@ export default function EntriesPage() {
       }
       const data = await res.json()
       setTournament(data)
+      setGroupCount(data.groups?.length ?? 0)
+      setKnockoutCount(data.knockout_matches?.length ?? 0)
+      setThirdPlaceQuota(data.third_place_qualifiers_count ?? null)
 
       const supabase = createClient()
       const { data: entryData, error: entryErr } = await supabase
@@ -51,8 +59,44 @@ export default function EntriesPage() {
 
       if (entryErr) {
         setError(entryErr.message)
-      } else {
-        setEntries((entryData ?? []) as EntryWithPlayer[])
+        setLoading(false)
+        return
+      }
+
+      const entryRows = (entryData ?? []) as EntryWithPlayer[]
+      setEntries(entryRows)
+
+      const entryIds = entryRows.map((e) => e.id)
+      if (entryIds.length > 0) {
+        // Group predictions: count rows with 1st+2nd populated as "groups",
+        // and rows with predicted_3rd also set as "thirds". For qualifier-style
+        // tournaments (third_place_qualifiers_count != null) thirds must equal
+        // the quota; for standard tournaments thirds must equal total groups.
+        const { data: gpData } = await supabase
+          .from('group_predictions')
+          .select('entry_id, predicted_1st, predicted_2nd, predicted_3rd')
+          .in('entry_id', entryIds)
+        const gStats: Record<string, { groups: number; thirds: number }> = {}
+        for (const p of gpData ?? []) {
+          if (!p.predicted_1st || !p.predicted_2nd) continue
+          if (!gStats[p.entry_id]) gStats[p.entry_id] = { groups: 0, thirds: 0 }
+          gStats[p.entry_id].groups += 1
+          if (p.predicted_3rd) gStats[p.entry_id].thirds += 1
+        }
+        setGroupStats(gStats)
+
+        // Knockout predictions: a row counts when predicted_winner_id is set.
+        const { data: kpData } = await supabase
+          .from('knockout_predictions')
+          .select('entry_id, predicted_winner_id')
+          .in('entry_id', entryIds)
+        const kCounts: Record<string, number> = {}
+        for (const p of kpData ?? []) {
+          if (p.predicted_winner_id) {
+            kCounts[p.entry_id] = (kCounts[p.entry_id] ?? 0) + 1
+          }
+        }
+        setKnockoutCounts(kCounts)
       }
 
       setLoading(false)
@@ -169,6 +213,8 @@ export default function EntriesPage() {
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-text-muted">Player</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase text-text-muted">Email</th>
                 <th className="px-4 py-3 text-center text-xs font-medium uppercase text-text-muted">Payment</th>
+                <th className="px-4 py-3 text-center text-xs font-medium uppercase text-text-muted">Group Picks</th>
+                <th className="px-4 py-3 text-center text-xs font-medium uppercase text-text-muted">Knockout Picks</th>
                 <th className="px-4 py-3 text-center text-xs font-medium uppercase text-text-muted">Actions</th>
               </tr>
             </thead>
@@ -186,6 +232,21 @@ export default function EntriesPage() {
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 text-center">
                     <PaymentStatusBadge status={entry.payment_status} />
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-3 text-center">
+                    <GroupPicksStatus
+                      groupsPredicted={groupStats[entry.id]?.groups ?? 0}
+                      thirdsPredicted={groupStats[entry.id]?.thirds ?? 0}
+                      totalGroups={groupCount}
+                      thirdPlaceQuota={thirdPlaceQuota}
+                      hasTiebreaker={entry.tiebreaker_goals != null}
+                    />
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-3 text-center">
+                    <KnockoutPicksStatus
+                      predicted={knockoutCounts[entry.id] ?? 0}
+                      total={knockoutCount}
+                    />
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 text-center">
                     <div className="flex flex-wrap justify-center gap-1">
@@ -260,5 +321,84 @@ export default function EntriesPage() {
         </div>
       )}
     </div>
+  )
+}
+
+function Badge({ tone, title, children }: { tone: 'green' | 'yellow' | 'muted'; title?: string; children: React.ReactNode }) {
+  if (tone === 'muted') return <span className="text-xs text-text-muted" title={title}>{children}</span>
+  const cls = tone === 'green' ? 'bg-green-accent/10 text-green-accent' : 'bg-yellow-accent/10 text-yellow-accent'
+  return (
+    <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${cls}`} title={title}>
+      {children}
+    </span>
+  )
+}
+
+function GroupPicksStatus({
+  groupsPredicted,
+  thirdsPredicted,
+  totalGroups,
+  thirdPlaceQuota,
+  hasTiebreaker,
+}: {
+  groupsPredicted: number
+  thirdsPredicted: number
+  totalGroups: number
+  thirdPlaceQuota: number | null
+  hasTiebreaker: boolean
+}) {
+  if (totalGroups === 0) return <Badge tone="muted">—</Badge>
+  if (groupsPredicted === 0 && thirdsPredicted === 0 && !hasTiebreaker) {
+    return <Badge tone="muted">—</Badge>
+  }
+
+  // Standard tournament: every group requires 3rd. Qualifier tournament:
+  // exactly `thirdPlaceQuota` of the groups must have 3rd set.
+  const thirdsRequired = thirdPlaceQuota ?? totalGroups
+  const groupsOk = groupsPredicted === totalGroups
+  const thirdsOk = thirdsPredicted === thirdsRequired
+  const valid = groupsOk && thirdsOk && hasTiebreaker
+
+  const missing: string[] = []
+  if (!groupsOk) missing.push(`${totalGroups - groupsPredicted} group${totalGroups - groupsPredicted === 1 ? '' : 's'}`)
+  if (!thirdsOk) {
+    const diff = thirdsRequired - thirdsPredicted
+    missing.push(
+      diff > 0
+        ? `${diff} 3rd-place pick${diff === 1 ? '' : 's'}`
+        : `${-diff} too many 3rd-place picks`,
+    )
+  }
+  if (!hasTiebreaker) missing.push('tiebreaker')
+  const title = valid ? 'All group predictions complete' : `Missing: ${missing.join(', ')}`
+
+  const showThirdSegment = thirdPlaceQuota !== null
+  const label = (
+    <>
+      {valid && '✓ '}
+      {groupsPredicted}/{totalGroups}
+      {showThirdSegment && <> · {thirdsPredicted}/{thirdsRequired} 3rd</>}
+      {!hasTiebreaker && ' · no TB'}
+    </>
+  )
+
+  return (
+    <Badge tone={valid ? 'green' : 'yellow'} title={title}>
+      {label}
+    </Badge>
+  )
+}
+
+function KnockoutPicksStatus({ predicted, total }: { predicted: number; total: number }) {
+  if (total === 0) return <Badge tone="muted">—</Badge>
+  if (predicted === 0) return <Badge tone="muted">—</Badge>
+  const valid = predicted === total
+  const title = valid
+    ? 'All knockout predictions complete'
+    : `${total - predicted} of ${total} knockout matches still need a pick`
+  return (
+    <Badge tone={valid ? 'green' : 'yellow'} title={title}>
+      {valid ? '✓ ' : ''}{predicted}/{total}
+    </Badge>
   )
 }
