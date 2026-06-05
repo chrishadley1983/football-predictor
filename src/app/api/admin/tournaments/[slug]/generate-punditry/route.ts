@@ -102,7 +102,7 @@ export async function POST(
   // Get tournament
   const { data: tournament } = await admin
     .from('tournaments')
-    .select('id, name, status')
+    .select('id, name, status, group_stage_deadline')
     .eq('slug', slug)
     .single()
 
@@ -110,29 +110,52 @@ export async function POST(
     return NextResponse.json({ error: 'Tournament not found' }, { status: 404 })
   }
 
-  // Gather context
-  const [leaderboardRes, predictionsRes, resultsRes, chatRes] = await Promise.all([
-    // Top 10 leaderboard
+  // Pre-tournament = predictions are still open (first match hasn't happened
+  // yet, modelled as "now is before the group-stage prediction deadline").
+  // Drives both chat-post frequency below AND prompt nudging downstream.
+  const isPreTournament =
+    tournament.group_stage_deadline != null &&
+    new Date(tournament.group_stage_deadline).getTime() > Date.now()
+
+  // Gather context. We fetch raw rows for per-group prediction consensus rather
+  // than a pre-aggregated count because the pundit prompt benefits from real
+  // team-by-team picks ("Brazil 5, Argentina 2").
+  const [
+    leaderboardRes,
+    predictionsRes,
+    entriesRes,
+    groupsRes,
+    teamsRes,
+    resultsRes,
+    chatRes,
+  ] = await Promise.all([
     admin
       .from('tournament_entries')
       .select('player:players(display_name, nickname), total_points, overall_rank, group_stage_points, knockout_points')
       .eq('tournament_id', tournament.id)
       .order('overall_rank', { ascending: true, nullsFirst: false })
       .limit(10),
-    // Prediction summary — count per team for group winners
     admin
       .from('group_predictions')
-      .select('predicted_1st, predicted_2nd, entry:tournament_entries!inner(tournament_id)')
+      .select('group_id, predicted_1st, predicted_2nd, predicted_3rd, entry:tournament_entries!inner(tournament_id)')
       .eq('entry.tournament_id', tournament.id)
-      .limit(200),
-    // Latest match results
+      .limit(500),
+    admin
+      .from('tournament_entries')
+      .select('tiebreaker_goals')
+      .eq('tournament_id', tournament.id),
+    admin
+      .from('groups')
+      .select('id, name, sort_order')
+      .eq('tournament_id', tournament.id)
+      .order('sort_order'),
+    admin.from('teams').select('id, name, code'),
     admin
       .from('group_matches')
       .select('home_score, away_score, home_team:teams!group_matches_home_team_id_fkey(name), away_team:teams!group_matches_away_team_id_fkey(name)')
       .not('home_score', 'is', null)
       .order('sort_order', { ascending: false })
       .limit(10),
-    // Recent chat messages
     admin
       .from('chat_messages')
       .select('content, player:players(display_name, nickname)')
@@ -150,9 +173,12 @@ export async function POST(
     })
     .join('\n') || 'No leaderboard data yet.'
 
-  const predictionsSummary = (predictionsRes.data ?? []).length > 0
-    ? `${predictionsRes.data!.length} group predictions submitted across all players.`
-    : 'No predictions data available yet.'
+  const predictionsSummary = buildPredictionsSummary({
+    predictions: predictionsRes.data ?? [],
+    entries: entriesRes.data ?? [],
+    groups: groupsRes.data ?? [],
+    teams: teamsRes.data ?? [],
+  })
 
   const resultsSummary = (resultsRes.data ?? [])
     .map((m) => {
@@ -233,9 +259,11 @@ export async function POST(
     }
   }
 
-  // Post ONE pundit's chat message per call — the next pundit who hasn't posted
-  // today. Scheduled across several runs a day, so each of the four pundits ends
-  // up posting once, spread across the day. Never a chat-about-chat snippet.
+  // Chat-post cadence depends on phase:
+  //  - PRE-tournament (no matches yet): at most ONE pundit posts per day, picked
+  //    at random. Keeps the chat quiet while there's nothing to react to.
+  //  - DURING/POST: each cron run posts one pundit who hasn't posted today —
+  //    four runs => all four pundits end up posting once across the day.
   let chatMessagesInserted = 0
   try {
     const { data: postedToday } = await admin
@@ -247,9 +275,12 @@ export async function POST(
     const posted = new Set((postedToday ?? []).map((m) => m.player_id))
     const unposted = PUNDIT_KEYS.filter((k) => !posted.has(PUNDIT_PLAYER_IDS[k]))
 
-    if (unposted.length > 0) {
-      // Random pundit among those who haven't posted yet today.
-      const punditKey = unposted[Math.floor(Math.random() * unposted.length)]
+    const shouldPost = isPreTournament ? posted.size === 0 : unposted.length > 0
+    if (shouldPost) {
+      // Pre-tournament: random across all four (since none have posted today).
+      // In-tournament: random across the pundits who haven't posted yet today.
+      const candidates = isPreTournament ? PUNDIT_KEYS : unposted
+      const punditKey = candidates[Math.floor(Math.random() * candidates.length)]
       const { data: snips } = await admin
         .from('pundit_snippets')
         .select('*')
@@ -295,5 +326,84 @@ export async function POST(
     generated: results,
     totalInserted,
     chatMessagesInserted,
+    isPreTournament,
   })
+}
+
+// Build a human-readable per-group consensus from raw predictions so the
+// pundits have concrete picks to roast — chalk vs contrarian, popular 1sts,
+// tiebreaker spread — rather than just a row count.
+function buildPredictionsSummary({
+  predictions,
+  entries,
+  groups,
+  teams,
+}: {
+  predictions: Array<{
+    group_id: string
+    predicted_1st: string | null
+    predicted_2nd: string | null
+    predicted_3rd: string | null
+  }>
+  entries: Array<{ tiebreaker_goals: number | null }>
+  groups: Array<{ id: string; name: string; sort_order: number }>
+  teams: Array<{ id: string; name: string; code: string }>
+}): string {
+  if (predictions.length === 0) {
+    return 'No group predictions submitted yet.'
+  }
+
+  const teamName = new Map(teams.map((t) => [t.id, t.name]))
+
+  function tally(values: Array<string | null>): Array<[string, number]> {
+    const counts = new Map<string, number>()
+    for (const v of values) {
+      if (!v) continue
+      counts.set(v, (counts.get(v) ?? 0) + 1)
+    }
+    return [...counts.entries()].sort((a, b) => b[1] - a[1])
+  }
+
+  function fmt(top: Array<[string, number]>, max: number): string {
+    return top
+      .slice(0, max)
+      .map(([id, n]) => `${teamName.get(id) ?? 'Unknown'} (${n})`)
+      .join(', ')
+  }
+
+  const lines: string[] = []
+  const totalEntries = entries.length
+
+  for (const g of groups) {
+    const gp = predictions.filter((p) => p.group_id === g.id)
+    if (gp.length === 0) continue
+    const firsts = tally(gp.map((p) => p.predicted_1st))
+    const seconds = tally(gp.map((p) => p.predicted_2nd))
+    const thirds = tally(gp.map((p) => p.predicted_3rd))
+
+    const parts = [
+      `1st: ${fmt(firsts, 3) || '—'}`,
+      `2nd: ${fmt(seconds, 3) || '—'}`,
+    ]
+    if (thirds.length > 0) {
+      parts.push(`3rd picked: ${fmt(thirds, 3)}`)
+    }
+    lines.push(`${g.name} (${gp.length}/${totalEntries} entries) — ${parts.join('. ')}`)
+  }
+
+  const tbs = entries
+    .map((e) => e.tiebreaker_goals)
+    .filter((x): x is number => x != null)
+  if (tbs.length > 0) {
+    const min = Math.min(...tbs)
+    const max = Math.max(...tbs)
+    const avg = Math.round(tbs.reduce((s, x) => s + x, 0) / tbs.length)
+    lines.push(
+      `Tiebreaker (total group-stage goals) across ${tbs.length} entries: min ${min}, max ${max}, avg ${avg}.`,
+    )
+  } else {
+    lines.push('No tiebreakers submitted yet.')
+  }
+
+  return lines.join('\n')
 }

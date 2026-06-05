@@ -114,7 +114,7 @@ YOUR TASK:
 Generate exactly 3 punditry snippets as a JSON array. Each snippet should be 1-3 sentences, sharp, funny, and completely in character.
 
 CONTENT (vary the three across these — all about the FOOTBALL):
-- player predictions (bold picks, consensus calls, who's looking smart/foolish)
+- player predictions: AT LEAST ONE of your three snippets must lean on the PREDICTIONS context above. Call out specific group-stage picks — chalk consensus (e.g. "everyone's got Brazil top of A"), brave contrarian calls, divergent 3rd-place qualifier picks, or the tiebreaker spread. Name actual teams from the data.
 - match results and fixtures (or, if no results yet, the upcoming games and how each group is shaping up)
 - the leaderboard/standings (or the predictions race if the standings are still flat)
 - World Cup news, the teams, or the tournament in general
@@ -123,7 +123,7 @@ CRITICAL RULES:
 - Keep EVERY take about the FOOTBALL: predictions, results, fixtures, teams, and the standings. That is the entire job.
 - Do NOT comment on the in-app group chat or on what other users are typing in chat. Ignore the chat entirely as a subject.
 - Stay 100% in character for every single snippet
-- Reference specific player names and nicknames from the leaderboard where possible
+- Reference specific team names and player names from the PREDICTIONS and LEADERBOARD blocks where possible — do not invent teams or picks that aren't in the data
 - Be opinionated — pundits don't sit on the fence
 - Keep each snippet punchy — this appears in a small card on screen
 - NO hashtags, NO emojis, NO markdown formatting
