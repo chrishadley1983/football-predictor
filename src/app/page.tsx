@@ -40,7 +40,13 @@ export default async function HomePage() {
   if (postsErr) console.error('Failed to fetch posts:', postsErr.message)
 
   const allTournaments = (tournaments as Tournament[] | null) ?? []
-  const currentTournament = allTournaments.find((t) => t.status !== 'completed')
+  // Prefer the public/visible tournament for the homepage "Current Tournament"
+  // card. Admins and testers can see hidden tournaments (e.g. wc-2026-test) via
+  // RLS, but those shouldn't take over the homepage spot from the real one
+  // when both have the same year. Testers reach hidden tournaments by URL.
+  const nonCompleted = allTournaments.filter((t) => t.status !== 'completed')
+  const currentTournament =
+    nonCompleted.find((t) => t.is_visible) ?? nonCompleted[0]
   const previousTournaments = allTournaments.filter((t) => t.status === 'completed')
 
   // Homepage CTA:
