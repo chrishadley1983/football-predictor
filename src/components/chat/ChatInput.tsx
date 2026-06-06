@@ -88,7 +88,7 @@ export function ChatInput({ onSend, replyingTo, onCancelReply, players = [], dis
     }
   }
 
-  const replyName = replyingTo?.player.nickname || replyingTo?.player.display_name
+  const replyName = replyingTo?.player?.nickname || replyingTo?.player?.display_name || 'Deleted player'
 
   return (
     <div className="relative">

@@ -422,7 +422,9 @@ export interface ChatReadCursor {
 export interface ChatReplyPreview {
   id: string
   content: string
-  player: Pick<Player, 'display_name' | 'nickname'>
+  // Null when the original author is no longer visible to the viewer via
+  // players RLS (e.g. removed entry, soft-deleted account).
+  player: Pick<Player, 'display_name' | 'nickname'> | null
 }
 
 export interface ReactionSummary {
@@ -432,7 +434,8 @@ export interface ReactionSummary {
 }
 
 export interface ChatMessageWithPlayer extends ChatMessage {
-  player: Pick<Player, 'display_name' | 'nickname' | 'avatar_url'>
+  // Null when the author isn't visible to the viewer via players RLS.
+  player: Pick<Player, 'display_name' | 'nickname' | 'avatar_url'> | null
   reply_to?: ChatReplyPreview | null
   reactions?: ReactionSummary[]
 }

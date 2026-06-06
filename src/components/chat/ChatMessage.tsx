@@ -93,7 +93,12 @@ export function ChatMessage({
   onPin,
   onUnpin,
 }: ChatMessageProps) {
-  const displayName = message.player.nickname || message.player.display_name
+  // message.player can be null when the author isn't visible to the viewer
+  // under players RLS (e.g. a player removed from the tournament, or a
+  // soft-deleted account). Fall back rather than crashing the whole chat.
+  const displayName =
+    message.player?.nickname || message.player?.display_name || 'Deleted player'
+  const avatarUrl = message.player?.avatar_url ?? null
   const [confirming, setConfirming] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [showPicker, setShowPicker] = useState(false)
@@ -191,7 +196,7 @@ export function ChatMessage({
               {pundit.name.charAt(0)}
             </div>
           ) : (
-            <PlayerAvatar avatarUrl={message.player.avatar_url} displayName={displayName} size="sm" />
+            <PlayerAvatar avatarUrl={avatarUrl} displayName={displayName} size="sm" />
           )}
         </div>
       )}
@@ -300,7 +305,7 @@ export function ChatMessage({
           {message.reply_to && (
             <div className="mb-1.5 mt-1 rounded border-l-2 border-gold/50 bg-black/10 px-2 py-1">
               <p className="text-[10px] font-semibold text-gold/80">
-                {message.reply_to.player.nickname || message.reply_to.player.display_name}
+                {message.reply_to.player?.nickname || message.reply_to.player?.display_name || 'Deleted player'}
               </p>
               <p className="text-[11px] leading-tight text-text-muted line-clamp-1">
                 {message.reply_to.content.slice(0, 80)}
@@ -363,7 +368,7 @@ export function ChatMessage({
 
       {showOnRight && (
         <div className="ml-2 mt-1 flex-shrink-0">
-          <PlayerAvatar avatarUrl={message.player.avatar_url} displayName={displayName} size="sm" />
+          <PlayerAvatar avatarUrl={avatarUrl} displayName={displayName} size="sm" />
         </div>
       )}
     </div>

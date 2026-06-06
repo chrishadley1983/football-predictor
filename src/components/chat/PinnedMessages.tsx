@@ -42,7 +42,7 @@ export function PinnedMessages({ messages, onUnpin }: PinnedMessagesProps) {
         <div className="space-y-2 px-4 pb-3">
           {messages.map((msg) => {
             const pundit = isPunditPlayer(msg.player_id) ? getPunditByPlayerId(msg.player_id) : null
-            const displayName = msg.player.nickname || msg.player.display_name
+            const displayName = msg.player?.nickname || msg.player?.display_name || 'Deleted player'
             return (
               <div
                 key={msg.id}
