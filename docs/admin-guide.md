@@ -79,3 +79,17 @@ four "chat"-category takes are also dropped into the tournament chat, time-stagg
 | `CHAT_AUDIT_WEBHOOK_SECRET` | Shared secret for the chat audit webhook (must match the DB Vault value) |
 | `ANTHROPIC_API_KEY` | AI pundit generation |
 | `CRON_SECRET` | Optional cron auth for punditry generation |
+
+## Auth URL configuration (magic links)
+
+Magic-link login only works if the hosted Supabase project (Dashboard → Authentication → URL
+Configuration) is set to:
+
+- **Site URL**: `https://football-predictor-six.vercel.app`
+- **Redirect URLs**: `https://football-predictor-six.vercel.app/auth/callback` and
+  `http://localhost:3000/auth/callback` (local dev)
+
+The login page passes `emailRedirectTo = <origin>/auth/callback`, but Supabase only honours it if
+the URL is on the allow-list — otherwise the email link falls back to `redirect_to=<Site URL>`.
+Before 2026-06-09 the Site URL was `http://localhost:3000`, which sent production magic-link users
+to a dead localhost page. `supabase/config.toml` mirrors the correct values for local dev.
