@@ -1,0 +1,9 @@
+wc2026-model/betting/cache/
+wc2026-model/betting/out/
+wc2026-model/betting/model_*.json
+wc2026-model/model_output.json
+wc2026-model/model_nomarket.json
+wc2026-model/.pw-*/
+wc2026-model/*.png
+wc2026-model/*.pdf
+wc2026-model/report.html
