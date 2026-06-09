@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { TournamentStatusBadge } from '@/components/ui/Badge'
 import { Card } from '@/components/ui/Card'
 import { PunditCard } from '@/components/pundit/PunditCard'
+import { UpcomingFixtures } from '@/components/tournament/UpcomingFixtures'
 import { formatCurrency, formatDate, getDeadlineStatus } from '@/lib/utils'
 import { getPredictionProgress } from '@/lib/predictions'
 import type { Tournament } from '@/lib/types'
@@ -162,6 +163,9 @@ export default async function TournamentPage({ params }: { params: Promise<{ slu
           </div>
         </Link>
       )}
+
+      {/* Fixtures: today + next 2 days, with live/final scores once synced */}
+      <UpcomingFixtures tournamentId={t.id} windowDays={3} />
 
       {/* Pundit */}
       <PunditCard tournamentSlug={slug} />

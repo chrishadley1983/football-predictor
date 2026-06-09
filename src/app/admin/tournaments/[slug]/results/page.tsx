@@ -39,6 +39,7 @@ export default function ResultsPage() {
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState('')
   const [scoringLoading, setScoringLoading] = useState(false)
+  const [syncLoading, setSyncLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
@@ -164,6 +165,32 @@ export default function ResultsPage() {
     setActionLoading('')
   }
 
+  async function handleSyncFromEspn() {
+    setSyncLoading(true)
+    setError('')
+    setSuccess('')
+    const res = await fetch(`/api/admin/tournaments/${slug}/sync-results`, {
+      method: 'POST',
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      setError(data.error || 'Sync failed')
+    } else {
+      const parts = [
+        `${data.fetched ?? 0} fetched`,
+        `${data.groupMatchesUpdated ?? 0} group matches`,
+        `${data.knockoutMatchesUpdated ?? 0} KO matches`,
+        `${data.groupResultsWritten ?? 0} standings`,
+      ]
+      setSuccess(`Synced from ESPN: ${parts.join(', ')}`)
+      if (Array.isArray(data.unmappedAbbrevs) && data.unmappedAbbrevs.length > 0) {
+        setError(`Unmapped team codes from ESPN: ${data.unmappedAbbrevs.join(', ')}`)
+      }
+      await loadData()
+    }
+    setSyncLoading(false)
+  }
+
   async function handleRecalculateScores() {
     setScoringLoading(true)
     setError('')
@@ -234,7 +261,15 @@ export default function ResultsPage() {
             </Button>
           ))}
         </div>
-        <div className="mt-4 border-t border-border-custom pt-3">
+        <div className="mt-4 flex flex-wrap gap-3 border-t border-border-custom pt-3">
+          <Button
+            onClick={handleSyncFromEspn}
+            loading={syncLoading}
+            variant="secondary"
+            size="sm"
+          >
+            Sync from ESPN
+          </Button>
           <Button
             onClick={handleRecalculateScores}
             loading={scoringLoading}
