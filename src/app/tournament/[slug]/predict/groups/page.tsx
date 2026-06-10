@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Card } from '@/components/ui/Card'
 import { getDeadlineStatus } from '@/lib/utils'
+import { DeadlineCountdown } from '@/components/ui/Deadline'
 import { getPredictionProgress } from '@/lib/predictions'
 import type { Tournament, GroupWithTeams, GroupPrediction, GroupResult, TournamentEntry } from '@/lib/types'
 
@@ -230,7 +231,9 @@ export default function GroupPredictionPage() {
           {tournament?.name} &mdash; Predict the finishing order for each group
         </p>
         {deadline && !deadline.passed && (
-          <p className="mt-1 text-sm font-medium text-yellow-accent">{deadline.label}</p>
+          <p className="mt-1 text-sm font-medium text-yellow-accent">
+            <DeadlineCountdown deadline={tournament?.group_stage_deadline ?? null} showTime />
+          </p>
         )}
         {isReadonly && (
           <p className="mt-2 rounded-md bg-yellow-accent/10 p-2 text-sm text-yellow-accent">

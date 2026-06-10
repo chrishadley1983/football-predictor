@@ -6,6 +6,7 @@ import { PredictionGrid } from '@/components/predictions/PredictionGrid'
 import { PredictionAnalyser } from '@/components/predictions/PredictionAnalyser'
 import type { EntryInfo } from '@/components/predictions/PredictionAnalyser'
 import { getDeadlineStatus } from '@/lib/utils'
+import { DeadlineCountdown } from '@/components/ui/Deadline'
 import { PlayerAvatar } from '@/components/ui/PlayerAvatar'
 import { GoldenTicketSummary } from '@/components/bracket/GoldenTicketSummary'
 import type {
@@ -75,7 +76,7 @@ export default async function PredictionsPage({
         <div className="rounded-md bg-yellow-accent/10 p-4 text-sm text-yellow-accent">
           Predictions will be visible after the group stage deadline has passed.
           <br />
-          {groupDeadline.label}
+          <DeadlineCountdown deadline={t.group_stage_deadline} showTime />
         </div>
 
         {/* Show who has entered */}

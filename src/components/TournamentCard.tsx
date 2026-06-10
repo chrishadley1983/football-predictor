@@ -2,7 +2,8 @@ import Link from 'next/link'
 import { Card } from '@/components/ui/Card'
 import { TournamentStatusBadge } from '@/components/ui/Badge'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { formatCurrency, formatDate, getDeadlineStatus } from '@/lib/utils'
+import { formatCurrency } from '@/lib/utils'
+import { DeadlineCountdown } from '@/components/ui/Deadline'
 import type { Tournament } from '@/lib/types'
 
 interface TournamentCardProps {
@@ -10,9 +11,6 @@ interface TournamentCardProps {
 }
 
 export async function TournamentCard({ tournament }: TournamentCardProps) {
-  const groupDeadline = getDeadlineStatus(tournament.group_stage_deadline)
-  const knockoutDeadline = getDeadlineStatus(tournament.knockout_stage_deadline)
-
   // Live prize pool = entry fee × number of entries (matches the overview page).
   // Service-role count because tournament_entries RLS hides other players' rows
   // during the group stage.
@@ -54,15 +52,12 @@ export async function TournamentCard({ tournament }: TournamentCardProps) {
           <div className="mt-3 space-y-1 text-xs text-text-muted">
             {tournament.group_stage_deadline && (
               <p>
-                Groups: {groupDeadline.passed ? 'Closed' : groupDeadline.label}
-                {!groupDeadline.passed && tournament.group_stage_deadline && (
-                  <span className="ml-1">({formatDate(tournament.group_stage_deadline, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })})</span>
-                )}
+                Groups: <DeadlineCountdown deadline={tournament.group_stage_deadline} closedLabel="Closed" showTime />
               </p>
             )}
             {tournament.knockout_stage_deadline && (
               <p>
-                Knockout: {knockoutDeadline.passed ? 'Closed' : knockoutDeadline.label}
+                Knockout: <DeadlineCountdown deadline={tournament.knockout_stage_deadline} closedLabel="Closed" showTime />
               </p>
             )}
           </div>

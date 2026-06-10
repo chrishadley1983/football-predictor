@@ -7,6 +7,7 @@ import { KnockoutBracket } from '@/components/bracket/KnockoutBracket'
 import { GoldenTicketModal } from '@/components/bracket/GoldenTicketModal'
 import { Button } from '@/components/ui/Button'
 import { getDeadlineStatus } from '@/lib/utils'
+import { DeadlineCountdown } from '@/components/ui/Deadline'
 import { getPredictionProgress } from '@/lib/predictions'
 import type { Tournament, KnockoutMatchWithTeams, KnockoutPrediction, GoldenTicket } from '@/lib/types'
 import type { EligibleSwap } from '@/lib/golden-ticket'
@@ -184,7 +185,9 @@ export default function KnockoutPredictionPage() {
           {tournament?.name} &mdash; Click on a team to predict them as the match winner
         </p>
         {deadline && !deadline.passed && (
-          <p className="mt-1 text-sm font-medium text-yellow-accent">{deadline.label}</p>
+          <p className="mt-1 text-sm font-medium text-yellow-accent">
+            <DeadlineCountdown deadline={tournament?.knockout_stage_deadline ?? null} showTime />
+          </p>
         )}
         {isReadonly && (
           <p className="mt-2 rounded-md bg-yellow-accent/10 p-2 text-sm text-yellow-accent">

@@ -6,7 +6,8 @@ import { TournamentStatusBadge } from '@/components/ui/Badge'
 import { Card } from '@/components/ui/Card'
 import { PunditCard } from '@/components/pundit/PunditCard'
 import { UpcomingFixtures } from '@/components/tournament/UpcomingFixtures'
-import { formatCurrency, formatDate, getDeadlineStatus } from '@/lib/utils'
+import { formatCurrency } from '@/lib/utils'
+import { DeadlineCountdown, DeadlineLocalTime } from '@/components/ui/Deadline'
 import { getPredictionProgress } from '@/lib/predictions'
 import type { Tournament } from '@/lib/types'
 
@@ -24,8 +25,6 @@ export default async function TournamentPage({ params }: { params: Promise<{ slu
   if (!tournament) notFound()
 
   const t = tournament as Tournament
-  const groupDeadline = getDeadlineStatus(t.group_stage_deadline)
-  const knockoutDeadline = getDeadlineStatus(t.knockout_stage_deadline)
 
   // Get total entry count. Uses the service-role client because the
   // tournament_entries RLS policy hides other players' rows until the group
@@ -132,7 +131,7 @@ export default async function TournamentPage({ params }: { params: Promise<{ slu
             <span className="text-sm text-text-secondary">Group Stage Predictions</span>
             <span className="text-sm font-medium text-foreground">
               {t.group_stage_deadline
-                ? `${formatDate(t.group_stage_deadline)} - ${groupDeadline.label}`
+                ? <><DeadlineLocalTime deadline={t.group_stage_deadline} options={{ month: 'long' }} /> - <DeadlineCountdown deadline={t.group_stage_deadline} /></>
                 : 'Not set'}
             </span>
           </div>
@@ -140,7 +139,7 @@ export default async function TournamentPage({ params }: { params: Promise<{ slu
             <span className="text-sm text-text-secondary">Knockout Predictions</span>
             <span className="text-sm font-medium text-foreground">
               {t.knockout_stage_deadline
-                ? `${formatDate(t.knockout_stage_deadline)} - ${knockoutDeadline.label}`
+                ? <><DeadlineLocalTime deadline={t.knockout_stage_deadline} options={{ month: 'long' }} /> - <DeadlineCountdown deadline={t.knockout_stage_deadline} /></>
                 : 'Not set'}
             </span>
           </div>
