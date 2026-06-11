@@ -109,7 +109,7 @@ const GROUP_FIXTURES: Record<string, [string, string, string, string, string][]>
   ],
   D: [
     ['USA', 'PAR', '2026-06-13T01:00:00Z', 'Los Angeles', 'SoFi Stadium'],
-    ['AUS', 'TUR', '2026-06-13T04:00:00Z', 'Vancouver', 'BC Place'],
+    ['AUS', 'TUR', '2026-06-14T04:00:00Z', 'Vancouver', 'BC Place'],
     ['USA', 'AUS', '2026-06-19T19:00:00Z', 'Seattle', 'Lumen Field'],
     ['TUR', 'PAR', '2026-06-20T03:00:00Z', 'San Francisco', "Levi's Stadium"],
     ['TUR', 'USA', '2026-06-26T02:00:00Z', 'Los Angeles', 'SoFi Stadium'],
@@ -126,7 +126,7 @@ const GROUP_FIXTURES: Record<string, [string, string, string, string, string][]>
   F: [
     ['NED', 'JPN', '2026-06-14T20:00:00Z', 'Dallas', 'AT&T Stadium'],
     ['SWE', 'TUN', '2026-06-15T02:00:00Z', 'Monterrey', 'Estadio BBVA'],
-    ['TUN', 'JPN', '2026-06-20T04:00:00Z', 'Monterrey', 'Estadio BBVA'],
+    ['TUN', 'JPN', '2026-06-21T04:00:00Z', 'Monterrey', 'Estadio BBVA'],
     ['NED', 'SWE', '2026-06-20T17:00:00Z', 'Houston', 'NRG Stadium'],
     ['JPN', 'SWE', '2026-06-25T23:00:00Z', 'Dallas', 'AT&T Stadium'],
     ['TUN', 'NED', '2026-06-25T23:00:00Z', 'Kansas City', 'Arrowhead Stadium'],
@@ -233,7 +233,7 @@ const KNOCKOUT_SCHEDULE: Record<number, [string, string]> = {
   1: ['2026-06-28T19:00:00Z', 'Los Angeles'],
   2: ['2026-06-29T17:00:00Z', 'Houston'],
   3: ['2026-06-29T20:30:00Z', 'Boston'],
-  4: ['2026-06-30T00:00:00Z', 'Monterrey'],
+  4: ['2026-06-30T01:00:00Z', 'Monterrey'],
   5: ['2026-06-30T17:00:00Z', 'Dallas'],
   6: ['2026-06-30T21:00:00Z', 'New York/New Jersey'],
   7: ['2026-07-01T01:00:00Z', 'Mexico City'],
@@ -308,8 +308,10 @@ export async function POST() {
           entry_fee_gbp: 10.0,
           group_stage_prize_pct: 25,
           overall_prize_pct: 75,
-          group_stage_deadline: isoAt('2026-06-11', 15),
-          knockout_stage_deadline: isoAt('2026-06-28', 15),
+          // Deadlines are first kick-off of each stage: 11 Jun 19:00 UTC (MEX-RSA,
+          // 3pm ET) and 28 Jun 19:00 UTC (R32 match 1, LA). Keep as UTC instants.
+          group_stage_deadline: isoAt('2026-06-11', 19),
+          knockout_stage_deadline: isoAt('2026-06-28', 19),
           status: 'group_stage_open' as const,
         },
         { onConflict: 'slug' }
