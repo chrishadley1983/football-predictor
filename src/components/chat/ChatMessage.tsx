@@ -23,8 +23,10 @@ function formatRelativeTime(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
 }
 
-/** Format message content: @mentions, **bold**, *italic*, URLs */
-function renderContent(text: string): ReactNode[] {
+/** Format message content: @mentions, **bold**, *italic*, URLs.
+ * `onGoldBubble` switches link/mention styling for the sender's own gold
+ * bubble, where the default gold text would be invisible. */
+function renderContent(text: string, onGoldBubble = false): ReactNode[] {
   // Split on: @mentions, **bold**, *italic*, URLs
   const pattern = /(@\w[\w\s]*?\w(?=\s|$|[.,!?]))|(\*\*[^*]+\*\*)|(\*[^*]+\*)|(https?:\/\/[^\s<]+)/g
   const result: ReactNode[] = []
@@ -39,7 +41,14 @@ function renderContent(text: string): ReactNode[] {
 
     const [full] = match
     if (full.startsWith('@')) {
-      result.push(<span key={`m${match.index}`} className="font-bold text-gold">{full}</span>)
+      result.push(
+        <span
+          key={`m${match.index}`}
+          className={cn('font-bold', onGoldBubble ? 'text-black' : 'text-gold')}
+        >
+          {full}
+        </span>
+      )
     } else if (full.startsWith('**') && full.endsWith('**')) {
       result.push(<strong key={`b${match.index}`}>{full.slice(2, -2)}</strong>)
     } else if (full.startsWith('*') && full.endsWith('*')) {
@@ -52,7 +61,12 @@ function renderContent(text: string): ReactNode[] {
           href={full}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-gold underline hover:text-gold-light"
+          className={cn(
+            'underline',
+            onGoldBubble
+              ? 'font-semibold text-black hover:text-black/70'
+              : 'text-gold hover:text-gold-light'
+          )}
         >
           {display}
         </a>
@@ -324,7 +338,7 @@ export function ChatMessage({
             />
           ) : (
             <p className={cn('text-sm whitespace-pre-wrap break-words', isPundit && 'italic')}>
-              {renderContent(message.content)}
+              {renderContent(message.content, isOwnMessage && !isPundit)}
             </p>
           )}
 
