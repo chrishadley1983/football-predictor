@@ -247,10 +247,19 @@ export async function POST(
     row: TeamRow
   }
   const computedByGroup = new Map<string, ComputedRow[]>()
+  const completeByGroup = new Map<string, boolean>()
+  const isGroupComplete = (gid: string) => {
+    const ms = matchesByGroup.get(gid) ?? []
+    return ms.length > 0 && ms.every((m) => m.home_score != null && m.away_score != null)
+  }
+  // Best-8 thirds depend on every group's final table, so third-place
+  // qualification can only be decided once ALL groups are complete — at which
+  // point we must rank thirds across all 12 groups, not just the touched ones.
+  const allGroupsComplete = [...teamIdsByGroup.keys()].every(isGroupComplete)
   const groupIdsToProcess =
-    touchedGroupIds.size > 0
-      ? [...touchedGroupIds]
-      : [...teamIdsByGroup.keys()]
+    allGroupsComplete || touchedGroupIds.size === 0
+      ? [...teamIdsByGroup.keys()]
+      : [...touchedGroupIds]
 
   for (const gid of groupIdsToProcess) {
     const teamIds = teamIdsByGroup.get(gid) ?? []
@@ -260,6 +269,7 @@ export async function POST(
       (m) => m.home_score != null && m.away_score != null
     ).length
     if (finishedCount === 0) continue
+    completeByGroup.set(gid, finishedCount === ms.length)
     const standings = computeGroupStandings(
       teamIds,
       teamIdToCode,
@@ -274,14 +284,13 @@ export async function POST(
     groupsWithDerivedStandings++
   }
 
-  // Across all currently-processed groups, pick the best third-placed teams.
-  // We only mark `qualified` for groups whose 3rd-placed team's row is fully
-  // played (3 GP) so partial-table noise doesn't promote anyone early.
+  // Third-place qualification is only knowable once every group is complete:
+  // the best-8 ranking compares final third-place rows across all 12 groups.
   const thirdRows: TeamRow[] = []
-  for (const stds of computedByGroup.values()) {
-    const third = stds.find((s) => s.final_position === 3)
-    if (third && third.row.played === Math.max(...stds.map((s) => s.row.played))) {
-      thirdRows.push(third.row)
+  if (allGroupsComplete) {
+    for (const stds of computedByGroup.values()) {
+      const third = stds.find((s) => s.final_position === 3)
+      if (third) thirdRows.push(third.row)
     }
   }
   const qualifiedThirds =
@@ -289,8 +298,12 @@ export async function POST(
 
   for (const [gid, standings] of computedByGroup.entries()) {
     for (const s of standings) {
+      // Live mid-group tables still get positions written (the results page
+      // shows them as a running table), but `qualified` is only set once the
+      // group has finished all its matches — "currently top two" after one
+      // matchday is not qualification.
       const qualified =
-        s.qualified_within_group ||
+        (s.qualified_within_group && completeByGroup.get(gid) === true) ||
         (s.final_position === 3 && qualifiedThirds.has(s.team_id))
 
       const { data: existing } = await admin
