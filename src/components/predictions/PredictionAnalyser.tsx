@@ -38,6 +38,13 @@ interface PredictionAnalyserProps {
   knockoutVisible?: boolean
   achievements?: PlayerAchievement[]
   goldenTickets?: GoldenTicket[]
+  /**
+   * Team ids whose group-stage fate is actually settled (qualified, or
+   * genuinely eliminated). Only these get colour-coded — a team mid-group
+   * stays neutral instead of being shown red before its group is decided.
+   * When undefined, every result is treated as settled (legacy behaviour).
+   */
+  decidedTeamIds?: string[]
 }
 
 const ROUND_ORDER: KnockoutRound[] = [
@@ -67,6 +74,7 @@ export function PredictionAnalyser({
   knockoutVisible = false,
   achievements = [],
   goldenTickets = [],
+  decidedTeamIds,
 }: PredictionAnalyserProps) {
   const [isOpen, setIsOpen] = useState(true)
 
@@ -111,8 +119,17 @@ export function PredictionAnalyser({
     return '?'
   }
 
+  // Whether this team's outcome is final enough to colour-code. Undefined prop
+  // => no gating (treat all as decided).
+  const decidedSet = useMemo(
+    () => (decidedTeamIds ? new Set(decidedTeamIds) : null),
+    [decidedTeamIds]
+  )
+  const isDecided = (teamId: string) => !decidedSet || decidedSet.has(teamId)
+
   function getCellColor(teamId: string | null, predictedPosition: number): string {
     if (!teamId || resultByTeam.size === 0) return 'bg-surface-light'
+    if (!isDecided(teamId)) return 'bg-surface-light'
     const result = resultByTeam.get(teamId)
     if (!result) return 'bg-surface-light'
     if (result.qualified && result.final_position === predictedPosition) {
@@ -528,13 +545,15 @@ export function PredictionAnalyser({
                             !!teamIdA &&
                             !!resultA &&
                             resultA.final_position === 3 &&
-                            !resultA.qualified
+                            !resultA.qualified &&
+                            isDecided(teamIdA)
                           const isNQB =
                             pos === 3 &&
                             !!teamIdB &&
                             !!resultB &&
                             resultB.final_position === 3 &&
-                            !resultB.qualified
+                            !resultB.qualified &&
+                            isDecided(teamIdB)
                           const agree =
                             isH2H &&
                             !!teamIdA &&

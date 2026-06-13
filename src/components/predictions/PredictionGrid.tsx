@@ -36,6 +36,13 @@ interface PredictionGridProps {
   knockoutVisible?: boolean
   /** When true (all-players view), use 3-letter country codes to save space */
   useShortNames?: boolean
+  /**
+   * Team ids whose group-stage fate is actually settled (qualified, or
+   * genuinely eliminated). Only these get colour-coded — a team mid-group
+   * stays neutral instead of being shown red before its group is decided.
+   * When undefined, every result is treated as settled (legacy behaviour).
+   */
+  decidedTeamIds?: string[]
 }
 
 export function PredictionGrid({
@@ -46,6 +53,7 @@ export function PredictionGrid({
   knockoutMatches = [],
   knockoutVisible = false,
   useShortNames = false,
+  decidedTeamIds,
 }: PredictionGridProps) {
   const hasThirdPlaceFeature = !!thirdPlaceQualifiersCount
   // Build result lookup: team_id -> { qualified, final_position }
@@ -54,8 +62,14 @@ export function PredictionGrid({
     resultMap.set(r.team_id, { qualified: r.qualified, final_position: r.final_position })
   }
 
+  // Whether this team's outcome is final enough to colour-code. Undefined prop
+  // => no gating (treat all as decided).
+  const decidedSet = decidedTeamIds ? new Set(decidedTeamIds) : null
+  const isDecided = (teamId: string) => !decidedSet || decidedSet.has(teamId)
+
   function getCellColor(teamId: string | null, predictedPosition: number): string {
     if (!teamId || resultMap.size === 0) return 'bg-surface-light'
+    if (!isDecided(teamId)) return 'bg-surface-light'
     const result = resultMap.get(teamId)
     if (!result) return 'bg-surface-light'
 
@@ -207,7 +221,7 @@ export function PredictionGrid({
                   const isNullThird = pos === 3 && hasThirdPlaceFeature && !teamId
                   const result = teamId ? resultMap.get(teamId) : undefined
                   const isCorrectPosButNQ = pos === 3 && !!teamId && !!result
-                    && result.final_position === 3 && !result.qualified
+                    && result.final_position === 3 && !result.qualified && isDecided(teamId)
                   return (
                     <td
                       key={`${p.entry_id}-${group.id}-${pos}`}

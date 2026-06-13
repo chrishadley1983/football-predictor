@@ -153,6 +153,18 @@ export default async function PredictionsPage({
           .in('group_id', groupIds)
       : { data: [] }
 
+  // Fetch group match scores so we can tell which groups have actually finished.
+  // group_results stores live (running) standings mid-group with qualified=false,
+  // which the Predictions page must NOT render as "did not qualify" until the
+  // group is genuinely decided.
+  const { data: groupMatches } =
+    groupIds.length > 0
+      ? await supabase
+          .from('group_matches')
+          .select('group_id, home_score, away_score')
+          .in('group_id', groupIds)
+      : { data: [] }
+
   // Knockout visibility: only after knockout stage has begun (admin can always see)
   const knockoutStarted = ['knockout_open', 'knockout_closed', 'completed'].includes(t.status)
   const knockoutVisible = isAdmin || knockoutStarted
@@ -264,6 +276,38 @@ export default async function PredictionsPage({
     }
   })
 
+  // Work out which teams' group-stage fate is actually settled, so the grid /
+  // analyser only colour-code decided outcomes. A team is "decided" when it has
+  // genuinely qualified, or when it's genuinely eliminated: its group has played
+  // all its matches (and, for a 3rd-placed team whose fate hinges on the best-3rd
+  // race, every group is complete). Anything mid-group stays neutral.
+  const matchesByGroupId = new Map<string, { home: number | null; away: number | null }[]>()
+  for (const m of (groupMatches ?? []) as {
+    group_id: string
+    home_score: number | null
+    away_score: number | null
+  }[]) {
+    const arr = matchesByGroupId.get(m.group_id) ?? []
+    arr.push({ home: m.home_score, away: m.away_score })
+    matchesByGroupId.set(m.group_id, arr)
+  }
+  const isGroupComplete = (gid: string) => {
+    const ms = matchesByGroupId.get(gid) ?? []
+    return ms.length > 0 && ms.every((m) => m.home != null && m.away != null)
+  }
+  const allGroupsComplete =
+    groupIds.length > 0 && groupIds.every((gid) => isGroupComplete(gid))
+  const decidedTeamIds = ((groupResults as GroupResult[]) ?? [])
+    .filter((r) => {
+      if (r.qualified) return true
+      if (!isGroupComplete(r.group_id)) return false
+      // A 3rd-placed team isn't "eliminated" until the best-3rd race resolves,
+      // which needs every group finished.
+      if (r.final_position === 3 && !allGroupsComplete) return false
+      return true
+    })
+    .map((r) => r.team_id)
+
   // Fetch achievements for this tournament
   const { data: achievements } = await supabase
     .from('player_achievements')
@@ -309,6 +353,7 @@ export default async function PredictionsPage({
         knockoutVisible={knockoutVisible}
         achievements={(achievements ?? []) as PlayerAchievement[]}
         goldenTickets={goldenTickets}
+        decidedTeamIds={decidedTeamIds}
       />
       <PredictionsByCountry
         predictions={predictions}
@@ -328,6 +373,7 @@ export default async function PredictionsPage({
         knockoutMatches={knockoutMatches}
         knockoutVisible={knockoutVisible}
         useShortNames
+        decidedTeamIds={decidedTeamIds}
       />
     </div>
   )
