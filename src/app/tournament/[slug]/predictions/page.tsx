@@ -7,6 +7,7 @@ import { PredictionAnalyser } from '@/components/predictions/PredictionAnalyser'
 import { PredictionsByCountry } from '@/components/predictions/PredictionsByCountry'
 import type { EntryInfo } from '@/components/predictions/PredictionAnalyser'
 import { getDeadlineStatus } from '@/lib/utils'
+import { computeDecidedTeamIds } from '@/lib/decided-teams'
 import { DeadlineCountdown } from '@/components/ui/Deadline'
 import { PlayerAvatar } from '@/components/ui/PlayerAvatar'
 import { GoldenTicketSummary } from '@/components/bracket/GoldenTicketSummary'
@@ -276,37 +277,14 @@ export default async function PredictionsPage({
     }
   })
 
-  // Work out which teams' group-stage fate is actually settled, so the grid /
-  // analyser only colour-code decided outcomes. A team is "decided" when it has
-  // genuinely qualified, or when it's genuinely eliminated: its group has played
-  // all its matches (and, for a 3rd-placed team whose fate hinges on the best-3rd
-  // race, every group is complete). Anything mid-group stays neutral.
-  const matchesByGroupId = new Map<string, { home: number | null; away: number | null }[]>()
-  for (const m of (groupMatches ?? []) as {
-    group_id: string
-    home_score: number | null
-    away_score: number | null
-  }[]) {
-    const arr = matchesByGroupId.get(m.group_id) ?? []
-    arr.push({ home: m.home_score, away: m.away_score })
-    matchesByGroupId.set(m.group_id, arr)
-  }
-  const isGroupComplete = (gid: string) => {
-    const ms = matchesByGroupId.get(gid) ?? []
-    return ms.length > 0 && ms.every((m) => m.home != null && m.away != null)
-  }
-  const allGroupsComplete =
-    groupIds.length > 0 && groupIds.every((gid) => isGroupComplete(gid))
-  const decidedTeamIds = ((groupResults as GroupResult[]) ?? [])
-    .filter((r) => {
-      if (r.qualified) return true
-      if (!isGroupComplete(r.group_id)) return false
-      // A 3rd-placed team isn't "eliminated" until the best-3rd race resolves,
-      // which needs every group finished.
-      if (r.final_position === 3 && !allGroupsComplete) return false
-      return true
-    })
-    .map((r) => r.team_id)
+  // Only colour-code teams whose group-stage fate is actually settled — a team
+  // mid-group stays neutral instead of being shown red before its group is
+  // decided. See computeDecidedTeamIds for the rule.
+  const decidedTeamIds = computeDecidedTeamIds(
+    (groupResults as GroupResult[]) ?? [],
+    (groupMatches ?? []) as { group_id: string; home_score: number | null; away_score: number | null }[],
+    groupIds
+  )
 
   // Fetch achievements for this tournament
   const { data: achievements } = await supabase

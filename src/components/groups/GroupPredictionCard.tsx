@@ -18,9 +18,16 @@ interface GroupPredictionCardProps {
   canToggleThirdPlace?: boolean
   /** When true, hides the per-card save button (parent handles submission) */
   hideSubmitButton?: boolean
+  /**
+   * Team ids whose group-stage fate is actually settled. Only these get a
+   * status ring — a team mid-group stays unringed instead of showing red
+   * before its group is decided. When undefined, all results are treated as
+   * settled (legacy behaviour).
+   */
+  decidedTeamIds?: string[]
 }
 
-export function GroupPredictionCard({ group, prediction, onPredict, readonly, results, thirdPlaceQualifies, onThirdPlaceToggle, canToggleThirdPlace, hideSubmitButton }: GroupPredictionCardProps) {
+export function GroupPredictionCard({ group, prediction, onPredict, readonly, results, thirdPlaceQualifies, onThirdPlaceToggle, canToggleThirdPlace, hideSubmitButton, decidedTeamIds }: GroupPredictionCardProps) {
   const hasThirdPlaceFeature = thirdPlaceQualifies !== undefined
   const teams = group.group_teams.map((gt) => gt.team)
 
@@ -49,6 +56,10 @@ export function GroupPredictionCard({ group, prediction, onPredict, readonly, re
     }
   }
 
+  // Undefined prop => no gating (treat all results as settled).
+  const decidedSet = decidedTeamIds ? new Set(decidedTeamIds) : null
+  const isDecided = (teamId: string) => !decidedSet || decidedSet.has(teamId)
+
   function getAvailableOptions(excludeIds: string[]) {
     return teams
       .filter((t) => !excludeIds.includes(t.id))
@@ -60,6 +71,7 @@ export function GroupPredictionCard({ group, prediction, onPredict, readonly, re
 
   function getStatusColor(teamId: string, predictedPosition: number): string {
     if (!teamId || resultMap.size === 0) return ''
+    if (!isDecided(teamId)) return ''
     const result = resultMap.get(teamId)
     if (!result) return ''
     if (result.qualified && result.final_position === predictedPosition) {

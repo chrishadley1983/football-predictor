@@ -10,6 +10,7 @@ import { Card } from '@/components/ui/Card'
 import { getDeadlineStatus } from '@/lib/utils'
 import { DeadlineCountdown } from '@/components/ui/Deadline'
 import { getPredictionProgress } from '@/lib/predictions'
+import { computeDecidedTeamIds } from '@/lib/decided-teams'
 import type { Tournament, GroupWithTeams, GroupPrediction, GroupResult, TournamentEntry } from '@/lib/types'
 
 interface TournamentData extends Tournament {
@@ -23,6 +24,7 @@ export default function GroupPredictionPage() {
   const [entry, setEntry] = useState<TournamentEntry | null>(null)
   const [predictions, setPredictions] = useState<GroupPrediction[]>([])
   const [results, setResults] = useState<GroupResult[]>([])
+  const [decidedTeamIds, setDecidedTeamIds] = useState<string[]>([])
   const [tiebreaker, setTiebreaker] = useState('')
   const [thirdPlaceSelections, setThirdPlaceSelections] = useState<Record<string, boolean>>({})
   // Local draft state per group: groupId -> { first, second, third }
@@ -107,11 +109,19 @@ export default function GroupPredictionPage() {
 
       const groupIds = data.groups?.map((g: GroupWithTeams) => g.id) ?? []
       if (groupIds.length > 0) {
-        const { data: groupResults } = await supabase
-          .from('group_results')
-          .select('*')
-          .in('group_id', groupIds)
+        const [{ data: groupResults }, { data: groupMatches }] = await Promise.all([
+          supabase.from('group_results').select('*').in('group_id', groupIds),
+          supabase
+            .from('group_matches')
+            .select('group_id, home_score, away_score')
+            .in('group_id', groupIds),
+        ])
         if (groupResults) setResults(groupResults)
+        // Only show the green/yellow/red status rings once a team's group fate is
+        // actually settled — group_results carries live mid-group standings.
+        setDecidedTeamIds(
+          computeDecidedTeamIds(groupResults ?? [], groupMatches ?? [], groupIds)
+        )
       }
 
       setLoading(false)
@@ -262,6 +272,7 @@ export default function GroupPredictionPage() {
             onPredict={(first, second, third) => handleDraftChange(group.id, first, second, third)}
             readonly={isReadonly}
             results={results.filter((r) => r.group_id === group.id)}
+            decidedTeamIds={decidedTeamIds}
             hideSubmitButton
             {...(thirdPlaceCount !== null ? {
               thirdPlaceQualifies: !!thirdPlaceSelections[group.id],
