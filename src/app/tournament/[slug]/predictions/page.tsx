@@ -4,6 +4,7 @@ import { getCurrentPlayer } from '@/lib/auth'
 import { fetchAllRows } from '@/lib/supabase/fetch-all'
 import { PredictionGrid } from '@/components/predictions/PredictionGrid'
 import { PredictionAnalyser } from '@/components/predictions/PredictionAnalyser'
+import { PredictionsByCountry } from '@/components/predictions/PredictionsByCountry'
 import type { EntryInfo } from '@/components/predictions/PredictionAnalyser'
 import { getDeadlineStatus } from '@/lib/utils'
 import { DeadlineCountdown } from '@/components/ui/Deadline'
@@ -308,6 +309,10 @@ export default async function PredictionsPage({
         knockoutVisible={knockoutVisible}
         achievements={(achievements ?? []) as PlayerAchievement[]}
         goldenTickets={goldenTickets}
+      />
+      <PredictionsByCountry
+        predictions={predictions}
+        groups={((groups as GroupWithTeams[]) ?? [])}
       />
       {knockoutVisible && goldenTickets.length > 0 && (
         <GoldenTicketSummary tickets={goldenTickets} entries={entryInfos} />
