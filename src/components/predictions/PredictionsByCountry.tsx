@@ -24,7 +24,7 @@ function playerName(p: Player): string {
 }
 
 export function PredictionsByCountry({ predictions, groups }: PredictionsByCountryProps) {
-  const [isOpen, setIsOpen] = useState(false)
+  const [isOpen, setIsOpen] = useState(true)
   const [selectedTeamId, setSelectedTeamId] = useState<string>('')
 
   // All teams across all groups, sorted alphabetically for the dropdown.

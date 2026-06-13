@@ -259,11 +259,10 @@ export async function POST(
     }
   }
 
-  // Chat-post cadence depends on phase:
-  //  - PRE-tournament (no matches yet): at most ONE pundit posts per day, picked
-  //    at random. Keeps the chat quiet while there's nothing to react to.
-  //  - DURING/POST: each cron run posts one pundit who hasn't posted today —
-  //    four runs => all four pundits end up posting once across the day.
+  // Chat-post cadence: exactly ONE pundit posts to chat per day, rotating through
+  // the four pundits in order (neverill -> bright -> meane -> scaragher -> ...).
+  // Multiple cron runs per day are idempotent: once any pundit has posted today
+  // we stop, so the chat gets a single take a day regardless of run frequency.
   let chatMessagesInserted = 0
   try {
     const { data: postedToday } = await admin
@@ -272,24 +271,43 @@ export async function POST(
       .eq('tournament_id', tournament.id)
       .eq('message_type', 'pundit')
       .gte('created_at', `${today}T00:00:00Z`)
-    const posted = new Set((postedToday ?? []).map((m) => m.player_id))
-    const unposted = PUNDIT_KEYS.filter((k) => !posted.has(PUNDIT_PLAYER_IDS[k]))
 
-    const shouldPost = isPreTournament ? posted.size === 0 : unposted.length > 0
+    const shouldPost = (postedToday ?? []).length === 0
     if (shouldPost) {
-      // Pre-tournament: random across all four (since none have posted today).
-      // In-tournament: random across the pundits who haven't posted yet today.
-      const candidates = isPreTournament ? PUNDIT_KEYS : unposted
-      const punditKey = candidates[Math.floor(Math.random() * candidates.length)]
-      const { data: snips } = await admin
-        .from('pundit_snippets')
-        .select('*')
+      // Rotate to the pundit after whoever posted most recently. Starting from
+      // that point we walk the full cycle so that, if the next pundit happens to
+      // have no usable snippets today, the slot still gets filled by the one
+      // after them rather than going silent.
+      const playerIdToKey = new Map(
+        PUNDIT_KEYS.map((k) => [PUNDIT_PLAYER_IDS[k], k] as const)
+      )
+      const { data: lastPundit } = await admin
+        .from('chat_messages')
+        .select('player_id')
         .eq('tournament_id', tournament.id)
-        .eq('generated_date', today)
-        .eq('pundit_key', punditKey)
-        .neq('category', 'chat')
+        .eq('message_type', 'pundit')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
 
-      if (snips && snips.length > 0) {
+      const lastKey = lastPundit ? playerIdToKey.get(lastPundit.player_id) : undefined
+      const lastIndex = lastKey ? PUNDIT_KEYS.indexOf(lastKey) : -1
+      const startIndex = (lastIndex + 1) % PUNDIT_KEYS.length
+      const rotation = PUNDIT_KEYS.map(
+        (_, i) => PUNDIT_KEYS[(startIndex + i) % PUNDIT_KEYS.length]
+      )
+
+      for (const punditKey of rotation) {
+        const { data: snips } = await admin
+          .from('pundit_snippets')
+          .select('*')
+          .eq('tournament_id', tournament.id)
+          .eq('generated_date', today)
+          .eq('pundit_key', punditKey)
+          .neq('category', 'chat')
+
+        if (!snips || snips.length === 0) continue
+
         // Prefer football-substance categories, then pick one at random in tier.
         const PREFERRED: PunditCategory[] = ['results', 'predictions', 'leaderboard', 'news', 'wildcard']
         const rank = (c: string) => {
@@ -313,6 +331,7 @@ export async function POST(
         } else {
           chatMessagesInserted = 1
         }
+        break
       }
     }
   } catch (err) {
