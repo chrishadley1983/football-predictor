@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { logAiUsage } from '@/lib/ai-usage-audit'
 import { getPunditSystemPrompt } from '@/lib/pundit-prompts'
 import { PUNDIT_KEYS } from '@/lib/pundit-characters'
 import { PUNDIT_PLAYER_IDS } from '@/lib/pundit-players'
@@ -18,6 +19,10 @@ async function generateForPundit(
 ): Promise<SnippetOutput[]> {
   const systemPrompt = getPunditSystemPrompt(punditKey, context)
 
+  const model = 'claude-sonnet-4-20250514'
+  const feature = `pundit:${punditKey}`
+  const startedAt = Date.now()
+
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 30_000)
 
@@ -30,7 +35,7 @@ async function generateForPundit(
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model,
         max_tokens: 4096,
         messages: [{ role: 'user', content: 'Generate the 15 punditry snippets now.' }],
         system: systemPrompt,
@@ -43,11 +48,37 @@ async function generateForPundit(
     if (!res.ok) {
       const text = await res.text()
       console.error(`[generate-punditry] Claude API error for ${punditKey}: ${res.status} - ${text}`)
+      // Fire-and-forget audit log (not awaited): record the failed call.
+      void logAiUsage({
+        project: 'football-predictor',
+        feature,
+        model,
+        billing_source: 'api_key',
+        request_ms: Date.now() - startedAt,
+        status: 'error',
+        error: `HTTP ${res.status}: ${text.slice(0, 500)}`,
+      })
       return []
     }
 
     const data = await res.json()
     const text = data.content?.[0]?.text ?? ''
+
+    // Fire-and-forget audit log (not awaited): record token usage for this call.
+    const usage = data.usage ?? {}
+    void logAiUsage({
+      project: 'football-predictor',
+      feature,
+      model: data.model ?? model,
+      billing_source: 'api_key',
+      input_tokens: usage.input_tokens ?? null,
+      output_tokens: usage.output_tokens ?? null,
+      cache_creation_input_tokens: usage.cache_creation_input_tokens ?? null,
+      cache_read_input_tokens: usage.cache_read_input_tokens ?? null,
+      request_ms: Date.now() - startedAt,
+      status: 'success',
+      anthropic_message_id: data.id ?? null,
+    })
 
     // Parse JSON array from response
     const jsonMatch = text.match(/\[[\s\S]*\]/)
@@ -67,11 +98,26 @@ async function generateForPundit(
     )
   } catch (err) {
     clearTimeout(timeout)
-    if (err instanceof Error && err.name === 'AbortError') {
+    const isTimeout = err instanceof Error && err.name === 'AbortError'
+    if (isTimeout) {
       console.error(`[generate-punditry] Timeout for ${punditKey} (30s)`)
     } else {
       console.error(`[generate-punditry] Error for ${punditKey}:`, err)
     }
+    // Fire-and-forget audit log (not awaited): record the errored call.
+    void logAiUsage({
+      project: 'football-predictor',
+      feature,
+      model,
+      billing_source: 'api_key',
+      request_ms: Date.now() - startedAt,
+      status: 'error',
+      error: isTimeout
+        ? 'timeout (30s)'
+        : err instanceof Error
+          ? err.message
+          : String(err),
+    })
     return []
   }
 }
