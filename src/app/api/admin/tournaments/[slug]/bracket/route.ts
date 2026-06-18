@@ -79,27 +79,34 @@ export async function POST(
       return NextResponse.json({ error: 'assignments must be an array' }, { status: 400 })
     }
 
-    // Validate the targets are this tournament's Round of 32 matches.
+    // Validate the targets are this tournament's Round of 32 matches, and load
+    // the CURRENT slot state so a partial payload can't create cross-slot dupes.
     const { data: r32Matches } = await admin
       .from('knockout_matches')
-      .select('id')
+      .select('id, home_team_id, away_team_id')
       .eq('tournament_id', tournament.id)
       .eq('round', 'round_of_32')
 
-    const r32Ids = new Set((r32Matches ?? []).map((m) => m.id))
+    const slotState = new Map<string, { home: string | null; away: string | null }>()
+    for (const m of r32Matches ?? []) slotState.set(m.id, { home: m.home_team_id, away: m.away_team_id })
+
     for (const a of assignments) {
-      if (!r32Ids.has(a.match_id)) {
+      if (!slotState.has(a.match_id)) {
         return NextResponse.json(
           { error: `Match ${a.match_id} is not a Round of 32 match in this tournament` },
           { status: 400 }
         )
       }
+      // Overlay the submitted assignment onto the current bracket state.
+      slotState.set(a.match_id, { home: a.home_team_id ?? null, away: a.away_team_id ?? null })
     }
 
-    // A team may only occupy a single R32 slot.
+    // A team may only occupy a single R32 slot across the WHOLE bracket (current
+    // state merged with the submitted assignments), so even a partial payload
+    // can't leave the same team sitting in two slots.
     const seen = new Map<string, number>()
-    for (const a of assignments) {
-      for (const teamId of [a.home_team_id, a.away_team_id]) {
+    for (const s of slotState.values()) {
+      for (const teamId of [s.home, s.away]) {
         if (!teamId) continue
         seen.set(teamId, (seen.get(teamId) ?? 0) + 1)
       }

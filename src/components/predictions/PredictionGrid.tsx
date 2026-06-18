@@ -9,6 +9,7 @@ import type {
   GroupResult,
   KnockoutMatch,
   KnockoutRound,
+  GoldenTicket,
 } from '@/lib/types'
 
 const ROUND_ORDER: KnockoutRound[] = [
@@ -34,6 +35,8 @@ interface PredictionGridProps {
   thirdPlaceQualifiersCount?: number | null
   knockoutMatches?: KnockoutMatch[]
   knockoutVisible?: boolean
+  /** Emergency Subs played, so their picks are marked (🔄) rather than shown as blunders. */
+  goldenTickets?: GoldenTicket[]
   /** When true (all-players view), use 3-letter country codes to save space */
   useShortNames?: boolean
   /**
@@ -52,6 +55,7 @@ export function PredictionGrid({
   thirdPlaceQualifiersCount,
   knockoutMatches = [],
   knockoutVisible = false,
+  goldenTickets = [],
   useShortNames = false,
   decidedTeamIds,
 }: PredictionGridProps) {
@@ -176,6 +180,23 @@ export function PredictionGrid({
     return eliminatedAt < currentRoundIdx
   }
 
+  // Emergency Sub picks: the swapped-in team carried forward from the round the
+  // sub was played. Marked 🔄 (and exempt from "impossible" greying) across the
+  // origin match and every cascade pick.
+  const subByEntry = useMemo(() => {
+    const map = new Map<string, { newTeamId: string; fromRoundIdx: number }>()
+    for (const t of goldenTickets) {
+      map.set(t.entry_id, { newTeamId: t.new_team_id, fromRoundIdx: ROUND_ORDER.indexOf(t.played_after_round) })
+    }
+    return map
+  }, [goldenTickets])
+
+  function isSubPick(entryId: string, matchRound: KnockoutRound, predictedWinnerId: string | null): boolean {
+    const s = subByEntry.get(entryId)
+    if (!s || !predictedWinnerId) return false
+    return predictedWinnerId === s.newTeamId && ROUND_ORDER.indexOf(matchRound) >= s.fromRoundIdx
+  }
+
   if (predictions.length === 0) {
     return <p className="py-8 text-center text-sm text-text-muted">No predictions available yet.</p>
   }
@@ -271,6 +292,7 @@ export function PredictionGrid({
                 </td>
                 {predictions.map((p) => {
                   const pred = p.knockout_predictions.find((kp) => kp.match_id === finalMatch.id)
+                  const sub = isSubPick(p.entry_id, finalMatch.round, pred?.predicted_winner_id ?? null)
                   return (
                     <td
                       key={`${p.entry_id}-champion`}
@@ -283,6 +305,7 @@ export function PredictionGrid({
                         )
                       )}
                     >
+                      {sub && <span title="Emergency Sub pick" className="mr-0.5">🔄</span>}
                       {pred ? getDisplayName(pred.predicted_winner_id) : '-'}
                     </td>
                   )
@@ -315,7 +338,8 @@ export function PredictionGrid({
                       const pred = p.knockout_predictions.find(
                         (kp) => kp.match_id === match.id
                       )
-                      const impossible = isImpossiblePick(
+                      const sub = isSubPick(p.entry_id, match.round, pred?.predicted_winner_id ?? null)
+                      const impossible = !sub && isImpossiblePick(
                         pred?.predicted_winner_id ?? null,
                         match.round
                       )
@@ -331,6 +355,7 @@ export function PredictionGrid({
                             )
                           )}
                         >
+                          {sub && <span title="Emergency Sub pick" className="mr-0.5">🔄</span>}
                           {pred
                             ? getDisplayName(pred.predicted_winner_id)
                             : '-'}

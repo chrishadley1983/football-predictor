@@ -82,8 +82,9 @@ export interface EligibleSwap {
 /**
  * Find matches in the completed round where the player's prediction was wrong.
  * The golden ticket lets the player retroactively fix a wrong prediction by
- * swapping to the actual winner. No points for that match; the winner then
- * cascades through all downstream predictions.
+ * swapping to the actual winner. The swap match itself carries a -6 penalty
+ * (applied in scoring), and the winner then cascades through all downstream
+ * predictions.
  */
 export async function getEligibleSwaps(
   admin: AdminClient,
@@ -159,7 +160,7 @@ export async function getEligibleSwaps(
 /**
  * Apply a golden ticket: retroactively fix a wrong prediction in the completed
  * round by swapping to the actual winner. The winner then cascades through all
- * downstream matches. The golden ticket match itself scores 0 points.
+ * downstream matches. The golden ticket match itself carries a -6 penalty (in scoring).
  */
 export async function applyGoldenTicket(
   admin: AdminClient,

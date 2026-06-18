@@ -215,18 +215,23 @@ export function PredictionAnalyser({
     return map
   }, [achievements])
 
-  // Build golden ticket lookup: entry_id -> match_id -> GoldenTicket
-  const goldenTicketByEntryMatch = useMemo(() => {
-    const map = new Map<string, Map<string, GoldenTicket>>()
-    for (const ticket of goldenTickets) {
-      if (!map.has(ticket.entry_id)) map.set(ticket.entry_id, new Map())
-      map.get(ticket.entry_id)!.set(ticket.original_match_id, ticket)
+  // Emergency Sub picks: when a player plays their sub, the swapped-in team is
+  // carried forward through every later round. So a pick counts as a sub pick
+  // (marked 🔄, and exempt from "impossible" greying) whenever it is the
+  // swapped-in team in any round at or after the sub was played — covering the
+  // origin match AND all cascade picks, not just the origin.
+  const subByEntry = useMemo(() => {
+    const map = new Map<string, { newTeamId: string; fromRoundIdx: number }>()
+    for (const t of goldenTickets) {
+      map.set(t.entry_id, { newTeamId: t.new_team_id, fromRoundIdx: ROUND_ORDER.indexOf(t.played_after_round) })
     }
     return map
   }, [goldenTickets])
 
-  function getGoldenTicketForMatch(entryId: string, matchId: string): GoldenTicket | undefined {
-    return goldenTicketByEntryMatch.get(entryId)?.get(matchId)
+  function isSubPick(entryId: string, matchRound: string, predictedWinnerId: string | null): boolean {
+    const s = subByEntry.get(entryId)
+    if (!s || !predictedWinnerId) return false
+    return predictedWinnerId === s.newTeamId && ROUND_ORDER.indexOf(matchRound as KnockoutRound) >= s.fromRoundIdx
   }
 
   function getPlayerName(entry: EntryInfo): string {
@@ -758,13 +763,13 @@ export function PredictionAnalyser({
                               playerB?.knockout_predictions.find(
                                 (kp) => kp.match_id === match.id
                               )
-                            const goldenTicketA = getGoldenTicketForMatch(playerAId, match.id)
-                            const goldenTicketB = getGoldenTicketForMatch(playerBId, match.id)
-                            const impossibleA = !goldenTicketA && isImpossiblePick(
+                            const subA = isSubPick(playerAId, match.round, predA?.predicted_winner_id ?? null)
+                            const subB = isSubPick(playerBId, match.round, predB?.predicted_winner_id ?? null)
+                            const impossibleA = !subA && isImpossiblePick(
                               predA?.predicted_winner_id ?? null,
                               match.round
                             )
-                            const impossibleB = !goldenTicketB && isImpossiblePick(
+                            const impossibleB = !subB && isImpossiblePick(
                               predB?.predicted_winner_id ?? null,
                               match.round
                             )
@@ -786,8 +791,8 @@ export function PredictionAnalyser({
                                 >
                                   {predA ? (
                                     <>
-                                      {goldenTicketA && (
-                                        <span title="Emergency Sub used" className="mr-0.5">🔄</span>
+                                      {subA && (
+                                        <span title="Emergency Sub pick" className="mr-0.5">🔄</span>
                                       )}
                                       {getTeamName(predA.predicted_winner_id)}
                                     </>
@@ -818,8 +823,8 @@ export function PredictionAnalyser({
                                   >
                                     {predB ? (
                                       <>
-                                        {goldenTicketB && (
-                                          <span title="Emergency Sub used" className="mr-0.5">🔄</span>
+                                        {subB && (
+                                          <span title="Emergency Sub pick" className="mr-0.5">🔄</span>
                                         )}
                                         {getTeamName(predB.predicted_winner_id)}
                                       </>

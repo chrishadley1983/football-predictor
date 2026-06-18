@@ -350,6 +350,7 @@ export default async function PredictionsPage({
         }
         knockoutMatches={knockoutMatches}
         knockoutVisible={knockoutVisible}
+        goldenTickets={goldenTickets}
         useShortNames
         decidedTeamIds={decidedTeamIds}
       />
