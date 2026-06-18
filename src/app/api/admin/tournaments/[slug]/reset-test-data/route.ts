@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/auth'
-import { testHarnessDisabledResponse } from '@/lib/test-harness-guard'
+import { testHarnessDisabledResponse, nonTestTournamentResponse } from '@/lib/test-harness-guard'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { scheduleAuditEmail } from '@/lib/email/audit'
 import { TEST_EMAIL_DOMAIN } from '@/lib/testing/seed-helpers'
@@ -14,6 +14,8 @@ export async function POST(
     const blocked = testHarnessDisabledResponse()
     if (blocked) return blocked
     const { slug } = await params
+    const notTest = nonTestTournamentResponse(slug)
+    if (notTest) return notTest
     const admin = createAdminClient()
 
     const body = await request.json()

@@ -18,7 +18,9 @@ import { POST as timeMachine } from '@/app/api/admin/tournaments/[slug]/time-mac
 import { POST as resetTestData } from '@/app/api/admin/tournaments/[slug]/reset-test-data/route'
 import { POST as seedEntries } from '@/app/api/admin/tournaments/[slug]/seed-entries/route'
 
-const params = { params: Promise.resolve({ slug: 'wc26' }) }
+// A test tournament slug (ends in -test) so the destructive routes' test-only
+// guard passes and we can assert the downstream confirm/phase checks.
+const params = { params: Promise.resolve({ slug: 'wc26-test' }) }
 function req(body: unknown = {}): Request {
   return new Request('http://localhost/x', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
 }

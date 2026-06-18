@@ -29,52 +29,57 @@ const SF_BRACKET_8: [number, string, string, BracketSide][] = [
 
 const FINAL_BRACKET_8: [number, string, string] = [15, 'W13', 'W14']
 
-// WC 2026 bracket structure (12 groups, 48 teams)
-// Round of 32: 16 matches (group winners + runners-up + best 3rd-place teams)
+// WC 2026 bracket structure (12 groups, 48 teams) — the OFFICIAL FIFA bracket.
+// Internal match numbers 1-31 map to FIFA's published numbers 73-104. The 8
+// "best 3rd" slots use FIFA's fixed 5-group letter combinations; the actual
+// team is resolved post-group-stage (admin places them / auto-fill matches them
+// to the slots). Bracket halves: matches 1,2,3,5,9,10,11,12 feed Semi-final 1
+// (left); 4,6,7,8,13,14,15,16 feed Semi-final 2 (right) — the two halves only
+// meet in the Final.
 const R32_BRACKET: [number, string, string, BracketSide][] = [
-  [1, '1A', '3C/D/E', 'left'],
-  [2, '2A', '2C', 'left'],
-  [3, '1B', '3A/D/E', 'left'],
-  [4, '2B', '2D', 'left'],
-  [5, '1E', '3A/B/C', 'left'],
-  [6, '2E', '2G', 'left'],
-  [7, '1F', '3B/G/H', 'left'],
-  [8, '2F', '2H', 'left'],
-  [9, '1C', '3F/G/H', 'right'],
-  [10, '2I', '2K', 'right'],
-  [11, '1D', '3I/J/K', 'right'],
-  [12, '2J', '2L', 'right'],
-  [13, '1G', '3I/J/L', 'right'],
-  [14, '1H', '3F/K/L', 'right'],
-  [15, '1I', '1L', 'right'],
-  [16, '1J', '1K', 'right'],
+  [1, '2A', '2B', 'left'], //          M73
+  [2, '1E', '3A/B/C/D/F', 'left'], //  M74
+  [3, '1F', '2C', 'left'], //          M75
+  [4, '1C', '2F', 'right'], //         M76
+  [5, '1I', '3C/D/F/G/H', 'left'], //  M77
+  [6, '2E', '2I', 'right'], //         M78
+  [7, '1A', '3C/E/F/H/I', 'right'], // M79
+  [8, '1L', '3E/H/I/J/K', 'right'], // M80
+  [9, '1D', '3B/E/F/I/J', 'left'], //  M81
+  [10, '1G', '3A/E/H/I/J', 'left'], // M82
+  [11, '2K', '2L', 'left'], //         M83
+  [12, '1H', '2J', 'left'], //         M84
+  [13, '1B', '3E/F/G/I/J', 'right'], //M85
+  [14, '1J', '2H', 'right'], //        M86
+  [15, '1K', '3D/E/I/J/L', 'right'], //M87
+  [16, '2D', '2G', 'right'], //        M88
 ]
 
-// R16 for 12-group: Winners of R32 matches
+// R16 for 12-group: winners of specific R32 matches (FIFA M89-96).
 const R16_BRACKET_12: [number, string, string, BracketSide][] = [
-  [17, 'W1', 'W2', 'left'],
-  [18, 'W3', 'W4', 'left'],
-  [19, 'W5', 'W6', 'left'],
-  [20, 'W7', 'W8', 'left'],
-  [21, 'W9', 'W10', 'right'],
-  [22, 'W11', 'W12', 'right'],
-  [23, 'W13', 'W14', 'right'],
-  [24, 'W15', 'W16', 'right'],
+  [17, 'W2', 'W5', 'left'], //   M89: W74 v W77
+  [18, 'W1', 'W3', 'left'], //   M90: W73 v W75
+  [19, 'W4', 'W6', 'right'], //  M91: W76 v W78
+  [20, 'W7', 'W8', 'right'], //  M92: W79 v W80
+  [21, 'W11', 'W12', 'left'], // M93: W83 v W84
+  [22, 'W9', 'W10', 'left'], //  M94: W81 v W82
+  [23, 'W14', 'W16', 'right'], //M95: W86 v W88
+  [24, 'W13', 'W15', 'right'], //M96: W85 v W87
 ]
 
 const QF_BRACKET_12: [number, string, string, BracketSide][] = [
-  [25, 'W17', 'W18', 'left'],
-  [26, 'W19', 'W20', 'left'],
-  [27, 'W21', 'W22', 'right'],
-  [28, 'W23', 'W24', 'right'],
+  [25, 'W17', 'W18', 'left'], //  M97:  W89 v W90
+  [26, 'W21', 'W22', 'left'], //  M98:  W93 v W94
+  [27, 'W19', 'W20', 'right'], // M99:  W91 v W92
+  [28, 'W23', 'W24', 'right'], // M100: W95 v W96
 ]
 
 const SF_BRACKET_12: [number, string, string, BracketSide][] = [
-  [29, 'W25', 'W26', 'left'],
-  [30, 'W27', 'W28', 'right'],
+  [29, 'W25', 'W26', 'left'], //  M101: W97 v W98 (SF1)
+  [30, 'W27', 'W28', 'right'], // M102: W99 v W100 (SF2)
 ]
 
-const FINAL_BRACKET_12: [number, string, string] = [31, 'W29', 'W30']
+const FINAL_BRACKET_12: [number, string, string] = [31, 'W29', 'W30'] // M104: W101 v W102
 
 interface TeamPayload {
   name: string
