@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { KnockoutBracket } from '@/components/bracket/KnockoutBracket'
@@ -8,7 +8,7 @@ import { GoldenTicketModal } from '@/components/bracket/GoldenTicketModal'
 import { Button } from '@/components/ui/Button'
 import { getDeadlineStatus } from '@/lib/utils'
 import { DeadlineCountdown } from '@/components/ui/Deadline'
-import { getPredictionProgress } from '@/lib/predictions'
+import { resolveParticipantIds, predictionsToRecord } from '@/lib/bracket'
 import type { Tournament, KnockoutMatchWithTeams, KnockoutPrediction, GoldenTicket } from '@/lib/types'
 import type { EligibleSwap } from '@/lib/golden-ticket'
 
@@ -22,11 +22,12 @@ export default function KnockoutPredictionPage() {
   const [tournament, setTournament] = useState<TournamentData | null>(null)
   const [predictions, setPredictions] = useState<KnockoutPrediction[]>([])
   const [entryId, setEntryId] = useState<string | null>(null)
+  const [koTiebreaker, setKoTiebreaker] = useState<string>('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-  // Track unsaved changes: matchId -> teamId
-  const [pendingPredictions, setPendingPredictions] = useState<Record<string, string>>({})
+  // Any unsaved change (a pick or the tiebreaker) enables the save button.
+  const [dirty, setDirty] = useState(false)
   // Golden ticket state
   const [goldenTicketUsed, setGoldenTicketUsed] = useState(false)
   const [goldenTicketWindowOpen, setGoldenTicketWindowOpen] = useState(false)
@@ -79,6 +80,9 @@ export default function KnockoutPredictionPage() {
       }
 
       setEntryId(entry.id)
+      if (entry.knockout_tiebreaker_goals !== null && entry.knockout_tiebreaker_goals !== undefined) {
+        setKoTiebreaker(String(entry.knockout_tiebreaker_goals))
+      }
 
       // Fetch existing knockout predictions
       const { data: preds } = await supabase
@@ -110,47 +114,66 @@ export default function KnockoutPredictionPage() {
   const deadline = tournament ? getDeadlineStatus(tournament.knockout_stage_deadline) : null
   const isReadonly = deadline?.passed || tournament?.status !== 'knockout_open'
 
+  const matches = useMemo(() => tournament?.knockout_matches ?? [], [tournament])
+
+  // Number of matches with a valid (bracket-consistent) predicted winner.
+  const validPredictedCount = useMemo(() => {
+    if (matches.length === 0) return 0
+    const { validWinners } = resolveParticipantIds(matches, predictionsToRecord(predictions))
+    let n = 0
+    for (const w of validWinners.values()) if (w) n++
+    return n
+  }, [matches, predictions])
+
   const handlePrediction = useCallback((matchId: string, teamId: string) => {
     if (isReadonly) return
-    setPendingPredictions((prev) => ({ ...prev, [matchId]: teamId }))
-
-    // Also update predictions state for UI feedback
     setPredictions((prev) => {
-      const idx = prev.findIndex((p) => p.match_id === matchId)
-      const newPred: KnockoutPrediction = {
-        id: idx >= 0 ? prev[idx].id : '',
-        entry_id: entryId ?? '',
-        match_id: matchId,
-        predicted_winner_id: teamId,
-        is_correct: null,
-        points_earned: 0,
-        submitted_at: new Date().toISOString(),
+      const rec = predictionsToRecord(
+        prev.map((p) => ({ match_id: p.match_id, predicted_winner_id: p.predicted_winner_id }))
+      )
+      rec[matchId] = teamId
+      // Re-resolve: changing an upstream pick prunes any downstream pick that
+      // depended on the team that was just dropped.
+      const { validWinners } = resolveParticipantIds(matches, rec)
+      const next: KnockoutPrediction[] = []
+      for (const [mId, winnerId] of validWinners) {
+        if (!winnerId) continue
+        const existing = prev.find((p) => p.match_id === mId)
+        next.push({
+          id: existing?.id ?? '',
+          entry_id: entryId ?? '',
+          match_id: mId,
+          predicted_winner_id: winnerId,
+          is_correct: null,
+          points_earned: 0,
+          submitted_at: existing?.submitted_at ?? new Date().toISOString(),
+        })
       }
-      if (idx >= 0) {
-        const updated = [...prev]
-        updated[idx] = newPred
-        return updated
-      }
-      return [...prev, newPred]
+      return next
     })
-  }, [isReadonly, entryId])
+    setDirty(true)
+  }, [isReadonly, entryId, matches])
 
   async function handleSaveAll() {
-    if (!entryId || Object.keys(pendingPredictions).length === 0) return
+    if (!entryId) return
     setSaving(true)
     setError('')
 
-    const predictionsPayload = Object.entries(pendingPredictions).map(
-      ([matchId, teamId]) => ({
-        match_id: matchId,
-        predicted_winner_id: teamId,
-      })
-    )
+    const predictionsPayload = predictions
+      .filter((p) => p.predicted_winner_id)
+      .map((p) => ({ match_id: p.match_id, predicted_winner_id: p.predicted_winner_id }))
+
+    const koGoals = koTiebreaker.trim() === '' ? null : Number(koTiebreaker)
+    if (koGoals !== null && (!Number.isInteger(koGoals) || koGoals < 0)) {
+      setError('Knockout goal total must be a whole number of 0 or more')
+      setSaving(false)
+      return
+    }
 
     const res = await fetch(`/api/tournaments/${slug}/predictions/knockout`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ predictions: predictionsPayload }),
+      body: JSON.stringify({ predictions: predictionsPayload, knockout_tiebreaker_goals: koGoals }),
     })
 
     if (!res.ok) {
@@ -166,23 +189,14 @@ export default function KnockoutPredictionPage() {
   if (loading) return <p className="py-12 text-center text-text-muted">Loading bracket...</p>
   if (error && !tournament) return <p className="py-12 text-center text-red-accent">{error}</p>
 
-  const pendingCount = Object.keys(pendingPredictions).length
-  const totalMatches = tournament?.knockout_matches?.length ?? 0
-  const knockoutPredictedCount = predictions.filter((p) => p.predicted_winner_id).length
-  // Dynamic save-button label mirroring the overview Knockout Predictions card.
-  const knockoutProgress = getPredictionProgress(
-    'knockout',
-    tournament?.status ?? 'knockout_open',
-    knockoutPredictedCount,
-    totalMatches,
-  )
+  const totalMatches = matches.length
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="font-heading text-2xl font-bold text-foreground">Knockout Bracket Predictions</h1>
         <p className="mt-1 text-sm text-text-secondary">
-          {tournament?.name} &mdash; Click on a team to predict them as the match winner
+          {tournament?.name} &mdash; Pick a winner for every match, all the way to the Final
         </p>
         {deadline && !deadline.passed && (
           <p className="mt-1 text-sm font-medium text-yellow-accent">
@@ -194,6 +208,12 @@ export default function KnockoutPredictionPage() {
             Predictions are locked. The deadline has passed or the knockout stage is closed.
           </p>
         )}
+        {!isReadonly && (
+          <p className="mt-2 rounded-md bg-surface-light p-2 text-xs text-text-muted">
+            Tip: pick a winner in each Round of 32 match and your picks flow forward — keep going
+            round by round to crown your champion.
+          </p>
+        )}
       </div>
 
       {error && (
@@ -201,12 +221,38 @@ export default function KnockoutPredictionPage() {
       )}
 
       <KnockoutBracket
-        matches={tournament?.knockout_matches ?? []}
+        matches={matches}
         predictions={predictions}
         onPrediction={handlePrediction}
         readonly={isReadonly}
         goldenTicketMatchId={goldenTicket?.original_match_id}
       />
+
+      {/* Knockout tiebreaker */}
+      {!isReadonly && (
+        <div className="rounded-xl border border-border-custom bg-surface p-4">
+          <label htmlFor="ko-tiebreaker" className="block text-sm font-medium text-foreground">
+            Tiebreaker: total goals across the whole knockout stage
+          </label>
+          <p className="mb-2 mt-1 text-xs text-text-muted">
+            Your best guess for the combined goals scored in every knockout match (Round of 32 to
+            the Final). Used to separate level scores.
+          </p>
+          <input
+            id="ko-tiebreaker"
+            type="number"
+            min={0}
+            inputMode="numeric"
+            value={koTiebreaker}
+            onChange={(e) => {
+              setKoTiebreaker(e.target.value)
+              setDirty(true)
+            }}
+            placeholder="e.g. 140"
+            className="w-32 rounded-md border border-border-custom bg-surface-light px-3 py-2 text-sm text-foreground"
+          />
+        </div>
+      )}
 
       {/* Emergency Sub */}
       {goldenTicketWindowOpen && !goldenTicketUsed && eligibleSwaps.length > 0 && (
@@ -254,19 +300,13 @@ export default function KnockoutPredictionPage() {
       {!isReadonly && (
         <div className="sticky bottom-4 z-20 flex items-center justify-between gap-3 rounded-xl border border-border-custom bg-surface p-4 shadow-lg shadow-black/30">
           <span className="text-sm text-text-secondary">
-            {knockoutPredictedCount} of {totalMatches} matches predicted
-            {pendingCount > 0 && (
-              <span className="ml-2 font-medium text-yellow-accent">
-                · {pendingCount} unsaved
-              </span>
+            {validPredictedCount} of {totalMatches} matches predicted
+            {dirty && (
+              <span className="ml-2 font-medium text-yellow-accent">· unsaved changes</span>
             )}
           </span>
-          <Button
-            onClick={handleSaveAll}
-            loading={saving}
-            disabled={pendingCount === 0}
-          >
-            {knockoutProgress.title}
+          <Button onClick={handleSaveAll} loading={saving} disabled={!dirty}>
+            Save Bracket
           </Button>
         </div>
       )}

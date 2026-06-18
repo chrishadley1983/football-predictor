@@ -337,7 +337,7 @@ export default async function PredictionsPage({
         predictions={predictions}
         groups={((groups as GroupWithTeams[]) ?? [])}
       />
-      {knockoutVisible && goldenTickets.length > 0 && (
+      {knockoutVisible && entryInfos.length > 0 && (
         <GoldenTicketSummary tickets={goldenTickets} entries={entryInfos} />
       )}
       <PredictionGrid

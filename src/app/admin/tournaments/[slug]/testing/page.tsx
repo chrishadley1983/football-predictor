@@ -333,6 +333,12 @@ export default function TestingPage() {
         </div>
         <div className="flex gap-2">
           <a
+            href={`/admin/tournaments/${slug}/bracket`}
+            className="rounded-md bg-surface-light px-4 py-2 text-sm font-medium text-text-secondary hover:bg-border-custom"
+          >
+            Bracket Setup
+          </a>
+          <a
             href={`/admin/tournaments/${slug}/manage`}
             className="rounded-md bg-surface-light px-4 py-2 text-sm font-medium text-text-secondary hover:bg-border-custom"
           >

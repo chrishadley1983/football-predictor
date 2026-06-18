@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react'
 import type { KnockoutMatchWithTeams, KnockoutPrediction } from '@/lib/types'
+import { resolveBracket, predictionsToRecord } from '@/lib/bracket'
 import { BracketMatch } from './BracketMatch'
 
 interface KnockoutBracketProps {
@@ -20,6 +21,44 @@ export function KnockoutBracket({ matches, predictions = [], onPrediction, reado
     }
     return map
   }, [predictions])
+
+  // While the bracket is editable, each later round's two participants flow from
+  // the player's OWN predicted winners (W{n} sources), so they can pick a winner
+  // for every match through to the Final. Once locked, we render the real
+  // matchups/results instead. `effective` holds the per-match render model.
+  const effective = useMemo(() => {
+    const map = new Map<string, { match: KnockoutMatchWithTeams; prediction?: KnockoutPrediction }>()
+
+    if (readonly) {
+      for (const m of matches) map.set(m.id, { match: m, prediction: predictionMap[m.id] })
+      return map
+    }
+
+    const resolved = resolveBracket(matches, predictionsToRecord(predictions))
+    for (const m of matches) {
+      const r = resolved.get(m.id)
+      const effMatch: KnockoutMatchWithTeams = {
+        ...m,
+        home_team_id: r?.homeTeamId ?? null,
+        away_team_id: r?.awayTeamId ?? null,
+        home_team: r?.homeTeam ?? null,
+        away_team: r?.awayTeam ?? null,
+      }
+      const effPred: KnockoutPrediction | undefined = r?.predictedWinnerId
+        ? {
+            id: predictionMap[m.id]?.id ?? '',
+            entry_id: predictionMap[m.id]?.entry_id ?? '',
+            match_id: m.id,
+            predicted_winner_id: r.predictedWinnerId,
+            is_correct: null,
+            points_earned: 0,
+            submitted_at: predictionMap[m.id]?.submitted_at ?? new Date(0).toISOString(),
+          }
+        : undefined
+      map.set(m.id, { match: effMatch, prediction: effPred })
+    }
+    return map
+  }, [matches, predictions, predictionMap, readonly])
 
   // Group matches by round, then split by bracket side
   const rounds = useMemo(() => {
@@ -72,19 +111,24 @@ export function KnockoutBracket({ matches, predictions = [], onPrediction, reado
     return { leftRounds: left, rightRounds: right, finalMatch: final }
   }, [rounds])
 
+  function renderMatch(m: KnockoutMatchWithTeams) {
+    const eff = effective.get(m.id)
+    return (
+      <BracketMatch
+        key={m.id}
+        match={eff?.match ?? m}
+        prediction={eff?.prediction}
+        onSelectWinner={onPrediction}
+        readonly={readonly}
+        goldenTicketUsed={goldenTicketMatchId === m.id}
+      />
+    )
+  }
+
   function renderRound(roundMatches: KnockoutMatchWithTeams[]) {
     return (
       <div className="flex flex-col justify-around gap-4">
-        {roundMatches.map((m) => (
-          <BracketMatch
-            key={m.id}
-            match={m}
-            prediction={predictionMap[m.id]}
-            onSelectWinner={onPrediction}
-            readonly={readonly}
-            goldenTicketUsed={goldenTicketMatchId === m.id}
-          />
-        ))}
+        {roundMatches.map((m) => renderMatch(m))}
       </div>
     )
   }
@@ -98,16 +142,7 @@ export function KnockoutBracket({ matches, predictions = [], onPrediction, reado
             {r.round.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
           </h3>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {r.matches.map((m) => (
-              <BracketMatch
-                key={m.id}
-                match={m}
-                prediction={predictionMap[m.id]}
-                onSelectWinner={onPrediction}
-                readonly={readonly}
-                goldenTicketUsed={goldenTicketMatchId === m.id}
-              />
-            ))}
+            {r.matches.map((m) => renderMatch(m))}
           </div>
         </div>
       ))}
@@ -129,13 +164,7 @@ export function KnockoutBracket({ matches, predictions = [], onPrediction, reado
         {finalMatch && (
           <div className="flex flex-col items-center">
             <div className="mb-2 text-sm font-bold text-gold">Final</div>
-            <BracketMatch
-              match={finalMatch}
-              prediction={predictionMap[finalMatch.id]}
-              onSelectWinner={onPrediction}
-              readonly={readonly}
-              goldenTicketUsed={goldenTicketMatchId === finalMatch.id}
-            />
+            {renderMatch(finalMatch)}
           </div>
         )}
 

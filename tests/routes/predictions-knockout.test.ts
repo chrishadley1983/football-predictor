@@ -44,13 +44,34 @@ describe('POST predictions/knockout', () => {
     expect((await POST(req({ predictions: [{ match_id: 'm1', predicted_winner_id: 'A' }] }), params)).status).toBe(400)
   })
 
-  it('400 when the predicted winner is not in the match', async () => {
+  it('never persists a pick whose team is not in the match (prunes it)', async () => {
     const res = await POST(req({ predictions: [{ match_id: 'm1', predicted_winner_id: 'Z' }] }), params)
-    expect(res.status).toBe(400)
+    // The whole bracket is validated as one set; a non-participant pick is
+    // dropped rather than failing the save, but it must NOT be persisted.
+    expect(res.status).toBe(200)
+    expect(server.tables.knockout_predictions).toHaveLength(0)
   })
 
-  it('400 when the match is not in this tournament', async () => {
+  it('ignores an unknown match id without persisting anything', async () => {
     const res = await POST(req({ predictions: [{ match_id: 'ghost', predicted_winner_id: 'A' }] }), params)
+    expect(res.status).toBe(200)
+    expect(server.tables.knockout_predictions).toHaveLength(0)
+  })
+
+  it('saves the knockout goal-total tiebreaker on the entry', async () => {
+    const res = await POST(
+      req({ predictions: [{ match_id: 'm1', predicted_winner_id: 'A' }], knockout_tiebreaker_goals: 88 }),
+      params
+    )
+    expect(res.status).toBe(200)
+    expect(server.tables.tournament_entries[0]).toMatchObject({ knockout_tiebreaker_goals: 88 })
+  })
+
+  it('rejects a negative knockout tiebreaker', async () => {
+    const res = await POST(
+      req({ predictions: [], knockout_tiebreaker_goals: -3 }),
+      params
+    )
     expect(res.status).toBe(400)
   })
 

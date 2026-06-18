@@ -6,6 +6,7 @@ import {
   TEST_PLAYERS,
   generateGroupPrediction,
   generateTiebreakerGoals,
+  generateKnockoutTiebreakerGoals,
 } from '@/lib/testing/seed-helpers'
 
 export async function POST(
@@ -101,6 +102,7 @@ export async function POST(
             player_id: playerId,
             payment_status: 'paid',
             tiebreaker_goals: tiebreakerGoals,
+            knockout_tiebreaker_goals: generateKnockoutTiebreakerGoals(testPlayer.archetype),
             group_stage_points: 0,
             knockout_points: 0,
           })

@@ -13,6 +13,7 @@ import {
   calculateGroupStageScores,
   calculateKnockoutScores,
   calculateTiebreakers,
+  calculateTotalKnockoutGoals,
   calculateRankings,
 } from '@/lib/scoring'
 
@@ -193,9 +194,51 @@ describe('calculateTiebreakers', () => {
     const admin = install({
       tournament_stats: [{ id: 's1', tournament_id: T, total_group_stage_goals: null }],
       tournament_entries: [{ id: 'e1', tournament_id: T, tiebreaker_goals: 90, tiebreaker_diff: 999 }],
+      knockout_matches: [],
     })
     await calculateTiebreakers(T)
     expect(admin.tables.tournament_entries[0].tiebreaker_diff).toBe(999) // untouched
+  })
+
+  it('also sets knockout_tiebreaker_diff against summed knockout goals', async () => {
+    const admin = install({
+      tournament_stats: [{ id: 's1', tournament_id: T, total_group_stage_goals: 100, total_knockout_goals: null }],
+      knockout_matches: [
+        { id: 'm1', tournament_id: T, home_score: 2, away_score: 1 },
+        { id: 'm2', tournament_id: T, home_score: 0, away_score: 0 },
+        { id: 'm3', tournament_id: T, home_score: null, away_score: null }, // unplayed -> ignored
+      ],
+      tournament_entries: [
+        { id: 'e1', tournament_id: T, tiebreaker_goals: 90, knockout_tiebreaker_goals: 5, tiebreaker_diff: null, knockout_tiebreaker_diff: null },
+        { id: 'e2', tournament_id: T, tiebreaker_goals: 110, knockout_tiebreaker_goals: null, tiebreaker_diff: null, knockout_tiebreaker_diff: null },
+      ],
+    })
+    await calculateTiebreakers(T)
+    const byId = Object.fromEntries(admin.tables.tournament_entries.map((e) => [e.id, e]))
+    // Actual knockout goals = 2+1+0+0 = 3, persisted to stats
+    expect(admin.tables.tournament_stats[0].total_knockout_goals).toBe(3)
+    expect(byId.e1.knockout_tiebreaker_diff).toBe(2) // |5 - 3|
+    expect(byId.e1.tiebreaker_diff).toBe(10) // |90 - 100|
+    expect(byId.e2.knockout_tiebreaker_diff).toBeNull() // null guess stays null
+  })
+})
+
+describe('calculateTotalKnockoutGoals', () => {
+  it('sums scored knockout fixtures and returns null when none are scored', async () => {
+    const admin = install({
+      tournament_stats: [{ id: 's1', tournament_id: T, total_knockout_goals: null }],
+      knockout_matches: [
+        { id: 'm1', tournament_id: T, home_score: 3, away_score: 2 },
+        { id: 'm2', tournament_id: T, home_score: null, away_score: null },
+      ],
+    })
+    const total = await calculateTotalKnockoutGoals(T)
+    expect(total).toBe(5)
+    expect(admin.tables.tournament_stats[0].total_knockout_goals).toBe(5)
+
+    const empty = install({ tournament_stats: [], knockout_matches: [] })
+    expect(await calculateTotalKnockoutGoals(T)).toBeNull()
+    expect(empty.tables.tournament_stats.length).toBe(0)
   })
 })
 
@@ -236,6 +279,19 @@ describe('calculateRankings', () => {
     expect(rank.a).toBe(1)
     expect(rank.b).toBe(1)
     expect(rank.c).toBe(3)
+  })
+
+  it('breaks an otherwise-exact tie by knockout_tiebreaker_diff (asc)', async () => {
+    const admin = install({
+      tournament_entries: [
+        { id: 'a', tournament_id: T, total_points: 20, knockout_points: 10, group_stage_points: 10, tiebreaker_diff: 5, knockout_tiebreaker_diff: 8 },
+        { id: 'b', tournament_id: T, total_points: 20, knockout_points: 10, group_stage_points: 10, tiebreaker_diff: 5, knockout_tiebreaker_diff: 3 },
+      ],
+    })
+    await calculateRankings(T)
+    const rank = Object.fromEntries(admin.tables.tournament_entries.map((e) => [e.id, e.overall_rank]))
+    expect(rank.b).toBe(1) // smaller knockout tiebreaker diff wins
+    expect(rank.a).toBe(2)
   })
 
   it('computes a separate group_stage_rank by group_stage_points', async () => {
