@@ -216,41 +216,105 @@ export async function calculateKnockoutScores(tournamentId: string): Promise<voi
 }
 
 /**
+ * Sum the goals scored across every decided knockout fixture and persist it to
+ * tournament_stats.total_knockout_goals. This is the "actual" figure the
+ * knockout goal-total tiebreaker is measured against. Returns the total (or
+ * null if no knockout fixtures have a score yet).
+ */
+export async function calculateTotalKnockoutGoals(tournamentId: string): Promise<number | null> {
+  const admin = createAdminClient()
+
+  const { data: matches } = await admin
+    .from('knockout_matches')
+    .select('home_score, away_score')
+    .eq('tournament_id', tournamentId)
+
+  if (!matches || matches.length === 0) return null
+
+  let total = 0
+  let anyScored = false
+  for (const m of matches) {
+    if (m.home_score !== null && m.away_score !== null) {
+      total += m.home_score + m.away_score
+      anyScored = true
+    }
+  }
+  if (!anyScored) return null
+
+  // Upsert onto the single tournament_stats row for this tournament
+  const { data: existing } = await admin
+    .from('tournament_stats')
+    .select('id')
+    .eq('tournament_id', tournamentId)
+    .maybeSingle()
+
+  if (existing) {
+    await admin.from('tournament_stats').update({ total_knockout_goals: total }).eq('id', existing.id)
+  } else {
+    await admin.from('tournament_stats').insert({ tournament_id: tournamentId, total_knockout_goals: total })
+  }
+
+  return total
+}
+
+/**
  * Tiebreaker calculation:
- * tiebreaker_diff = abs(predicted_goals - actual_goals)
+ *   tiebreaker_diff           = abs(predicted_group_goals  - actual_group_goals)
+ *   knockout_tiebreaker_diff  = abs(predicted_ko_goals     - actual_ko_goals)
+ * The knockout total is recomputed from decided knockout fixtures first.
  */
 export async function calculateTiebreakers(tournamentId: string): Promise<void> {
   const admin = createAdminClient()
+
+  // Refresh the actual knockout goal total from match scores before diffing.
+  const actualKnockoutGoals = await calculateTotalKnockoutGoals(tournamentId)
 
   // Get actual total group stage goals
   const { data: stats, error: statsErr } = await admin
     .from('tournament_stats')
     .select('total_group_stage_goals')
     .eq('tournament_id', tournamentId)
-    .single()
+    .maybeSingle()
 
   if (statsErr && statsErr.code !== 'PGRST116') {
     throw new Error(`Failed to fetch tournament stats: ${statsErr.message}`)
   }
-  if (!stats || stats.total_group_stage_goals === null) return
 
-  const actualGoals = stats.total_group_stage_goals
+  const actualGroupGoals = stats?.total_group_stage_goals ?? null
 
-  // Get all entries with tiebreaker predictions (paginated — can exceed 1,000)
-  const entries = await fetchAllRows<{ id: string; tiebreaker_goals: number | null }>((from, to) =>
-    admin.from('tournament_entries').select('id, tiebreaker_goals').eq('tournament_id', tournamentId).range(from, to)
+  // Nothing to diff against on either axis — skip entirely.
+  if (actualGroupGoals === null && actualKnockoutGoals === null) return
+
+  // Get all entries with both tiebreaker predictions (paginated — can exceed 1,000)
+  const entries = await fetchAllRows<{
+    id: string
+    tiebreaker_goals: number | null
+    knockout_tiebreaker_goals: number | null
+  }>((from, to) =>
+    admin
+      .from('tournament_entries')
+      .select('id, tiebreaker_goals, knockout_tiebreaker_goals')
+      .eq('tournament_id', tournamentId)
+      .range(from, to)
   )
   if (entries.length === 0) return
 
   const tbResults = await Promise.all(
     entries.map((entry) => {
-      const diff =
-        entry.tiebreaker_goals !== null ? Math.abs(entry.tiebreaker_goals - actualGoals) : null
+      const update: { tiebreaker_diff?: number | null; knockout_tiebreaker_diff?: number | null } = {}
 
-      return admin
-        .from('tournament_entries')
-        .update({ tiebreaker_diff: diff })
-        .eq('id', entry.id)
+      if (actualGroupGoals !== null) {
+        update.tiebreaker_diff =
+          entry.tiebreaker_goals !== null ? Math.abs(entry.tiebreaker_goals - actualGroupGoals) : null
+      }
+      if (actualKnockoutGoals !== null) {
+        update.knockout_tiebreaker_diff =
+          entry.knockout_tiebreaker_goals !== null
+            ? Math.abs(entry.knockout_tiebreaker_goals - actualKnockoutGoals)
+            : null
+      }
+
+      return admin.from('tournament_entries').update(update).eq('id', entry.id)
     })
   )
   const tbFailures = tbResults.filter((r) => (r as { error?: unknown }).error)
@@ -267,36 +331,38 @@ export async function calculateRankings(tournamentId: string): Promise<void> {
   const admin = createAdminClient()
 
   // Fetch all entries sorted by ranking criteria (paginated — can exceed 1,000)
-  const entries = await fetchAllRows<{ id: string; group_stage_points: number; knockout_points: number; total_points: number; tiebreaker_diff: number | null }>(
+  const entries = await fetchAllRows<{ id: string; group_stage_points: number; knockout_points: number; total_points: number; tiebreaker_diff: number | null; knockout_tiebreaker_diff: number | null }>(
     (from, to) =>
       admin
         .from('tournament_entries')
-        .select('id, group_stage_points, knockout_points, total_points, tiebreaker_diff')
+        .select('id, group_stage_points, knockout_points, total_points, tiebreaker_diff, knockout_tiebreaker_diff')
         .eq('tournament_id', tournamentId)
         .range(from, to)
   )
   if (entries.length === 0) return
 
-  // Sort for overall ranking: total_points DESC, tiebreaker_diff ASC NULLS LAST, knockout_points DESC
+  // ASC NULLS LAST comparison helper for tiebreaker diffs (treats undefined as null).
+  const byDiffAsc = (aDiff: number | null | undefined, bDiff: number | null | undefined): number => {
+    const a = aDiff ?? null
+    const b = bDiff ?? null
+    if (a === null && b === null) return 0
+    if (a === null) return 1
+    if (b === null) return -1
+    return a - b
+  }
+
+  // Sort for overall ranking:
+  //   total_points DESC, group tiebreaker_diff ASC NULLS LAST,
+  //   knockout_points DESC, knockout_tiebreaker_diff ASC NULLS LAST
   const overallSorted = [...entries].sort((a, b) => {
-    // total_points DESC
     if (b.total_points !== a.total_points) return b.total_points - a.total_points
 
-    // tiebreaker_diff ASC NULLS LAST
-    const aDiff = a.tiebreaker_diff
-    const bDiff = b.tiebreaker_diff
-    if (aDiff === null && bDiff === null) {
-      // fall through
-    } else if (aDiff === null) {
-      return 1
-    } else if (bDiff === null) {
-      return -1
-    } else if (aDiff !== bDiff) {
-      return aDiff - bDiff
-    }
+    const groupDiff = byDiffAsc(a.tiebreaker_diff, b.tiebreaker_diff)
+    if (groupDiff !== 0) return groupDiff
 
-    // knockout_points DESC
-    return b.knockout_points - a.knockout_points
+    if (b.knockout_points !== a.knockout_points) return b.knockout_points - a.knockout_points
+
+    return byDiffAsc(a.knockout_tiebreaker_diff, b.knockout_tiebreaker_diff)
   })
 
   // Assign overall_rank with proper ties (same rank for same values)
@@ -309,7 +375,8 @@ export async function calculateRankings(tournamentId: string): Promise<void> {
       const sameTotal = prev.total_points === curr.total_points
       const sameDiff = prev.tiebreaker_diff === curr.tiebreaker_diff
       const sameKnockout = prev.knockout_points === curr.knockout_points
-      if (!(sameTotal && sameDiff && sameKnockout)) {
+      const sameKoDiff = prev.knockout_tiebreaker_diff === curr.knockout_tiebreaker_diff
+      if (!(sameTotal && sameDiff && sameKnockout && sameKoDiff)) {
         currentRank = i + 1
       }
     }

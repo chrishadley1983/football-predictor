@@ -9,6 +9,7 @@ import {
   TEST_EMAIL_DOMAIN,
   generateGroupPrediction,
   generateTiebreakerGoals,
+  generateKnockoutTiebreakerGoals,
   generateKnockoutPrediction,
   forceCompleteGroupStageLogic,
   forceCompleteKnockoutRoundLogic,
@@ -216,7 +217,7 @@ async function resetTestData(
 
   await admin.from('honours').delete().eq('tournament_id', tournamentId)
   await admin.from('player_achievements').delete().eq('tournament_id', tournamentId)
-  await admin.from('tournament_stats').update({ total_group_stage_goals: null }).eq('tournament_id', tournamentId)
+  await admin.from('tournament_stats').update({ total_group_stage_goals: null, total_knockout_goals: null }).eq('tournament_id', tournamentId)
 
   // Reset knockout matches
   const { data: knockoutMatches } = await admin
@@ -323,6 +324,7 @@ async function seedEntries(
           player_id: playerId,
           payment_status: 'paid',
           tiebreaker_goals: generateTiebreakerGoals(testPlayer.archetype),
+          knockout_tiebreaker_goals: generateKnockoutTiebreakerGoals(testPlayer.archetype),
           group_stage_points: 0,
           knockout_points: 0,
         })

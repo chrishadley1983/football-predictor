@@ -155,6 +155,8 @@ export interface TournamentEntry {
   knockout_points: number
   total_points: number
   tiebreaker_diff: number | null
+  knockout_tiebreaker_goals: number | null
+  knockout_tiebreaker_diff: number | null
   group_stage_rank: number | null
   overall_rank: number | null
   created_at: string
@@ -193,6 +195,7 @@ export interface TournamentStats {
   id: string
   tournament_id: string
   total_group_stage_goals: number | null
+  total_knockout_goals: number | null
 }
 
 export interface Honours {
@@ -465,6 +468,8 @@ export interface LeaderboardEntry {
   total_points: number | null
   tiebreaker_goals: number | null
   tiebreaker_diff: number | null
+  knockout_tiebreaker_goals?: number | null
+  knockout_tiebreaker_diff?: number | null
   group_stage_rank: number | null
   overall_rank: number | null
   payment_status?: PaymentStatus
@@ -832,6 +837,8 @@ export interface Database {
           knockout_points: number
           total_points: number
           tiebreaker_diff: number | null
+          knockout_tiebreaker_goals: number | null
+          knockout_tiebreaker_diff: number | null
           group_stage_rank: number | null
           overall_rank: number | null
           created_at: string
@@ -845,6 +852,8 @@ export interface Database {
           group_stage_points?: number
           knockout_points?: number
           tiebreaker_diff?: number | null
+          knockout_tiebreaker_goals?: number | null
+          knockout_tiebreaker_diff?: number | null
           group_stage_rank?: number | null
           overall_rank?: number | null
           created_at?: string
@@ -857,6 +866,8 @@ export interface Database {
           group_stage_points?: number
           knockout_points?: number
           tiebreaker_diff?: number | null
+          knockout_tiebreaker_goals?: number | null
+          knockout_tiebreaker_diff?: number | null
           group_stage_rank?: number | null
           overall_rank?: number | null
           created_at?: string
@@ -1040,15 +1051,18 @@ export interface Database {
           id: string
           tournament_id: string
           total_group_stage_goals: number | null
+          total_knockout_goals: number | null
         }
         Insert: {
           id?: string
           tournament_id: string
           total_group_stage_goals?: number | null
+          total_knockout_goals?: number | null
         }
         Update: {
           tournament_id?: string
           total_group_stage_goals?: number | null
+          total_knockout_goals?: number | null
         }
         Relationships: [
           {
@@ -1516,6 +1530,8 @@ export interface Database {
           knockout_points: number | null
           total_points: number | null
           tiebreaker_diff: number | null
+          knockout_tiebreaker_goals: number | null
+          knockout_tiebreaker_diff: number | null
           group_stage_rank: number | null
           overall_rank: number | null
           tournament_status: string

@@ -136,6 +136,13 @@ export function PredictionGrid({
     return map
   }, [knockoutMatches])
 
+  // The Final match (for the at-a-glance "predicted champion" comparison row,
+  // which is shown even before any knockout results exist).
+  const finalMatch = useMemo(
+    () => knockoutMatches.find((m) => m.round === 'final') ?? null,
+    [knockoutMatches]
+  )
+
   // Build eliminated teams lookup for impossible pick detection
   const eliminatedBeforeRound = useMemo(() => {
     const eliminated = new Map<string, number>()
@@ -242,6 +249,47 @@ export function PredictionGrid({
               </tr>
             ))
           ))}
+          {/* Predicted champion — shown as soon as the knockout is visible, even
+              before any results, so everyone's tournament-winner pick compares
+              at a glance. */}
+          {knockoutVisible && finalMatch && (
+            <Fragment>
+              <tr>
+                <td
+                  colSpan={2 + predictions.length}
+                  className="sticky left-0 z-10 px-2 py-1.5 text-xs font-heading font-bold text-gold bg-surface-light/50"
+                >
+                  🏆 Predicted Champion
+                </td>
+              </tr>
+              <tr>
+                <td
+                  colSpan={2}
+                  className="sticky left-0 z-10 bg-surface px-2 py-1 font-mono text-foreground whitespace-nowrap text-[10px]"
+                >
+                  Winner of the Final
+                </td>
+                {predictions.map((p) => {
+                  const pred = p.knockout_predictions.find((kp) => kp.match_id === finalMatch.id)
+                  return (
+                    <td
+                      key={`${p.entry_id}-champion`}
+                      className={cn(
+                        'px-2 py-1 text-center font-mono font-bold',
+                        getKnockoutCellColor(
+                          pred?.predicted_winner_id ?? null,
+                          finalMatch.winner_team_id,
+                          false
+                        )
+                      )}
+                    >
+                      {pred ? getDisplayName(pred.predicted_winner_id) : '-'}
+                    </td>
+                  )
+                })}
+              </tr>
+            </Fragment>
+          )}
           {/* Knockout predictions grid */}
           {knockoutVisible && knockoutByRound.size > 0 &&
             ROUND_ORDER.filter((r) => knockoutByRound.has(r)).map((round) => (

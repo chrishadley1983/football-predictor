@@ -14,6 +14,8 @@ export interface TestPlayer {
   nickname: string
   email: string
   archetype: Archetype
+  /** The one entry representing the admin. Always plays its Emergency Sub when eligible. */
+  isAdmin?: boolean
 }
 
 type AdminClient = ReturnType<typeof createAdminClient>
@@ -21,9 +23,11 @@ type AdminClient = ReturnType<typeof createAdminClient>
 // ============================================================================
 // Test Player Definitions
 // ============================================================================
+// 10 simulated entries (one flagged as the admin) — 3 expert, 4 average,
+// 3 wildcard. The admin reliably plays an Emergency Sub during the run.
 
 export const TEST_PLAYERS: TestPlayer[] = [
-  { display_name: 'Dave Thompson', nickname: 'Dave The Oracle', email: 'dave@test.predictor.local', archetype: 'expert' },
+  { display_name: 'Match Admin', nickname: 'The Gaffer', email: 'admin@test.predictor.local', archetype: 'expert', isAdmin: true },
   { display_name: 'Brian Clarke', nickname: 'The Professor', email: 'brian@test.predictor.local', archetype: 'expert' },
   { display_name: 'Margaret Webb', nickname: 'Mystic Meg', email: 'margaret@test.predictor.local', archetype: 'expert' },
   { display_name: 'Eddie Brooks', nickname: 'Steady Eddie', email: 'eddie@test.predictor.local', archetype: 'average' },
@@ -100,6 +104,21 @@ export function generateTiebreakerGoals(archetype: Archetype): number {
     expert: [100, 140],
     average: [80, 180],
     wildcard: [50, 250],
+  }
+  const [min, max] = ranges[archetype]
+  return Math.floor(Math.random() * (max - min + 1)) + min
+}
+
+/**
+ * Generate a knockout goal-total tiebreaker guess (total goals across all ~31
+ * knockout fixtures). Tighter, lower ranges than the group-stage tiebreaker.
+ * - Expert: 70-95   - Average: 55-110   - Wildcard: 40-140
+ */
+export function generateKnockoutTiebreakerGoals(archetype: Archetype): number {
+  const ranges: Record<Archetype, [number, number]> = {
+    expert: [70, 95],
+    average: [55, 110],
+    wildcard: [40, 140],
   }
   const [min, max] = ranges[archetype]
   return Math.floor(Math.random() * (max - min + 1)) + min
@@ -448,7 +467,7 @@ async function calculateGroupStandings(
  * Only includes 3rd-place teams that qualified (to prevent non-qualifiers
  * appearing in R32 composite slots like 3A/D/E).
  */
-async function buildGroupResultsLookup(
+export async function buildGroupResultsLookup(
   admin: AdminClient,
   groups: { id: string; name: string }[]
 ): Promise<Record<string, Record<number, string>>> {
@@ -764,8 +783,11 @@ export async function processAIGoldenTickets(
 
     if (swaps.length === 0) continue // all predictions were correct — no swap needed
 
-    // Decide whether to use the golden ticket based on archetype
-    const useChance = testPlayer.archetype === 'expert' ? 0.9
+    // Decide whether to use the Emergency Sub based on archetype. The admin
+    // entry always plays it at the first opportunity (Tom wants the admin to
+    // exercise the sub during the run).
+    const useChance = testPlayer.isAdmin ? 1
+      : testPlayer.archetype === 'expert' ? 0.9
       : testPlayer.archetype === 'average' ? 0.6
       : 0.4 // wildcard
 

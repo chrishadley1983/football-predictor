@@ -4,6 +4,7 @@ import { requireAuth } from '@/lib/auth'
 import { scheduleAuditEmail } from '@/lib/email/audit'
 import { scheduleUserEmail } from '@/lib/email/user'
 import type { KnockoutPredictionChange } from '@/lib/email/audit'
+import { resolveParticipantIds, type BracketMatchLike } from '@/lib/bracket'
 
 // GET: Get player's knockout predictions
 export async function GET(
@@ -75,21 +76,23 @@ const ROUND_SHORT: Record<string, string> = {
   final: 'F',
 }
 
-type MatchInfo = {
-  id: string
+type MatchInfo = BracketMatchLike & {
   round: string
-  match_number: number
-  home_team_id: string | null
-  away_team_id: string | null
 }
 
 type Diff = {
   matchId: string
   old: string | null
-  new: string
+  new: string | null
 }
 
-// POST: Submit/update knockout predictions
+// POST: Submit/update the player's full knockout bracket + tiebreaker.
+//
+// The whole bracket is validated as one: each later round's participants flow
+// from the player's own predicted winners, so a submitted pick only persists
+// when it is bracket-consistent (see resolveParticipantIds). Anything that no
+// longer fits is pruned (cleared), and the knockout goal-total tiebreaker is
+// saved alongside.
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ slug: string }> }
@@ -141,95 +144,99 @@ export async function POST(
     }
 
     const body = await request.json()
-    // Expected body: { predictions: [{ match_id, predicted_winner_id }] }
-    const { predictions } = body
+    // Expected body: { predictions: [{ match_id, predicted_winner_id }], knockout_tiebreaker_goals?: number | null }
+    const { predictions, knockout_tiebreaker_goals } = body
 
     if (!Array.isArray(predictions)) {
       return NextResponse.json({ error: 'predictions must be an array' }, { status: 400 })
     }
 
-    let matches: MatchInfo[] = []
+    // Load the WHOLE bracket so downstream W{n} sources can be resolved.
+    const { data: matchesData } = await supabase
+      .from('knockout_matches')
+      .select('id, round, match_number, home_source, away_source, home_team_id, away_team_id')
+      .eq('tournament_id', tournament.id)
 
-    // Validate all predictions: match must belong to tournament and winner must be a participant
-    if (predictions.length > 0) {
-      const matchIds = predictions.map((p: { match_id: string }) => p.match_id)
-      const { data: matchesData } = await supabase
-        .from('knockout_matches')
-        .select('id, round, match_number, home_team_id, away_team_id')
-        .eq('tournament_id', tournament.id)
-        .in('id', matchIds)
+    if (!matchesData) {
+      return NextResponse.json({ error: 'Failed to look up matches' }, { status: 500 })
+    }
+    const matches = matchesData as MatchInfo[]
+    const matchIdSet = new Set(matches.map((m) => m.id))
 
-      if (!matchesData) {
-        return NextResponse.json({ error: 'Failed to look up matches' }, { status: 500 })
-      }
-      matches = matchesData as MatchInfo[]
-
-      const matchMap = new Map(matches.map((m) => [m.id, m]))
-
-      for (const pred of predictions) {
-        const match = matchMap.get(pred.match_id)
-        if (!match) {
-          return NextResponse.json(
-            { error: `Match ${pred.match_id} not found in this tournament` },
-            { status: 400 }
-          )
-        }
-        if (
-          pred.predicted_winner_id !== match.home_team_id &&
-          pred.predicted_winner_id !== match.away_team_id
-        ) {
-          return NextResponse.json(
-            { error: `Predicted winner is not a participant in match ${pred.match_id}` },
-            { status: 400 }
-          )
-        }
+    // Build the submitted picks record (ignore unknown matches / blank picks).
+    const submitted: Record<string, string | null> = {}
+    for (const p of predictions as { match_id: string; predicted_winner_id: string | null }[]) {
+      if (p && p.match_id && matchIdSet.has(p.match_id) && p.predicted_winner_id) {
+        submitted[p.match_id] = p.predicted_winner_id
       }
     }
 
-    // Upsert each knockout prediction, capturing before/after for the audit email
+    // Resolve + validate: validWinners holds only bracket-consistent picks.
+    const { participants, validWinners } = resolveParticipantIds(matches, submitted)
+    const desired = new Map<string, string>()
+    for (const [matchId, winner] of validWinners) {
+      if (winner) desired.set(matchId, winner)
+    }
+
+    // Existing stored predictions for this entry
+    const { data: existingRows } = await supabase
+      .from('knockout_predictions')
+      .select('id, match_id, predicted_winner_id')
+      .eq('entry_id', entry.id)
+    const existing = existingRows ?? []
+    const existingByMatch = new Map(existing.map((e) => [e.match_id, e]))
+
     const diffs: Diff[] = []
-    for (const pred of predictions) {
-      // Capture existing prediction for diffing
-      const { data: existing } = await supabase
-        .from('knockout_predictions')
-        .select('id, predicted_winner_id')
-        .eq('entry_id', entry.id)
-        .eq('match_id', pred.match_id)
-        .maybeSingle()
 
-      diffs.push({
-        matchId: pred.match_id,
-        old: existing?.predicted_winner_id ?? null,
-        new: pred.predicted_winner_id,
-      })
-
-      if (existing) {
-        // Update existing prediction (preserve points_earned)
-        const { error: updateErr } = await supabase
-          .from('knockout_predictions')
-          .update({
-            predicted_winner_id: pred.predicted_winner_id,
-          })
-          .eq('id', existing.id)
-
-        if (updateErr) {
-          return NextResponse.json({ error: updateErr.message }, { status: 400 })
+    // Upsert every desired (valid) pick.
+    for (const [matchId, winnerId] of desired) {
+      const ex = existingByMatch.get(matchId)
+      if (ex) {
+        if (ex.predicted_winner_id !== winnerId) {
+          const { error: updateErr } = await supabase
+            .from('knockout_predictions')
+            .update({ predicted_winner_id: winnerId })
+            .eq('id', ex.id)
+          if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 400 })
+          diffs.push({ matchId, old: ex.predicted_winner_id, new: winnerId })
         }
       } else {
-        // Insert new prediction
         const { error: insertErr } = await supabase
           .from('knockout_predictions')
-          .insert({
-            entry_id: entry.id,
-            match_id: pred.match_id,
-            predicted_winner_id: pred.predicted_winner_id,
-            points_earned: 0,
-          })
-
-        if (insertErr) {
-          return NextResponse.json({ error: insertErr.message }, { status: 400 })
-        }
+          .insert({ entry_id: entry.id, match_id: matchId, predicted_winner_id: winnerId, points_earned: 0 })
+        if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 400 })
+        diffs.push({ matchId, old: null, new: winnerId })
       }
+    }
+
+    // Clear any stored pick that is no longer bracket-consistent. (RLS only lets
+    // a player UPDATE — not DELETE — their own rows, so we null the winner.)
+    for (const ex of existing) {
+      if (ex.predicted_winner_id && !desired.has(ex.match_id)) {
+        const { error: clearErr } = await supabase
+          .from('knockout_predictions')
+          .update({ predicted_winner_id: null })
+          .eq('id', ex.id)
+        if (clearErr) return NextResponse.json({ error: clearErr.message }, { status: 400 })
+        diffs.push({ matchId: ex.match_id, old: ex.predicted_winner_id, new: null })
+      }
+    }
+
+    // Save the knockout goal-total tiebreaker if it was included in the request.
+    if ('knockout_tiebreaker_goals' in body) {
+      const raw = knockout_tiebreaker_goals
+      const val = raw === null || raw === undefined || raw === '' ? null : Number(raw)
+      if (val !== null && (!Number.isInteger(val) || val < 0)) {
+        return NextResponse.json(
+          { error: 'knockout_tiebreaker_goals must be a whole number of 0 or more' },
+          { status: 400 }
+        )
+      }
+      const { error: tbErr } = await supabase
+        .from('tournament_entries')
+        .update({ knockout_tiebreaker_goals: val })
+        .eq('id', entry.id)
+      if (tbErr) return NextResponse.json({ error: tbErr.message }, { status: 400 })
     }
 
     // Audit email: build changes with team names + match labels, skip if nothing changed
@@ -239,6 +246,7 @@ export async function POST(
       tournament,
       diffs,
       matches,
+      participants,
     })
 
     return NextResponse.json({ success: true })
@@ -261,21 +269,22 @@ async function fireKnockoutPredictionsAudit(opts: {
   tournament: { id: string; name: string; slug: string; year: number }
   diffs: Diff[]
   matches: MatchInfo[]
+  participants: Map<string, { homeTeamId: string | null; awayTeamId: string | null }>
 }): Promise<void> {
-  const { supabase, player, tournament, diffs, matches } = opts
+  const { supabase, player, tournament, diffs, matches, participants } = opts
   if (diffs.length === 0) return
 
   const matchById = new Map(matches.map((m) => [m.id, m]))
 
-  // Batch-fetch team names for all teams referenced
+  // Batch-fetch team names for all teams referenced (diffs + resolved participants)
   const teamIds = new Set<string>()
   for (const d of diffs) {
     if (d.old) teamIds.add(d.old)
     if (d.new) teamIds.add(d.new)
   }
-  for (const m of matches) {
-    if (m.home_team_id) teamIds.add(m.home_team_id)
-    if (m.away_team_id) teamIds.add(m.away_team_id)
+  for (const p of participants.values()) {
+    if (p.homeTeamId) teamIds.add(p.homeTeamId)
+    if (p.awayTeamId) teamIds.add(p.awayTeamId)
   }
   const { data: teams } = teamIds.size
     ? await supabase.from('teams').select('id, name').in('id', [...teamIds])
@@ -284,16 +293,17 @@ async function fireKnockoutPredictionsAudit(opts: {
 
   const changes: KnockoutPredictionChange[] = diffs.map((d) => {
     const match = matchById.get(d.matchId)
+    const part = participants.get(d.matchId)
     const short = match ? ROUND_SHORT[match.round] ?? match.round : '?'
-    const home = match?.home_team_id ? teamName.get(match.home_team_id) ?? '?' : '?'
-    const away = match?.away_team_id ? teamName.get(match.away_team_id) ?? '?' : '?'
+    const home = part?.homeTeamId ? teamName.get(part.homeTeamId) ?? '?' : '?'
+    const away = part?.awayTeamId ? teamName.get(part.awayTeamId) ?? '?' : '?'
     const label = match
       ? `${short} #${match.match_number}: ${home} vs ${away}`
       : 'Unknown match'
     return {
       matchLabel: label,
       old: d.old ? teamName.get(d.old) ?? null : null,
-      new: teamName.get(d.new) ?? 'Unknown',
+      new: d.new ? teamName.get(d.new) ?? 'Unknown' : 'No pick',
       changed: d.old !== d.new,
     }
   })
