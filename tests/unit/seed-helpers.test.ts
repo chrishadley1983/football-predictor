@@ -11,11 +11,54 @@ import {
   generateGroupPrediction,
   generateKnockoutPrediction,
   generateTiebreakerGoals,
+  matchThirdsToSlots,
   KNOCKOUT_ROUNDS_ORDER,
   getExistingKnockoutRounds,
   TEST_PLAYERS,
   TEST_EMAIL_DOMAIN,
 } from '@/lib/testing/seed-helpers'
+
+// The 8 "best 3rd" composite slots of the WC2026 (12-group) Round of 32.
+const WC2026_THIRD_SLOTS = [
+  ['C', 'D', 'E'],
+  ['A', 'D', 'E'],
+  ['A', 'B', 'C'],
+  ['B', 'G', 'H'],
+  ['F', 'G', 'H'],
+  ['I', 'J', 'K'],
+  ['I', 'J', 'L'],
+  ['F', 'K', 'L'],
+]
+
+describe('matchThirdsToSlots', () => {
+  function rank(letters: string[]): Map<string, number> {
+    return new Map(letters.map((l, i) => [l, i]))
+  }
+
+  it('fills every composite slot (the previously-flaky case is now complete)', () => {
+    const all = 'ABCDEFGHIJKL'.split('')
+    const matched = matchThirdsToSlots(WC2026_THIRD_SLOTS, rank(all))
+    expect(matched.size).toBe(8)
+    // Slot 3F/K/L can only be served by F, K or L, so one of them must qualify.
+    expect(['F', 'K', 'L'].some((l) => matched.has(l))).toBe(true)
+  })
+
+  it('rejects the unsolvable top-8-by-points set by choosing a coverable one', () => {
+    // A,B,C,D,E,G,H,J were the "best" thirds but cannot cover 3F/K/L. The matcher
+    // must instead pick a set that covers every slot.
+    const ranked = ['A', 'B', 'C', 'D', 'E', 'G', 'H', 'J', 'F', 'I', 'K', 'L']
+    const matched = matchThirdsToSlots(WC2026_THIRD_SLOTS, rank(ranked))
+    expect(matched.size).toBe(8)
+    for (const slot of WC2026_THIRD_SLOTS) {
+      expect(slot.some((l) => matched.has(l))).toBe(true)
+    }
+  })
+
+  it('prefers higher-ranked thirds when there is freedom', () => {
+    const matched = matchThirdsToSlots([['C', 'D', 'E']], rank(['D', 'C', 'E']))
+    expect([...matched]).toEqual(['D'])
+  })
+})
 
 describe('resolveGroupSource', () => {
   const results = {

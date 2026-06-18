@@ -159,54 +159,48 @@ export function resolveGroupSource(
 }
 
 /**
- * Check if a set of qualifying 3rd-place groups produces a solvable bracket assignment.
- * Uses backtracking to verify that each composite slot (e.g., 3C/D/E) can be filled
- * with a unique qualifying team.
+ * Choose which group letters supply the "best 3rd" qualifiers by finding a
+ * maximum bipartite matching of composite slots → group letters (each slot
+ * accepts only thirds from its listed groups). Higher-ranked thirds are
+ * preferred. Returns the set of matched group letters (the qualifiers).
+ *
+ * This guarantees every composite slot can be filled with a distinct third —
+ * unlike picking the top-N thirds by points, which can leave a slot (e.g.
+ * 3F/K/L) with no eligible qualifier.
  */
-function isBracketSolvable(
-  qualifyingGroupIds: string[],
-  groups: { id: string; name: string }[],
-  thirdByGroup: Map<string, { groupId: string; teamId: string }>,
-  compositeSources: string[]
-): boolean {
-  const qualifyingSet = new Set(qualifyingGroupIds)
+export function matchThirdsToSlots(
+  slots: string[][],
+  rankByLetter: Map<string, number>
+): Set<string> {
+  // Per slot: eligible letters (that are actual third-place groups), best-first.
+  const candidates = slots.map((letters) =>
+    [...letters]
+      .filter((l) => rankByLetter.has(l))
+      .sort((a, b) => (rankByLetter.get(a) ?? 99) - (rankByLetter.get(b) ?? 99))
+  )
 
-  // Map qualifying group letters to team IDs
-  const qualifyingLetters = new Set<string>()
-  for (const group of groups) {
-    if (qualifyingSet.has(group.id)) {
-      qualifyingLetters.add(group.name.replace('Group ', ''))
-    }
-  }
+  const letterToSlot = new Map<string, number>() // letter -> slot index it's matched to
+  const slotToLetter = new Array<string | null>(slots.length).fill(null)
 
-  // Build slot candidates
-  const slots = compositeSources.map((source) => {
-    const match = source.match(/^(\d+)([A-L](?:\/[A-L])+)$/)
-    const letters = match ? match[2].split('/') : []
-    return letters
-      .filter((l) => qualifyingLetters.has(l))
-      .map((l) => thirdByGroup.get(l)?.teamId)
-      .filter((id): id is string => !!id)
-  })
-
-  // Sort most-constrained first
-  const indices = slots.map((_, i) => i)
-  indices.sort((a, b) => slots[a].length - slots[b].length)
-
-  const used = new Set<string>()
-  function solve(i: number): boolean {
-    if (i === indices.length) return true
-    const slotIdx = indices[i]
-    for (const teamId of slots[slotIdx]) {
-      if (used.has(teamId)) continue
-      used.add(teamId)
-      if (solve(i + 1)) return true
-      used.delete(teamId)
+  function augment(slotIdx: number, visited: Set<string>): boolean {
+    for (const letter of candidates[slotIdx]) {
+      if (visited.has(letter)) continue
+      visited.add(letter)
+      const occupant = letterToSlot.get(letter)
+      if (occupant === undefined || augment(occupant, visited)) {
+        letterToSlot.set(letter, slotIdx)
+        slotToLetter[slotIdx] = letter
+        return true
+      }
     }
     return false
   }
 
-  return solve(0)
+  // Assign the most-constrained slots (fewest candidates) first.
+  const order = slots.map((_, i) => i).sort((a, b) => candidates[a].length - candidates[b].length)
+  for (const slotIdx of order) augment(slotIdx, new Set())
+
+  return new Set(slotToLetter.filter((l): l is string => l !== null))
 }
 
 /**
@@ -258,10 +252,16 @@ export async function forceCompleteGroupStageLogic(
     }
   }
 
-  // Determine which 3rd-place teams qualify based on actual stats
+  // Determine which 3rd-place teams qualify. The Round of 32 has a fixed set of
+  // "best 3rd" composite slots (e.g. 3F/K/L), each of which only accepts a third
+  // from one of a few specific groups. Rather than picking the top-N thirds by
+  // points and hoping the bracket is solvable (some combinations are NOT — the
+  // chosen thirds may not cover every slot), we choose the qualifiers by
+  // *matching* one third to every composite slot, preferring higher-ranked
+  // thirds. This guarantees a complete, valid bracket.
   let thirdPlaceQualifyingGroups: Set<string> = new Set()
   if (thirdPlaceQualifiersCount && thirdPlaceQualifiersCount > 0) {
-    // Rank 3rd-place teams: points DESC, goal diff DESC, goals for DESC
+    // Rank 3rd-place teams best-first (points, goal diff, goals for).
     thirdPlaceTeams.sort((a, b) => {
       if (b.pts !== a.pts) return b.pts - a.pts
       if (b.gd !== a.gd) return b.gd - a.gd
@@ -269,52 +269,53 @@ export async function forceCompleteGroupStageLogic(
       return Math.random() - 0.5 // random tiebreak
     })
 
-    // Fetch bracket composite sources to validate solvability
+    const letterOfGroup = new Map<string, string>()
+    const groupIdByLetter = new Map<string, string>()
+    for (const g of groups) {
+      const letter = g.name.replace('Group ', '')
+      letterOfGroup.set(g.id, letter)
+      groupIdByLetter.set(letter, g.id)
+    }
+
+    // rank index per group letter (lower = better third)
+    const rankByLetter = new Map<string, number>()
+    thirdPlaceTeams.forEach((t, i) => {
+      const l = letterOfGroup.get(t.groupId)
+      if (l) rankByLetter.set(l, i)
+    })
+
+    // Composite slots -> their allowed group letters.
     const { data: koMatches } = await admin
       .from('knockout_matches')
       .select('home_source, away_source')
       .eq('tournament_id', tournamentId)
-
-    const compositeSources: string[] = []
+    const slots: string[][] = []
     for (const m of koMatches ?? []) {
-      if (m.home_source && /^\d+[A-L](?:\/[A-L])+$/.test(m.home_source))
-        compositeSources.push(m.home_source)
-      if (m.away_source && /^\d+[A-L](?:\/[A-L])+$/.test(m.away_source))
-        compositeSources.push(m.away_source)
-    }
-
-    // Build group letter -> team mapping for 3rd-place teams
-    const thirdByGroup = new Map<string, { groupId: string; teamId: string }>()
-    for (const t of thirdPlaceTeams) {
-      const group = groups.find((g) => g.id === t.groupId)
-      if (group) {
-        const letter = group.name.replace('Group ', '')
-        thirdByGroup.set(letter, { groupId: t.groupId, teamId: t.teamId })
-      }
-    }
-
-    // Select qualifying groups with bracket solvability validation
-    // Start with top N by ranking, then swap boundary teams if unsolvable
-    const ranked = thirdPlaceTeams.map((t) => t.groupId)
-    let qualifyingIds = ranked.slice(0, thirdPlaceQualifiersCount)
-    const nonQualifying = ranked.slice(thirdPlaceQualifiersCount)
-
-    if (!isBracketSolvable(qualifyingIds, groups, thirdByGroup, compositeSources)) {
-      // Try swapping boundary teams until solvable
-      let solved = false
-      for (let swapOut = qualifyingIds.length - 1; swapOut >= 0 && !solved; swapOut--) {
-        for (let swapIn = 0; swapIn < nonQualifying.length && !solved; swapIn++) {
-          const candidate = [...qualifyingIds]
-          candidate[swapOut] = nonQualifying[swapIn]
-          if (isBracketSolvable(candidate, groups, thirdByGroup, compositeSources)) {
-            qualifyingIds = candidate
-            solved = true
-          }
+      for (const src of [m.home_source, m.away_source]) {
+        if (src && /^\d+[A-L](?:\/[A-L])+$/.test(src)) {
+          slots.push(src.replace(/^\d+/, '').split('/'))
         }
       }
     }
 
-    thirdPlaceQualifyingGroups = new Set(qualifyingIds)
+    // Match a distinct third to every slot (respecting allowed groups).
+    const matchedLetters = matchThirdsToSlots(slots, rankByLetter)
+    const qualifyingIds: string[] = []
+    for (const letter of matchedLetters) {
+      const gid = groupIdByLetter.get(letter)
+      if (gid) qualifyingIds.push(gid)
+    }
+
+    // Fallback: if matching couldn't cover every slot (shouldn't happen for the
+    // standard bracket), top up with the best-ranked remaining thirds.
+    if (qualifyingIds.length < thirdPlaceQualifiersCount) {
+      for (const t of thirdPlaceTeams) {
+        if (qualifyingIds.length >= thirdPlaceQualifiersCount) break
+        if (!qualifyingIds.includes(t.groupId)) qualifyingIds.push(t.groupId)
+      }
+    }
+
+    thirdPlaceQualifyingGroups = new Set(qualifyingIds.slice(0, thirdPlaceQualifiersCount))
   }
 
   // Insert group results with correct qualified flags
