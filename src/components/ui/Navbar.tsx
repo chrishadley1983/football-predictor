@@ -126,6 +126,8 @@ export function Navbar() {
       .then(({ data }) => setFallbackSlug(data?.slug ?? null))
   }, [])
 
+  const [knockoutStarted, setKnockoutStarted] = useState(false)
+
   async function handleLogout() {
     const supabase = createClient()
     await supabase.auth.signOut()
@@ -139,6 +141,27 @@ export function Navbar() {
   // fall back to the current tournament so the menu stays consistent everywhere.
   const tournamentMatch = pathname.match(/^\/tournament\/([^/]+)/)
   const tournamentSlug = tournamentMatch ? tournamentMatch[1] : fallbackSlug
+
+  // Once the knockout stage is open/closed/completed, "My Predictions" points at
+  // the knockout bracket instead of the group picks.
+  useEffect(() => {
+    // The "My Predictions" link only renders when a tournament slug exists, so
+    // there's nothing to update when it's absent.
+    if (!tournamentSlug) return
+    const supabase = createClient()
+    supabase
+      .from('tournaments')
+      .select('status')
+      .eq('slug', tournamentSlug)
+      .maybeSingle()
+      .then(({ data }) =>
+        setKnockoutStarted(
+          ['knockout_open', 'knockout_closed', 'completed'].includes(data?.status ?? '')
+        )
+      )
+  }, [tournamentSlug])
+
+  const myPredictionsHref = `/tournament/${tournamentSlug}/predict/${knockoutStarted ? 'knockout' : 'groups'}`
 
   const linkClass = (active: boolean) =>
     cn(
@@ -178,7 +201,7 @@ export function Navbar() {
                   Predictions
                 </Link>
                 {player && (
-                  <Link href={`/tournament/${tournamentSlug}/predict/groups`} className={linkClass(pathname.includes('/predict/'))}>
+                  <Link href={myPredictionsHref} className={linkClass(pathname.includes('/predict/'))}>
                     My Predictions
                   </Link>
                 )}
@@ -275,7 +298,7 @@ export function Navbar() {
                   Predictions
                 </Link>
                 {player && (
-                  <Link href={`/tournament/${tournamentSlug}/predict/groups`} className={mobileLinkClass} onClick={() => setMenuOpen(false)}>
+                  <Link href={myPredictionsHref} className={mobileLinkClass} onClick={() => setMenuOpen(false)}>
                     My Predictions
                   </Link>
                 )}

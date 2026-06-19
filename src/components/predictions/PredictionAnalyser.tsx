@@ -36,6 +36,8 @@ interface PredictionAnalyserProps {
   thirdPlaceQualifiersCount?: number | null
   knockoutMatches?: KnockoutMatch[]
   knockoutVisible?: boolean
+  /** Hide the group-stage comparison entirely (knockout-only view). */
+  hideGroups?: boolean
   achievements?: PlayerAchievement[]
   goldenTickets?: GoldenTicket[]
   /**
@@ -72,6 +74,7 @@ export function PredictionAnalyser({
   thirdPlaceQualifiersCount,
   knockoutMatches = [],
   knockoutVisible = false,
+  hideGroups = false,
   achievements = [],
   goldenTickets = [],
   decidedTeamIds,
@@ -479,7 +482,7 @@ export function PredictionAnalyser({
           )}
 
           {/* Group Comparison Table */}
-          {showComparison && (
+          {showComparison && !hideGroups && (
             <div
               className="overflow-x-auto rounded-xl border border-border-custom"
               data-testid="h2h-comparison"

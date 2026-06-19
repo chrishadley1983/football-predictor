@@ -37,6 +37,8 @@ interface PredictionGridProps {
   knockoutVisible?: boolean
   /** Emergency Subs played, so their picks are marked (🔄) rather than shown as blunders. */
   goldenTickets?: GoldenTicket[]
+  /** Hide the group-stage rows entirely (knockout-only view). */
+  hideGroups?: boolean
   /** When true (all-players view), use 3-letter country codes to save space */
   useShortNames?: boolean
   /**
@@ -56,6 +58,7 @@ export function PredictionGrid({
   knockoutMatches = [],
   knockoutVisible = false,
   goldenTickets = [],
+  hideGroups = false,
   useShortNames = false,
   decidedTeamIds,
 }: PredictionGridProps) {
@@ -207,10 +210,10 @@ export function PredictionGrid({
         <thead className="bg-surface-light">
           <tr>
             <th className="sticky left-0 z-10 bg-surface-light px-2 py-2 text-left font-medium text-text-muted">
-              Group
+              {hideGroups ? '' : 'Group'}
             </th>
             <th className="sticky left-[60px] z-10 bg-surface-light px-2 py-2 text-left font-medium text-text-muted">
-              Pos
+              {hideGroups ? 'Match' : 'Pos'}
             </th>
             {predictions.map((p) => (
               <th key={p.entry_id} className="px-2 py-2 text-center font-medium text-text-muted">
@@ -225,7 +228,7 @@ export function PredictionGrid({
           </tr>
         </thead>
         <tbody className="divide-y divide-border-custom bg-surface">
-          {groups.map((group) => (
+          {!hideGroups && groups.map((group) => (
             [1, 2, 3].map((pos) => (
               <tr key={`${group.id}-${pos}`}>
                 {pos === 1 && (

@@ -9,6 +9,8 @@ import { UpcomingFixtures } from '@/components/tournament/UpcomingFixtures'
 import { formatCurrency } from '@/lib/utils'
 import { DeadlineCountdown, DeadlineLocalTime } from '@/components/ui/Deadline'
 import { getPredictionProgress } from '@/lib/predictions'
+import { getImpersonatedEntryId } from '@/lib/impersonation'
+import { OverviewEmergencySub } from '@/components/bracket/OverviewEmergencySub'
 import type { Tournament } from '@/lib/types'
 
 export default async function TournamentPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -58,6 +60,20 @@ export default async function TournamentPage({ params }: { params: Promise<{ slu
       entryId = entry?.id ?? null
     }
   }
+
+  // Admin "step into" a player: the overview (progress cards + Emergency Sub)
+  // then reflects that entry instead of the admin's own.
+  const impEntryId = await getImpersonatedEntryId()
+  if (impEntryId) {
+    const { data: impEntry } = await createAdminClient()
+      .from('tournament_entries')
+      .select('id')
+      .eq('id', impEntryId)
+      .eq('tournament_id', t.id)
+      .maybeSingle()
+    if (impEntry) entryId = impEntry.id
+  }
+
   const hasEntered = entryId !== null
   const canEnter = t.status === 'group_stage_open' && !hasEntered
 
@@ -91,6 +107,9 @@ export default async function TournamentPage({ params }: { params: Promise<{ slu
         </div>
         <TournamentStatusBadge status={t.status} />
       </div>
+
+      {/* Emergency Sub call-to-action (only renders when one is available now) */}
+      {user && <OverviewEmergencySub slug={slug} />}
 
       {/* Quick info cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

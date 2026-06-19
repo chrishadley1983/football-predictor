@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentPlayer } from '@/lib/auth'
@@ -5,6 +6,7 @@ import { fetchAllRows } from '@/lib/supabase/fetch-all'
 import { PredictionGrid } from '@/components/predictions/PredictionGrid'
 import { PredictionAnalyser } from '@/components/predictions/PredictionAnalyser'
 import { PredictionsByCountry } from '@/components/predictions/PredictionsByCountry'
+import { PredictionsByCountryKnockout } from '@/components/predictions/PredictionsByCountryKnockout'
 import type { EntryInfo } from '@/components/predictions/PredictionAnalyser'
 import { getDeadlineStatus } from '@/lib/utils'
 import { computeDecidedTeamIds } from '@/lib/decided-teams'
@@ -29,10 +31,13 @@ import type {
 
 export default async function PredictionsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>
+  searchParams?: Promise<{ stage?: string }>
 }) {
   const { slug } = await params
+  const forceGroup = (await searchParams)?.stage === 'group'
   const supabase = await createClient()
 
   // Get current player (null for anon visitors)
@@ -166,9 +171,13 @@ export default async function PredictionsPage({
           .in('group_id', groupIds)
       : { data: [] }
 
-  // Knockout visibility: only after knockout stage has begun (admin can always see)
+  // Knockout visibility: only after knockout stage has begun (admin can always see).
+  // `forceGroup` (?stage=group) is the dedicated look-back-at-the-Group-Stage view.
   const knockoutStarted = ['knockout_open', 'knockout_closed', 'completed'].includes(t.status)
-  const knockoutVisible = isAdmin || knockoutStarted
+  const knockoutVisible = (isAdmin || knockoutStarted) && !forceGroup
+  // Once the knockout has begun, the Group Stage predictions are no longer
+  // relevant (only the score carries over) — hide them on the main view.
+  const hideGroups = knockoutStarted && !forceGroup
 
   // Fetch knockout data if visible
   let allKnockoutPredictions: KnockoutPrediction[] = []
@@ -292,29 +301,65 @@ export default async function PredictionsPage({
     .select('*')
     .eq('tournament_id', t.id)
 
+  const allTeams = Array.from(teamMap.values())
+
   return (
     <div className="space-y-6">
-      <h1 className="font-heading text-2xl font-bold text-foreground">
-        {t.name} - All Predictions
-      </h1>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="font-heading text-2xl font-bold text-foreground">
+          {t.name} — {hideGroups ? 'Knockout Predictions' : forceGroup ? 'Group Stage Predictions' : 'All Predictions'}
+        </h1>
+        {/* Cross-link between the knockout view and the group-stage look-back */}
+        {knockoutStarted && (
+          forceGroup ? (
+            <Link
+              href={`/tournament/${slug}/predictions`}
+              className="text-sm font-medium text-gold hover:underline"
+            >
+              ← Back to Knockout predictions
+            </Link>
+          ) : (
+            <Link
+              href={`/tournament/${slug}/predictions/groups`}
+              className="text-sm font-medium text-text-secondary hover:text-gold hover:underline"
+            >
+              Look back at Group Stage predictions →
+            </Link>
+          )
+        )}
+      </div>
 
-      {/* Points Scoring Key */}
+      {/* Points Scoring Key — reflects the relevant stage */}
       <div className="rounded-xl border border-border-custom bg-surface p-4">
-        <h3 className="mb-2 font-heading text-sm font-bold text-foreground">Scoring Key</h3>
-        <div className="flex flex-wrap gap-4 text-xs">
-          <div className="flex items-center gap-2">
-            <span className="inline-block h-4 w-4 rounded bg-green-accent/20"></span>
-            <span className="text-text-secondary"><strong className="text-green-accent">2 pts</strong> — Correct team in correct position</span>
+        <h3 className="mb-2 font-heading text-sm font-bold text-foreground">
+          {hideGroups ? 'Knockout Scoring Key' : 'Group Stage Scoring Key'}
+        </h3>
+        {hideGroups ? (
+          <div className="flex flex-wrap gap-4 text-xs">
+            <span className="text-text-secondary">Points double each round for each correct winner:</span>
+            <span className="text-text-secondary"><strong className="text-foreground">R32</strong> 1 pt</span>
+            <span className="text-text-secondary"><strong className="text-foreground">R16</strong> 2 pts</span>
+            <span className="text-text-secondary"><strong className="text-foreground">QF</strong> 4 pts</span>
+            <span className="text-text-secondary"><strong className="text-foreground">SF</strong> 8 pts</span>
+            <span className="text-text-secondary"><strong className="text-gold">Final</strong> 16 pts</span>
+            <span className="text-text-secondary"><strong className="text-red-accent">Emergency Sub</strong> −6 pts</span>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="inline-block h-4 w-4 rounded bg-yellow-accent/20"></span>
-            <span className="text-text-secondary"><strong className="text-yellow-accent">1 pt</strong> — Correct qualifier, wrong position</span>
+        ) : (
+          <div className="flex flex-wrap gap-4 text-xs">
+            <div className="flex items-center gap-2">
+              <span className="inline-block h-4 w-4 rounded bg-green-accent/20"></span>
+              <span className="text-text-secondary"><strong className="text-green-accent">2 pts</strong> — Correct team in correct position</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="inline-block h-4 w-4 rounded bg-yellow-accent/20"></span>
+              <span className="text-text-secondary"><strong className="text-yellow-accent">1 pt</strong> — Correct qualifier, wrong position</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="inline-block h-4 w-4 rounded bg-red-accent/20"></span>
+              <span className="text-text-secondary"><strong className="text-red-accent">0 pts</strong> — Team did not qualify</span>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="inline-block h-4 w-4 rounded bg-red-accent/20"></span>
-            <span className="text-text-secondary"><strong className="text-red-accent">0 pts</strong> — Team did not qualify</span>
-          </div>
-        </div>
+        )}
       </div>
 
       <PredictionAnalyser
@@ -329,17 +374,26 @@ export default async function PredictionsPage({
         }
         knockoutMatches={knockoutMatches}
         knockoutVisible={knockoutVisible}
+        hideGroups={hideGroups}
         achievements={(achievements ?? []) as PlayerAchievement[]}
         goldenTickets={goldenTickets}
         decidedTeamIds={decidedTeamIds}
       />
-      <PredictionsByCountry
-        predictions={predictions}
-        groups={((groups as GroupWithTeams[]) ?? [])}
-      />
-      {knockoutVisible && entryInfos.length > 0 && (
-        <GoldenTicketSummary tickets={goldenTickets} entries={entryInfos} />
+
+      {hideGroups ? (
+        <PredictionsByCountryKnockout
+          predictions={predictions}
+          knockoutMatches={knockoutMatches}
+          teams={allTeams}
+        />
+      ) : (
+        <PredictionsByCountry
+          predictions={predictions}
+          groups={((groups as GroupWithTeams[]) ?? [])}
+        />
       )}
+
+      {/* Predictions grid comes BEFORE the Emergency Sub table */}
       <PredictionGrid
         predictions={predictions}
         groups={((groups as GroupWithTeams[]) ?? [])}
@@ -351,9 +405,15 @@ export default async function PredictionsPage({
         knockoutMatches={knockoutMatches}
         knockoutVisible={knockoutVisible}
         goldenTickets={goldenTickets}
+        hideGroups={hideGroups}
         useShortNames
         decidedTeamIds={decidedTeamIds}
       />
+
+      {/* Emergency Sub roster — after the predictions */}
+      {knockoutVisible && entryInfos.length > 0 && (
+        <GoldenTicketSummary tickets={goldenTickets} entries={entryInfos} />
+      )}
     </div>
   )
 }
