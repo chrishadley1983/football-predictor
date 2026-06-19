@@ -107,6 +107,13 @@ export async function POST(
           // Same shape the status PATCH route uses on a manual transition to completed.
           const events = await buildTournamentCompletedEvents(admin, tournament.id)
           after(() => sendUserBroadcast(events))
+        } else if (tournament.status === 'knockout_open') {
+          // The first knockout game has now kicked off — close the bracket window
+          // so predictions lock and become visible to everyone (status drives both).
+          await admin
+            .from('tournaments')
+            .update({ status: 'knockout_closed' })
+            .eq('id', tournament.id)
         }
 
         scheduleAuditEmail({

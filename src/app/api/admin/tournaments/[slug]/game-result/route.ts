@@ -152,6 +152,14 @@ async function handleKnockoutResult(
   // Advance the winner to the next round
   await advanceWinner(admin, tournamentId, match.match_number, winner_team_id)
 
+  // A knockout result means the stage has kicked off — close the bracket window
+  // (only if still open) so predictions lock and become visible to everyone.
+  await admin
+    .from('tournaments')
+    .update({ status: 'knockout_closed' })
+    .eq('id', tournamentId)
+    .eq('status', 'knockout_open')
+
   return NextResponse.json({ success: true })
 }
 
