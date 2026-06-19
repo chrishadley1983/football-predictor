@@ -109,19 +109,14 @@ export default function GroupPredictionPage() {
 
       const groupIds = data.groups?.map((g: GroupWithTeams) => g.id) ?? []
       if (groupIds.length > 0) {
-        const [{ data: groupResults }, { data: groupMatches }] = await Promise.all([
-          supabase.from('group_results').select('*').in('group_id', groupIds),
-          supabase
-            .from('group_matches')
-            .select('group_id, home_score, away_score')
-            .in('group_id', groupIds),
-        ])
+        const { data: groupResults } = await supabase
+          .from('group_results')
+          .select('*')
+          .in('group_id', groupIds)
         if (groupResults) setResults(groupResults)
         // Only show the green/yellow/red status rings once a team's group fate is
-        // actually settled — group_results carries live mid-group standings.
-        setDecidedTeamIds(
-          computeDecidedTeamIds(groupResults ?? [], groupMatches ?? [], groupIds)
-        )
+        // mathematically settled (clinched or eliminated).
+        setDecidedTeamIds(computeDecidedTeamIds(groupResults ?? []))
       }
 
       setLoading(false)

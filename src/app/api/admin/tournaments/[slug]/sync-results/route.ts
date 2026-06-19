@@ -3,12 +3,8 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { secureEquals } from '@/lib/secure-compare'
 import { fetchEspnMatches, type EspnMatch } from '@/lib/results/espn-source'
-import {
-  computeGroupStandings,
-  selectBestThirdPlaced,
-  type MatchScore,
-  type TeamRow,
-} from '@/lib/results/standings'
+import { type MatchScore } from '@/lib/results/standings'
+import { computeGroupStageCertainty, type GroupInput } from '@/lib/results/group-certainty'
 
 // Pulls completed scores from ESPN's WC scoreboard and writes them into our
 // fixtures tables. Then derives per-group standings (and best-thirds where
@@ -240,108 +236,80 @@ export async function POST(
     teamIdsByGroup.set(gt.group_id, arr)
   }
 
-  type ComputedRow = {
-    team_id: string
-    final_position: number
-    qualified_within_group: boolean
-    row: TeamRow
-  }
-  const computedByGroup = new Map<string, ComputedRow[]>()
-  const completeByGroup = new Map<string, boolean>()
   const isGroupComplete = (gid: string) => {
     const ms = matchesByGroup.get(gid) ?? []
     return ms.length > 0 && ms.every((m) => m.home_score != null && m.away_score != null)
   }
-  // Best-8 thirds depend on every group's final table, so third-place
-  // qualification can only be decided once ALL groups are complete — at which
-  // point we must rank thirds across all 12 groups, not just the touched ones.
+  // Best-N thirds depend on every group's final table, so we always hand the
+  // certainty solver ALL groups; we only WRITE rows for groups touched this run
+  // (or every group once they're all complete, so 3rd place resolves).
   const allGroupsComplete = [...teamIdsByGroup.keys()].every(isGroupComplete)
   const groupIdsToProcess =
     allGroupsComplete || touchedGroupIds.size === 0
       ? [...teamIdsByGroup.keys()]
       : [...touchedGroupIds]
 
-  for (const gid of groupIdsToProcess) {
-    const teamIds = teamIdsByGroup.get(gid) ?? []
+  const groupInputs: GroupInput[] = []
+  for (const [gid, teamIds] of teamIdsByGroup.entries()) {
     if (teamIds.length === 0) continue
     const ms = matchesByGroup.get(gid) ?? []
-    const finishedCount = ms.filter(
-      (m) => m.home_score != null && m.away_score != null
-    ).length
-    if (finishedCount === 0) continue
-    completeByGroup.set(gid, finishedCount === ms.length)
-    const standings = computeGroupStandings(
-      teamIds,
-      teamIdToCode,
-      ms.map<MatchScore>((m) => ({
+    groupInputs.push({
+      group_id: gid,
+      team_ids: teamIds,
+      matches: ms.map<MatchScore>((m) => ({
         home_team_id: m.home_team_id!,
         away_team_id: m.away_team_id!,
         home_score: m.home_score,
         away_score: m.away_score,
-      }))
-    )
-    computedByGroup.set(gid, standings)
+      })),
+    })
+  }
+
+  // What is GUARANTEED so far — qualified / eliminated / exact position locked.
+  const certainty = computeGroupStageCertainty(groupInputs, teamIdToCode, thirdPlaceCount)
+
+  for (const gid of groupIdsToProcess) {
+    const teamIds = teamIdsByGroup.get(gid) ?? []
+    if (teamIds.length === 0) continue
+    const ms = matchesByGroup.get(gid) ?? []
+    const finishedCount = ms.filter((m) => m.home_score != null && m.away_score != null).length
+    if (finishedCount === 0) continue // group not kicked off yet — no running table
     groupsWithDerivedStandings++
-  }
 
-  // Third-place qualification is only knowable once every group is complete:
-  // the best-8 ranking compares final third-place rows across all 12 groups.
-  const thirdRows: TeamRow[] = []
-  if (allGroupsComplete) {
-    for (const stds of computedByGroup.values()) {
-      const third = stds.find((s) => s.final_position === 3)
-      if (third) thirdRows.push(third.row)
-    }
-  }
-  const qualifiedThirds =
-    thirdPlaceCount > 0 ? selectBestThirdPlaced(thirdRows, thirdPlaceCount) : new Set<string>()
-
-  for (const [gid, standings] of computedByGroup.entries()) {
-    for (const s of standings) {
-      // Live mid-group tables still get positions written (the results page
-      // shows them as a running table), but `qualified` is only set once the
-      // group has finished all its matches — "currently top two" after one
-      // matchday is not qualification.
-      const qualified =
-        (s.qualified_within_group && completeByGroup.get(gid) === true) ||
-        (s.final_position === 3 && qualifiedThirds.has(s.team_id))
+    for (const teamId of teamIds) {
+      const c = certainty.get(teamId)
+      if (!c) continue
+      const next = {
+        final_position: c.current_position,
+        qualified: c.qualified,
+        position_certain: c.position_certain,
+        eliminated: c.eliminated,
+      }
 
       const { data: existing } = await admin
         .from('group_results')
-        .select('id, final_position, qualified')
+        .select('id, final_position, qualified, position_certain, eliminated')
         .eq('group_id', gid)
-        .eq('team_id', s.team_id)
+        .eq('team_id', teamId)
         .maybeSingle()
 
       if (existing) {
         if (
-          existing.final_position !== s.final_position ||
-          existing.qualified !== qualified
+          existing.final_position !== next.final_position ||
+          existing.qualified !== next.qualified ||
+          existing.position_certain !== next.position_certain ||
+          existing.eliminated !== next.eliminated
         ) {
-          const { error } = await admin
-            .from('group_results')
-            .update({ final_position: s.final_position, qualified })
-            .eq('id', existing.id)
-          if (error) {
-            console.error(`[sync-results] group_results update failed: ${error.message}`)
-          } else {
-            groupResultsWritten++
-          }
+          const { error } = await admin.from('group_results').update(next).eq('id', existing.id)
+          if (error) console.error(`[sync-results] group_results update failed: ${error.message}`)
+          else groupResultsWritten++
         }
       } else {
         const { error } = await admin
           .from('group_results')
-          .insert({
-            group_id: gid,
-            team_id: s.team_id,
-            final_position: s.final_position,
-            qualified,
-          })
-        if (error) {
-          console.error(`[sync-results] group_results insert failed: ${error.message}`)
-        } else {
-          groupResultsWritten++
-        }
+          .insert({ group_id: gid, team_id: teamId, ...next })
+        if (error) console.error(`[sync-results] group_results insert failed: ${error.message}`)
+        else groupResultsWritten++
       }
     }
   }

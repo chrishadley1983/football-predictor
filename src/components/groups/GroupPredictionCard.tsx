@@ -71,16 +71,16 @@ export function GroupPredictionCard({ group, prediction, onPredict, readonly, re
 
   function getStatusColor(teamId: string, predictedPosition: number): string {
     if (!teamId || resultMap.size === 0) return ''
-    if (!isDecided(teamId)) return ''
+    if (!isDecided(teamId)) return '' // not yet certain — no ring
     const result = resultMap.get(teamId)
     if (!result) return ''
-    if (result.qualified && result.final_position === predictedPosition) {
-      return 'ring-2 ring-green-accent'
-    }
     if (result.qualified) {
-      return 'ring-2 ring-yellow-accent'
+      if (result.position_certain && result.final_position === predictedPosition) {
+        return 'ring-2 ring-green-accent' // exact place certain
+      }
+      return 'ring-2 ring-yellow-accent' // qualified
     }
-    return 'ring-2 ring-red-accent'
+    return 'ring-2 ring-red-accent' // eliminated
   }
 
   const hasAllRequired = hasThirdPlaceFeature
