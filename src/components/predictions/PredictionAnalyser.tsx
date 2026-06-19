@@ -103,11 +103,11 @@ export function PredictionAnalyser({
     return map
   }, [results])
 
-  // Build result lookup by team: team_id -> { qualified, final_position }
+  // Build result lookup by team: team_id -> certainty flags
   const resultByTeam = useMemo(() => {
-    const map = new Map<string, { qualified: boolean; final_position: number }>()
+    const map = new Map<string, { qualified: boolean; final_position: number; position_certain: boolean }>()
     for (const r of results) {
-      map.set(r.team_id, { qualified: r.qualified, final_position: r.final_position })
+      map.set(r.team_id, { qualified: r.qualified, final_position: r.final_position, position_certain: r.position_certain ?? false })
     }
     return map
   }, [results])
@@ -132,16 +132,16 @@ export function PredictionAnalyser({
 
   function getCellColor(teamId: string | null, predictedPosition: number): string {
     if (!teamId || resultByTeam.size === 0) return 'bg-surface-light'
-    if (!isDecided(teamId)) return 'bg-surface-light'
+    if (!isDecided(teamId)) return 'bg-surface-light' // not yet certain — stay neutral
     const result = resultByTeam.get(teamId)
     if (!result) return 'bg-surface-light'
-    if (result.qualified && result.final_position === predictedPosition) {
-      return 'bg-green-accent/20 text-green-accent'
-    }
     if (result.qualified) {
-      return 'bg-yellow-accent/20 text-yellow-accent'
+      if (result.position_certain && result.final_position === predictedPosition) {
+        return 'bg-green-accent/20 text-green-accent' // exact place certain
+      }
+      return 'bg-yellow-accent/20 text-yellow-accent' // qualified
     }
-    return 'bg-red-accent/20 text-red-accent'
+    return 'bg-red-accent/20 text-red-accent' // eliminated
   }
 
   function getKnockoutCellColor(

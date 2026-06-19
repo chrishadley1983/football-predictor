@@ -31,8 +31,8 @@ describe('calculateGroupStageScores', () => {
       tournament_entries: [{ id: 'e1', tournament_id: T, group_stage_points: 0 }],
       groups: [{ id: 'g1', tournament_id: T }],
       group_results: [
-        { id: 'r1', group_id: 'g1', team_id: 'A', final_position: 1, qualified: true },
-        { id: 'r2', group_id: 'g1', team_id: 'B', final_position: 2, qualified: true },
+        { id: 'r1', group_id: 'g1', team_id: 'A', final_position: 1, qualified: true, position_certain: true },
+        { id: 'r2', group_id: 'g1', team_id: 'B', final_position: 2, qualified: true, position_certain: true },
         { id: 'r3', group_id: 'g1', team_id: 'C', final_position: 3, qualified: false },
       ],
       group_predictions: [
@@ -88,7 +88,7 @@ describe('calculateGroupStageScores', () => {
       tournament_entries: [{ id: 'e1', tournament_id: T, group_stage_points: 0 }],
       groups: [{ id: 'g1', tournament_id: T }],
       group_results: [
-        { id: 'r1', group_id: 'g1', team_id: 'A', final_position: 1, qualified: true },
+        { id: 'r1', group_id: 'g1', team_id: 'A', final_position: 1, qualified: true, position_certain: true },
       ],
       group_predictions: [
         {
@@ -104,6 +104,23 @@ describe('calculateGroupStageScores', () => {
     })
     await calculateGroupStageScores(T)
     expect(admin.tables.group_predictions[0].points_earned).toBe(2)
+  })
+
+  it('awards the qualify point but NOT the exact bonus until the position is locked', async () => {
+    // A has clinched qualification but its exact 1st place is not yet certain.
+    const admin = install({
+      tournament_entries: [{ id: 'e1', tournament_id: T, group_stage_points: 0 }],
+      groups: [{ id: 'g1', tournament_id: T }],
+      group_results: [
+        { id: 'r1', group_id: 'g1', team_id: 'A', final_position: 1, qualified: true, position_certain: false },
+      ],
+      group_predictions: [
+        { id: 'p1', entry_id: 'e1', group_id: 'g1', predicted_1st: 'A', predicted_2nd: null, predicted_3rd: null, points_earned: 0 },
+      ],
+    })
+    await calculateGroupStageScores(T)
+    // +1 for the clinched qualification, but no +1 bonus (position not locked).
+    expect(admin.tables.group_predictions[0].points_earned).toBe(1)
   })
 
   it('is a no-op when there are no entries', async () => {

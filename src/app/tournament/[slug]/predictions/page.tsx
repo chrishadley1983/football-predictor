@@ -159,18 +159,6 @@ export default async function PredictionsPage({
           .in('group_id', groupIds)
       : { data: [] }
 
-  // Fetch group match scores so we can tell which groups have actually finished.
-  // group_results stores live (running) standings mid-group with qualified=false,
-  // which the Predictions page must NOT render as "did not qualify" until the
-  // group is genuinely decided.
-  const { data: groupMatches } =
-    groupIds.length > 0
-      ? await supabase
-          .from('group_matches')
-          .select('group_id, home_score, away_score')
-          .in('group_id', groupIds)
-      : { data: [] }
-
   // Knockout visibility: only after knockout stage has begun (admin can always see).
   // `forceGroup` (?stage=group) is the dedicated look-back-at-the-Group-Stage view.
   const knockoutStarted = ['knockout_open', 'knockout_closed', 'completed'].includes(t.status)
@@ -286,14 +274,9 @@ export default async function PredictionsPage({
     }
   })
 
-  // Only colour-code teams whose group-stage fate is actually settled — a team
-  // mid-group stays neutral instead of being shown red before its group is
-  // decided. See computeDecidedTeamIds for the rule.
-  const decidedTeamIds = computeDecidedTeamIds(
-    (groupResults as GroupResult[]) ?? [],
-    (groupMatches ?? []) as { group_id: string; home_score: number | null; away_score: number | null }[],
-    groupIds
-  )
+  // Only colour-code teams whose group-stage fate is mathematically settled — a
+  // team still in the balance stays neutral. See computeDecidedTeamIds.
+  const decidedTeamIds = computeDecidedTeamIds((groupResults as GroupResult[]) ?? [])
 
   // Fetch achievements for this tournament
   const { data: achievements } = await supabase

@@ -36,13 +36,14 @@ export async function calculateGroupStageScores(tournamentId: string): Promise<v
   if (resultsErr) throw new Error(`Failed to fetch group results: ${resultsErr.message}`)
   if (!results || results.length === 0) return
 
-  // Build lookup: group_id -> { team_id -> { final_position, qualified } }
-  const resultsByGroup: Record<string, Record<string, { final_position: number; qualified: boolean }>> = {}
+  // Build lookup: group_id -> { team_id -> { final_position, qualified, position_certain } }
+  const resultsByGroup: Record<string, Record<string, { final_position: number; qualified: boolean; position_certain: boolean }>> = {}
   for (const r of results) {
     if (!resultsByGroup[r.group_id]) resultsByGroup[r.group_id] = {}
     resultsByGroup[r.group_id][r.team_id] = {
       final_position: r.final_position,
       qualified: r.qualified,
+      position_certain: r.position_certain ?? false,
     }
   }
 
@@ -75,11 +76,12 @@ export async function calculateGroupStageScores(tournamentId: string): Promise<v
       const actual = groupResults[teamId]
       if (!actual) continue
 
-      // Team qualified: +1 point
+      // Team has clinched qualification: +1 point.
       if (actual.qualified) {
         points += 1
-        // Exact position match: +1 bonus point
-        if (actual.final_position === position) {
+        // Exact position bonus — only once that exact position is mathematically
+        // locked (not just the current running standing).
+        if (actual.position_certain && actual.final_position === position) {
           points += 1
         }
       }

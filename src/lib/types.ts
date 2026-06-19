@@ -179,6 +179,8 @@ export interface GroupResult {
   team_id: string
   final_position: number
   qualified: boolean
+  position_certain: boolean
+  eliminated: boolean
 }
 
 export interface KnockoutPrediction {
@@ -964,6 +966,8 @@ export interface Database {
           team_id: string
           final_position: number
           qualified: boolean
+          position_certain: boolean
+          eliminated: boolean
         }
         Insert: {
           id?: string
@@ -971,12 +975,16 @@ export interface Database {
           team_id: string
           final_position: number
           qualified?: boolean
+          position_certain?: boolean
+          eliminated?: boolean
         }
         Update: {
           group_id?: string
           team_id?: string
           final_position?: number
           qualified?: boolean
+          position_certain?: boolean
+          eliminated?: boolean
         }
         Relationships: [
           {
