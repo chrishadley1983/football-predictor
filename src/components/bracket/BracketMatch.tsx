@@ -9,9 +9,10 @@ interface BracketMatchProps {
   onSelectWinner?: (matchId: string, teamId: string) => void
   readonly?: boolean
   goldenTicketUsed?: boolean
+  fullNames?: boolean
 }
 
-export function BracketMatch({ match, prediction, onSelectWinner, readonly, goldenTicketUsed }: BracketMatchProps) {
+export function BracketMatch({ match, prediction, onSelectWinner, readonly, goldenTicketUsed, fullNames }: BracketMatchProps) {
   const actualWinner = match.winner_team_id
   const predictedWinner = prediction?.predicted_winner_id
 
@@ -36,7 +37,7 @@ export function BracketMatch({ match, prediction, onSelectWinner, readonly, gold
   const isDecided = !!actualWinner
 
   return (
-    <div className="flex w-36 flex-col gap-0.5 rounded-xl border border-border-custom bg-surface p-1 sm:w-40">
+    <div className={`flex flex-col gap-0.5 rounded-xl border border-border-custom bg-surface p-1 ${fullNames ? 'w-52 sm:w-56' : 'w-36 sm:w-40'}`}>
       <div className="mb-0.5 text-center text-[10px] text-text-muted">
         {goldenTicketUsed && <span title="Emergency Sub used on this match">🔄 </span>}
         {match.round.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())} #{match.match_number}
@@ -49,6 +50,7 @@ export function BracketMatch({ match, prediction, onSelectWinner, readonly, gold
         isWinner={isDecided && actualWinner === match.home_team_id}
         isLoser={isDecided && !!match.home_team_id && actualWinner !== match.home_team_id}
         clickable={!!canInteract}
+        fullName={fullNames}
         onClick={() => match.home_team_id && onSelectWinner?.(match.id, match.home_team_id)}
       />
       <BracketTeam
@@ -59,6 +61,7 @@ export function BracketMatch({ match, prediction, onSelectWinner, readonly, gold
         isWinner={isDecided && actualWinner === match.away_team_id}
         isLoser={isDecided && !!match.away_team_id && actualWinner !== match.away_team_id}
         clickable={!!canInteract}
+        fullName={fullNames}
         onClick={() => match.away_team_id && onSelectWinner?.(match.id, match.away_team_id)}
       />
     </div>

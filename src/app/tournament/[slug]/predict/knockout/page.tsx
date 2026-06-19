@@ -54,24 +54,39 @@ export default function KnockoutPredictionPage() {
         return
       }
 
-      const { data: player } = await supabase
-        .from('players')
-        .select('id')
-        .eq('auth_user_id', user.id)
-        .single()
+      // Admins can "step into" a player to view/play as them (cookie set by the
+      // ImpersonationBar); otherwise resolve the viewer's own entry.
+      const impEntryId =
+        user.app_metadata?.role === 'admin'
+          ? document.cookie.match(/(?:^|; )impersonate_entry=([^;]*)/)?.[1] ?? null
+          : null
 
-      if (!player) {
-        setError('Player profile not found')
-        setLoading(false)
-        return
+      let entry: { id: string; knockout_tiebreaker_goals: number | null } | null = null
+      if (impEntryId) {
+        const { data: imp } = await supabase
+          .from('tournament_entries')
+          .select('id, knockout_tiebreaker_goals')
+          .eq('id', impEntryId)
+          .eq('tournament_id', data.id)
+          .maybeSingle()
+        entry = imp
       }
-
-      const { data: entry } = await supabase
-        .from('tournament_entries')
-        .select('*')
-        .eq('tournament_id', data.id)
-        .eq('player_id', player.id)
-        .single()
+      if (!entry) {
+        const { data: player } = await supabase
+          .from('players')
+          .select('id')
+          .eq('auth_user_id', user.id)
+          .single()
+        if (player) {
+          const { data: own } = await supabase
+            .from('tournament_entries')
+            .select('id, knockout_tiebreaker_goals')
+            .eq('tournament_id', data.id)
+            .eq('player_id', player.id)
+            .maybeSingle()
+          entry = own
+        }
+      }
 
       if (!entry) {
         setError('You have not entered this tournament yet')
@@ -163,8 +178,13 @@ export default function KnockoutPredictionPage() {
       .filter((p) => p.predicted_winner_id)
       .map((p) => ({ match_id: p.match_id, predicted_winner_id: p.predicted_winner_id }))
 
-    const koGoals = koTiebreaker.trim() === '' ? null : Number(koTiebreaker)
-    if (koGoals !== null && (!Number.isInteger(koGoals) || koGoals < 0)) {
+    if (koTiebreaker.trim() === '') {
+      setError('Please enter your tiebreaker — the total goals scored in the Knockout Stage.')
+      setSaving(false)
+      return
+    }
+    const koGoals = Number(koTiebreaker)
+    if (!Number.isInteger(koGoals) || koGoals < 0) {
       setError('Knockout goal total must be a whole number of 0 or more')
       setSaving(false)
       return
@@ -226,29 +246,33 @@ export default function KnockoutPredictionPage() {
         onPrediction={handlePrediction}
         readonly={isReadonly}
         goldenTicketMatchId={goldenTicket?.original_match_id}
+        layout="columns"
+        fullNames
       />
 
-      {/* Knockout tiebreaker */}
+      {/* Knockout tiebreaker (required) */}
       {!isReadonly && (
         <div className="rounded-xl border border-border-custom bg-surface p-4">
           <label htmlFor="ko-tiebreaker" className="block text-sm font-medium text-foreground">
-            Tiebreaker: total goals across the whole knockout stage
+            Tiebreaker <span className="text-red-accent">*</span> — total goals scored in the Knockout Stage
           </label>
           <p className="mb-2 mt-1 text-xs text-text-muted">
-            Your best guess for the combined goals scored in every knockout match (Round of 32 to
-            the Final). Used to separate level scores.
+            Your best guess for the combined goals scored across every knockout match (Round of 32
+            through to the Final), <strong>excluding penalty shootouts</strong>. Required, and used
+            to separate level scores.
           </p>
           <input
             id="ko-tiebreaker"
             type="number"
             min={0}
             inputMode="numeric"
+            required
             value={koTiebreaker}
             onChange={(e) => {
               setKoTiebreaker(e.target.value)
               setDirty(true)
             }}
-            placeholder="e.g. 140"
+            placeholder="e.g. 90"
             className="w-32 rounded-md border border-border-custom bg-surface-light px-3 py-2 text-sm text-foreground"
           />
         </div>

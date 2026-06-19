@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { scheduleAuditEmail } from '@/lib/email/audit'
+import { resolveEffectiveEntry } from '@/lib/impersonation'
 import {
   getGoldenTicketWindow,
   getEligibleSwaps,
@@ -37,17 +38,12 @@ export async function GET(
       return NextResponse.json({ error: 'Tournament not found' }, { status: 404 })
     }
 
-    // Get player's entry
-    const { data: entry } = await admin
-      .from('tournament_entries')
-      .select('id')
-      .eq('tournament_id', tournament.id)
-      .eq('player_id', player.id)
-      .single()
-
-    if (!entry) {
+    // Resolve the effective entry (admin may be "stepping into" a player).
+    const { entryId } = await resolveEffectiveEntry(tournament.id, player.id)
+    if (!entryId) {
       return NextResponse.json({ error: 'Not entered in this tournament' }, { status: 404 })
     }
+    const entry = { id: entryId }
 
     // Check if player has used their golden ticket
     const { data: usedTicket } = await admin
@@ -121,17 +117,12 @@ export async function POST(
       return NextResponse.json({ error: 'Tournament not found' }, { status: 404 })
     }
 
-    // Get player's entry
-    const { data: entry } = await admin
-      .from('tournament_entries')
-      .select('id')
-      .eq('tournament_id', tournament.id)
-      .eq('player_id', player.id)
-      .single()
-
-    if (!entry) {
+    // Resolve the effective entry (admin may be "stepping into" a player).
+    const { entryId } = await resolveEffectiveEntry(tournament.id, player.id)
+    if (!entryId) {
       return NextResponse.json({ error: 'Not entered in this tournament' }, { status: 404 })
     }
+    const entry = { id: entryId }
 
     // Check if player has already used their golden ticket
     const { data: existingTicket } = await admin

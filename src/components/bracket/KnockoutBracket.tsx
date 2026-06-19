@@ -5,15 +5,30 @@ import type { KnockoutMatchWithTeams, KnockoutPrediction } from '@/lib/types'
 import { resolveBracket, predictionsToRecord } from '@/lib/bracket'
 import { BracketMatch } from './BracketMatch'
 
+const ROUND_LABELS: Record<string, string> = {
+  round_of_32: 'Round of 32',
+  round_of_16: 'Round of 16',
+  quarter_final: 'Quarter-finals',
+  semi_final: 'Semi-finals',
+  final: 'Final',
+}
+
 interface KnockoutBracketProps {
   matches: KnockoutMatchWithTeams[]
   predictions?: KnockoutPrediction[]
   onPrediction?: (matchId: string, teamId: string) => void
   readonly?: boolean
   goldenTicketMatchId?: string | null
+  /**
+   * 'mirrored' = the classic left → Final ← right bracket (nice for display).
+   * 'columns'  = every round in its own left-to-right column (clearer for entry).
+   */
+  layout?: 'mirrored' | 'columns'
+  /** Show full country names instead of 3-letter codes (wider cards). */
+  fullNames?: boolean
 }
 
-export function KnockoutBracket({ matches, predictions = [], onPrediction, readonly = false, goldenTicketMatchId }: KnockoutBracketProps) {
+export function KnockoutBracket({ matches, predictions = [], onPrediction, readonly = false, goldenTicketMatchId, layout = 'mirrored', fullNames = false }: KnockoutBracketProps) {
   const predictionMap = useMemo(() => {
     const map: Record<string, KnockoutPrediction> = {}
     for (const p of predictions) {
@@ -121,6 +136,7 @@ export function KnockoutBracket({ matches, predictions = [], onPrediction, reado
         onSelectWinner={onPrediction}
         readonly={readonly}
         goldenTicketUsed={goldenTicketMatchId === m.id}
+        fullNames={fullNames}
       />
     )
   }
@@ -177,6 +193,28 @@ export function KnockoutBracket({ matches, predictions = [], onPrediction, reado
       </div>
     </div>
   )
+
+  // Simple left-to-right columns — one column per round, every match listed in
+  // its round's column. Clearer than the mirrored bracket for entering picks.
+  const columnsView = (
+    <div className="overflow-x-auto pb-2">
+      <div className="flex w-max gap-4 px-1">
+        {rounds.map((r) => (
+          <div key={r.round} className="flex flex-col gap-3">
+            <h3 className="text-sm font-bold text-gold">
+              {ROUND_LABELS[r.round] ?? r.round}
+              <span className="ml-1 font-normal text-text-muted">({r.matches.length})</span>
+            </h3>
+            {r.matches.map((m) => renderMatch(m))}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+
+  if (layout === 'columns') {
+    return <div>{columnsView}</div>
+  }
 
   return (
     <div>

@@ -15,6 +15,10 @@ vi.mock('@/lib/auth', () => ({ requireAuth: async () => player }))
 vi.mock('@/lib/supabase/server', () => ({ createClient: async () => server }))
 vi.mock('@/lib/email/audit', () => ({ scheduleAuditEmail: vi.fn(), sendAuditEmail: vi.fn() }))
 vi.mock('@/lib/email/user', () => ({ scheduleUserEmail: (...a: unknown[]) => scheduleUserEmail(...a) }))
+// No impersonation in these tests — resolve to the seeded own entry.
+vi.mock('@/lib/impersonation', () => ({
+  resolveEffectiveEntry: async () => ({ entryId: 'e1', impersonating: false }),
+}))
 
 import { POST } from '@/app/api/tournaments/[slug]/predictions/knockout/route'
 

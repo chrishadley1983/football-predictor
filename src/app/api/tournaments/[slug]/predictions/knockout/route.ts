@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { requireAuth } from '@/lib/auth'
 import { scheduleAuditEmail } from '@/lib/email/audit'
 import { scheduleUserEmail } from '@/lib/email/user'
 import type { KnockoutPredictionChange } from '@/lib/email/audit'
 import { resolveParticipantIds, type BracketMatchLike } from '@/lib/bracket'
+import { resolveEffectiveEntry } from '@/lib/impersonation'
 
 // GET: Get player's knockout predictions
 export async function GET(
@@ -27,20 +29,16 @@ export async function GET(
       return NextResponse.json({ error: 'Tournament not found' }, { status: 404 })
     }
 
-    // Get player's entry
-    const { data: entry } = await supabase
-      .from('tournament_entries')
-      .select('id')
-      .eq('tournament_id', tournament.id)
-      .eq('player_id', player.id)
-      .single()
-
-    if (!entry) {
+    // Resolve the effective entry (admin may be "stepping into" a player).
+    const { entryId, impersonating } = await resolveEffectiveEntry(tournament.id, player.id)
+    if (!entryId) {
       return NextResponse.json({ error: 'Not entered in this tournament' }, { status: 404 })
     }
+    const entry = { id: entryId }
+    const db = impersonating ? createAdminClient() : supabase
 
     // Get knockout predictions with match and team details
-    const { data: predictions, error } = await supabase
+    const { data: predictions, error } = await db
       .from('knockout_predictions')
       .select(`
         *,
@@ -131,17 +129,15 @@ export async function POST(
       )
     }
 
-    // Get player's entry
-    const { data: entry } = await supabase
-      .from('tournament_entries')
-      .select('id')
-      .eq('tournament_id', tournament.id)
-      .eq('player_id', player.id)
-      .single()
-
-    if (!entry) {
+    // Resolve the effective entry (admin may be "stepping into" a player). When
+    // impersonating, use the admin client for entry-scoped writes (RLS only lets
+    // a player write their own rows).
+    const { entryId, impersonating } = await resolveEffectiveEntry(tournament.id, player.id)
+    if (!entryId) {
       return NextResponse.json({ error: 'Not entered in this tournament' }, { status: 404 })
     }
+    const entry = { id: entryId }
+    const db = impersonating ? createAdminClient() : supabase
 
     const body = await request.json()
     // Expected body: { predictions: [{ match_id, predicted_winner_id }], knockout_tiebreaker_goals?: number | null }
@@ -179,7 +175,7 @@ export async function POST(
     }
 
     // Existing stored predictions for this entry
-    const { data: existingRows } = await supabase
+    const { data: existingRows } = await db
       .from('knockout_predictions')
       .select('id, match_id, predicted_winner_id')
       .eq('entry_id', entry.id)
@@ -193,7 +189,7 @@ export async function POST(
       const ex = existingByMatch.get(matchId)
       if (ex) {
         if (ex.predicted_winner_id !== winnerId) {
-          const { error: updateErr } = await supabase
+          const { error: updateErr } = await db
             .from('knockout_predictions')
             .update({ predicted_winner_id: winnerId })
             .eq('id', ex.id)
@@ -201,7 +197,7 @@ export async function POST(
           diffs.push({ matchId, old: ex.predicted_winner_id, new: winnerId })
         }
       } else {
-        const { error: insertErr } = await supabase
+        const { error: insertErr } = await db
           .from('knockout_predictions')
           .insert({ entry_id: entry.id, match_id: matchId, predicted_winner_id: winnerId, points_earned: 0 })
         if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 400 })
@@ -213,7 +209,7 @@ export async function POST(
     // a player UPDATE — not DELETE — their own rows, so we null the winner.)
     for (const ex of existing) {
       if (ex.predicted_winner_id && !desired.has(ex.match_id)) {
-        const { error: clearErr } = await supabase
+        const { error: clearErr } = await db
           .from('knockout_predictions')
           .update({ predicted_winner_id: null })
           .eq('id', ex.id)
@@ -232,7 +228,7 @@ export async function POST(
           { status: 400 }
         )
       }
-      const { error: tbErr } = await supabase
+      const { error: tbErr } = await db
         .from('tournament_entries')
         .update({ knockout_tiebreaker_goals: val })
         .eq('id', entry.id)

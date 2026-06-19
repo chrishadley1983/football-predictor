@@ -12,10 +12,11 @@ interface BracketTeamProps {
   isWinner?: boolean
   isLoser?: boolean
   clickable?: boolean
+  fullName?: boolean
   onClick?: () => void
 }
 
-export function BracketTeam({ team, score, selected, correct, isWinner, isLoser, clickable, onClick }: BracketTeamProps) {
+export function BracketTeam({ team, score, selected, correct, isWinner, isLoser, clickable, fullName, onClick }: BracketTeamProps) {
   if (!team) {
     return (
       <div className="flex h-8 items-center gap-2 rounded border border-dashed border-border-custom bg-surface-light px-2 text-xs text-text-muted">
@@ -49,7 +50,7 @@ export function BracketTeam({ team, score, selected, correct, isWinner, isLoser,
     >
       <Flag emoji={team.flag_emoji} name={team.name} />
       <span className={cn('truncate', isLoser ? 'text-text-muted' : 'text-foreground')}>
-        {team.code}
+        {fullName ? team.name : team.code}
       </span>
       {score !== null && score !== undefined && (
         <span className={cn(
