@@ -15,14 +15,17 @@ import {
 //
 // Method (per group): enumerate every win/draw/loss combination of the group's
 // remaining matches; a fact only counts as certain if it holds in EVERY
-// combination. Goal-difference tiebreaks among teams level on points are treated
-// as able to fall either way (the remaining scorelines are unknown), so a result
-// is only "certain" when it does not depend on a tiebreak — conservative, i.e.
-// it may declare certainty a little late, but never wrongly.
+// combination. Teams level on points are separated by HEAD-TO-HEAD points first
+// (the official 2026 tiebreaker, ahead of goal difference). Head-to-head between
+// teams that have already played is fixed, so it resolves ties deterministically
+// (this is why a team that has beaten its only rival for top spot can clinch
+// first place even though goal difference is still in flux). Ties that come down
+// to goal difference / goals scored depend on the unknown remaining scorelines,
+// so they're treated as able to fall either way — conservative, never wrong.
 //
 // Third place (best-N across all groups) genuinely depends on every group's
 // final table, so a 3rd-placed team's qualification is only resolved once ALL
-// groups are complete — until then a would-be 3rd sits as "undecided".
+// groups are complete.
 // ============================================================================
 
 export interface TeamCertainty {
@@ -48,14 +51,72 @@ export interface GroupInput {
 // can't blow up — at that point nothing is clinched anyway.
 const MAX_REMAINING = 12
 
+type Outcome = { a: string; b: string; res: 'A' | 'B' | 'D' } // A = home win, B = away win, D = draw
+
 function isComplete(matches: MatchScore[]): boolean {
   return matches.length > 0 && matches.every((m) => m.home_score != null && m.away_score != null)
 }
 
 /**
+ * For one set of match outcomes, each team's best (ties for them) and worst
+ * (ties against them) possible finishing rank, separating teams level on points
+ * by head-to-head points. Teams still level after head-to-head points are
+ * ambiguous (their order depends on goal difference, i.e. unknown scorelines).
+ */
+function ranksByPointsThenH2H(teamIds: string[], outcomes: Outcome[]): Map<string, { best: number; worst: number }> {
+  const points = new Map<string, number>(teamIds.map((id) => [id, 0]))
+  const award = (map: Map<string, number>, o: Outcome) => {
+    if (o.res === 'A') map.set(o.a, map.get(o.a)! + 3)
+    else if (o.res === 'B') map.set(o.b, map.get(o.b)! + 3)
+    else {
+      map.set(o.a, map.get(o.a)! + 1)
+      map.set(o.b, map.get(o.b)! + 1)
+    }
+  }
+  for (const o of outcomes) award(points, o)
+
+  // Head-to-head points among teams sharing the same points total.
+  const byPoints = new Map<number, string[]>()
+  for (const id of teamIds) {
+    const p = points.get(id)!
+    const arr = byPoints.get(p) ?? []
+    arr.push(id)
+    byPoints.set(p, arr)
+  }
+  const h2h = new Map<string, number>(teamIds.map((id) => [id, 0]))
+  for (const grp of byPoints.values()) {
+    if (grp.length < 2) continue
+    const set = new Set(grp)
+    for (const o of outcomes) {
+      if (set.has(o.a) && set.has(o.b)) award(h2h, o)
+    }
+  }
+
+  const ranks = new Map<string, { best: number; worst: number }>()
+  for (const x of teamIds) {
+    const px = points.get(x)!
+    const hx = h2h.get(x)!
+    let above = 0
+    let ambiguous = 0
+    for (const y of teamIds) {
+      if (y === x) continue
+      const py = points.get(y)!
+      if (py > px) above++
+      else if (py === px) {
+        const hy = h2h.get(y)!
+        if (hy > hx) above++
+        else if (hy === hx) ambiguous++ // level on points AND head-to-head -> order undecided
+      }
+    }
+    ranks.set(x, { best: above + 1, worst: above + ambiguous + 1 })
+  }
+  return ranks
+}
+
+/**
  * Per-group base certainty from enumerating remaining results. Does NOT resolve
  * the cross-group best-N third place (callers layer that on once all groups are
- * complete). A 3rd place from here is left qualified=false, eliminated=false.
+ * complete).
  */
 function computeGroupCertainty(
   input: GroupInput,
@@ -64,16 +125,13 @@ function computeGroupCertainty(
 ): TeamCertainty[] {
   const { team_ids: teamIds, matches } = input
 
-  // Current running table (played matches only).
+  // Running table (played matches only), ordered by the 2026 tiebreakers.
   const standings = computeGroupStandings(teamIds, teamCodeById, matches)
   const currentPosition = new Map(standings.map((s) => [s.team_id, s.final_position]))
-  const currentPoints = new Map<string, number>(standings.map((s) => [s.team_id, s.row.points]))
 
   const remaining = matches.filter((m) => m.home_score == null || m.away_score == null)
 
-  // A finished group has its final table locked (tiebreaks resolved by the
-  // standings), so every position is certain — no enumeration needed. (Best-N
-  // third place is still layered on cross-group by the caller.)
+  // A finished group has its final table locked, so every position is certain.
   if (remaining.length === 0) {
     return standings.map((s) => ({
       team_id: s.team_id,
@@ -84,53 +142,49 @@ function computeGroupCertainty(
     }))
   }
 
-  // Aggregates across all enumerated outcomes.
-  const worstRankMax = new Map<string, number>() // worst (highest) finishing rank possible
-  const bestRankMin = new Map<string, number>() // best (lowest) finishing rank possible
-  const lockedRank = new Map<string, number | null>() // single unambiguous rank, if always the same
-  const posUncertain = new Set<string>() // rank was ambiguous in some outcome, or varied
+  // Match outcomes: played ones are fixed; remaining ones get enumerated.
+  const playedOutcomes: Outcome[] = []
+  for (const m of matches) {
+    if (m.home_score == null || m.away_score == null) continue
+    playedOutcomes.push({
+      a: m.home_team_id,
+      b: m.away_team_id,
+      res: m.home_score > m.away_score ? 'A' : m.home_score < m.away_score ? 'B' : 'D',
+    })
+  }
+  const remainingPairs = remaining.map((m) => ({ a: m.home_team_id, b: m.away_team_id }))
+
+  const worstRankMax = new Map<string, number>()
+  const bestRankMin = new Map<string, number>()
+  const lockedRank = new Map<string, number | null>()
+  const posUncertain = new Set<string>()
   for (const id of teamIds) {
     worstRankMax.set(id, 0)
     bestRankMin.set(id, Infinity)
     lockedRank.set(id, null)
   }
 
-  const tooMany = remaining.length > MAX_REMAINING
-  const combos = tooMany ? 0 : Math.pow(3, remaining.length)
+  const tooMany = remainingPairs.length > MAX_REMAINING
+  const combos = tooMany ? 0 : Math.pow(3, remainingPairs.length)
 
   for (let mask = 0; mask < combos; mask++) {
-    const pts = new Map(currentPoints)
+    const outcomes: Outcome[] = [...playedOutcomes]
     let m = mask
-    for (const rm of remaining) {
-      const outcome = m % 3
+    for (const rp of remainingPairs) {
+      const o = m % 3
       m = Math.floor(m / 3)
-      if (outcome === 0) pts.set(rm.home_team_id, (pts.get(rm.home_team_id) ?? 0) + 3)
-      else if (outcome === 1) {
-        pts.set(rm.home_team_id, (pts.get(rm.home_team_id) ?? 0) + 1)
-        pts.set(rm.away_team_id, (pts.get(rm.away_team_id) ?? 0) + 1)
-      } else pts.set(rm.away_team_id, (pts.get(rm.away_team_id) ?? 0) + 3)
+      outcomes.push({ a: rp.a, b: rp.b, res: o === 0 ? 'A' : o === 1 ? 'D' : 'B' })
     }
-
+    const ranks = ranksByPointsThenH2H(teamIds, outcomes)
     for (const x of teamIds) {
-      const xp = pts.get(x) ?? 0
-      let above = 0
-      let equal = 0
-      for (const y of teamIds) {
-        if (y === x) continue
-        const yp = pts.get(y) ?? 0
-        if (yp > xp) above++
-        else if (yp === xp) equal++
-      }
-      const bestRank = above + 1
-      const worstRank = above + equal + 1
-      worstRankMax.set(x, Math.max(worstRankMax.get(x)!, worstRank))
-      bestRankMin.set(x, Math.min(bestRankMin.get(x)!, bestRank))
-      if (bestRank !== worstRank) {
-        posUncertain.add(x) // a tiebreak decides it -> not certain
-      } else {
+      const r = ranks.get(x)!
+      worstRankMax.set(x, Math.max(worstRankMax.get(x)!, r.worst))
+      bestRankMin.set(x, Math.min(bestRankMin.get(x)!, r.best))
+      if (r.best !== r.worst) posUncertain.add(x)
+      else {
         const prev = lockedRank.get(x)!
-        if (prev === null) lockedRank.set(x, bestRank)
-        else if (prev !== bestRank) posUncertain.add(x)
+        if (prev === null) lockedRank.set(x, r.best)
+        else if (prev !== r.best) posUncertain.add(x)
       }
     }
   }
@@ -191,7 +245,6 @@ export function computeGroupStageCertainty(
     for (const row of thirdRows) {
       const c = result.get(row.team_id)
       if (!c) continue
-      // The group is complete, so its exact positions are already locked.
       if (qualifyingThirds.has(row.team_id)) {
         c.qualified = true
         c.eliminated = false
