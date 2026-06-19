@@ -35,8 +35,12 @@ describe('computeGroupStageCertainty — live Group A (wc-2026)', () => {
     expect(cert.get('MEX')!.eliminated).toBe(false)
   })
 
-  it("but Mexico's exact 1st place is NOT yet locked (could be caught on GD)", () => {
-    expect(cert.get('MEX')!.position_certain).toBe(false)
+  it("Mexico's 1st place IS locked — it beat South Korea head-to-head, so SK can't overtake it", () => {
+    // The only team that can reach Mexico's 6 pts is South Korea, but Mexico won
+    // their head-to-head (1-0). 2026 applies head-to-head before goal difference,
+    // so SK can never finish above Mexico.
+    expect(cert.get('MEX')!.position_certain).toBe(true)
+    expect(cert.get('MEX')!.current_position).toBe(1)
   })
 
   it('no other team is decided yet (still all to play for)', () => {
@@ -44,6 +48,28 @@ describe('computeGroupStageCertainty — live Group A (wc-2026)', () => {
       expect(cert.get(id)!.qualified, `${id} qualified`).toBe(false)
       expect(cert.get(id)!.eliminated, `${id} eliminated`).toBe(false)
     }
+  })
+})
+
+describe('head-to-head resolves a points tie deterministically', () => {
+  // Two-team-relevant case: A and B both on 6, A beat B head-to-head, one game
+  // each left against weaker C/D. A is guaranteed to finish above B.
+  const ids = ['A', 'B', 'C', 'D']
+  const group: GroupInput = {
+    group_id: 'H',
+    team_ids: ids,
+    matches: [
+      m('A', 1, 0, 'B'), // A beat B head-to-head
+      m('A', 2, 0, 'C'),
+      m('B', 2, 0, 'D'),
+      m('C', 0, 0, 'D'),
+      m('A', null, null, 'D'),
+      m('B', null, null, 'C'),
+    ],
+  }
+  const cert = computeGroupStageCertainty([group], codes(ids), 0)
+  it('A has clinched 1st even though goal difference is still in flux', () => {
+    expect(cert.get('A')).toMatchObject({ qualified: true, position_certain: true, current_position: 1 })
   })
 })
 
