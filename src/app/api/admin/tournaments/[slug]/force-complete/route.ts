@@ -9,6 +9,7 @@ import {
   forceCompleteGroupStageLogic,
   forceCompleteKnockoutRoundLogic,
 } from '@/lib/testing/seed-helpers'
+import { calculateAllScores } from '@/lib/scoring'
 import type { KnockoutRound } from '@/lib/types'
 
 interface ForceCompletePayload {
@@ -65,6 +66,8 @@ export async function POST(
         .update({ status: 'group_stage_closed' })
         .eq('slug', slug)
 
+      await calculateAllScores(tournament.id)
+
       scheduleAuditEmail({
         event: 'admin_action',
         action: 'force_complete',
@@ -115,6 +118,8 @@ export async function POST(
             .update({ status: 'knockout_closed' })
             .eq('id', tournament.id)
         }
+
+        await calculateAllScores(tournament.id)
 
         scheduleAuditEmail({
           event: 'admin_action',

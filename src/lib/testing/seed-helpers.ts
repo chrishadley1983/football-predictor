@@ -323,12 +323,20 @@ export async function forceCompleteGroupStageLogic(
     await admin.from('group_results').delete().eq('group_id', group.id)
 
     const standings = groupStandings.get(group.id)!
-    const results = standings.map(({ teamId, position }) => ({
-      group_id: group.id,
-      team_id: teamId,
-      final_position: position,
-      qualified: position <= 2 || (position === 3 && thirdPlaceQualifyingGroups.has(group.id)),
-    }))
+    const results = standings.map(({ teamId, position }) => {
+      const qualified = position <= 2 || (position === 3 && thirdPlaceQualifyingGroups.has(group.id))
+      // The whole group stage is force-completed here, so every position is final
+      // and every non-qualifier is out — set the certainty flags accordingly so
+      // colour (green/red) and the exact-position bonus work on the test tournament.
+      return {
+        group_id: group.id,
+        team_id: teamId,
+        final_position: position,
+        qualified,
+        position_certain: true,
+        eliminated: !qualified,
+      }
+    })
 
     const { error } = await admin.from('group_results').insert(results)
     if (error) {
