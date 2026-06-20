@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { calculateAllScores } from '@/lib/scoring'
 
 interface GroupResultPayload {
   type: 'group'
@@ -110,6 +111,9 @@ async function handleGroupResult(
     }
   }
 
+  // Re-score so points + leaderboard reflect the change immediately.
+  await rescore(admin, tournamentId)
+
   return NextResponse.json({ success: true })
 }
 
@@ -160,7 +164,23 @@ async function handleKnockoutResult(
     .eq('id', tournamentId)
     .eq('status', 'knockout_open')
 
+  // Re-score so points + leaderboard reflect the change immediately.
+  await rescore(admin, tournamentId)
+
   return NextResponse.json({ success: true })
+}
+
+// Recompute every entry's points and ranks. Best-effort: a result is still saved
+// even if scoring hiccups (the manual "Recalculate Scores" action is the backstop).
+async function rescore(
+  admin: ReturnType<typeof createAdminClient>,
+  tournamentId: string
+) {
+  try {
+    await calculateAllScores(tournamentId)
+  } catch (err) {
+    console.error(`[game-result] re-score failed: ${err instanceof Error ? err.message : err}`)
+  }
 }
 
 async function advanceWinner(

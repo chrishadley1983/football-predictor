@@ -5,6 +5,7 @@ import { secureEquals } from '@/lib/secure-compare'
 import { fetchEspnMatches, type EspnMatch } from '@/lib/results/espn-source'
 import { type MatchScore } from '@/lib/results/standings'
 import { computeGroupStageCertainty, type GroupInput } from '@/lib/results/group-certainty'
+import { calculateAllScores } from '@/lib/scoring'
 
 // Pulls completed scores from ESPN's WC scoreboard and writes them into our
 // fixtures tables. Then derives per-group standings (and best-thirds where
@@ -324,6 +325,18 @@ export async function POST(
     unmappedAbbrevs: [...unmapped].sort(),
     groupsWithDerivedStandings,
   }
+
+  // Whenever results changed, re-score so points + leaderboard stay in lockstep
+  // with the certainty/colour we just wrote (the colour reads group_results; the
+  // points/ranks read tournament_entries — they must not drift apart).
+  if (groupUpdated > 0 || koUpdated > 0 || groupResultsWritten > 0) {
+    try {
+      await calculateAllScores(tournament.id)
+    } catch (err) {
+      console.error(`[sync-results] re-score failed: ${err instanceof Error ? err.message : err}`)
+    }
+  }
+
   return NextResponse.json(summary)
 }
 
