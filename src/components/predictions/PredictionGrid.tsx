@@ -133,11 +133,14 @@ export function PredictionGrid({
     return useShortNames ? getTeamCode(teamId) : getTeamName(teamId)
   }
 
-  // Group knockout matches by round
+  // Group knockout matches by round. Once the brackets are locked & public, every
+  // player has a stored pick for EVERY match, so we render all rounds — even the
+  // downstream ones whose actual matchup (home/away team) isn't known yet because
+  // the results haven't advanced the bracket. Each player's predicted winner is
+  // shown per slot; the matchup label fills in as results land (see slotLabel).
   const knockoutByRound = useMemo(() => {
     const map = new Map<string, KnockoutMatch[]>()
     for (const match of knockoutMatches) {
-      if (!match.home_team_id || !match.away_team_id) continue
       const existing = map.get(match.round) ?? []
       existing.push(match)
       map.set(match.round, existing)
@@ -321,9 +324,13 @@ export function PredictionGrid({
               </tr>
             </Fragment>
           )}
-          {/* Knockout predictions grid */}
+          {/* Knockout predictions grid. The Final is shown above as the
+              "Predicted Champion" row, so it's excluded here to avoid a
+              duplicate. R16/QF/SF render even before their actual matchup is
+              known — the matchup label falls back to a slot number until the
+              results advance the bracket. */}
           {knockoutVisible && knockoutByRound.size > 0 &&
-            ROUND_ORDER.filter((r) => knockoutByRound.has(r)).map((round) => (
+            ROUND_ORDER.filter((r) => r !== 'final' && knockoutByRound.has(r)).map((round) => (
               <Fragment key={round}>
                 {/* Round header */}
                 <tr>
@@ -334,13 +341,15 @@ export function PredictionGrid({
                     {ROUND_NAMES[round]}
                   </td>
                 </tr>
-                {knockoutByRound.get(round)!.map((match) => (
+                {knockoutByRound.get(round)!.map((match, idx) => {
+                  const slotKnown = !!match.home_team_id && !!match.away_team_id
+                  return (
                   <tr key={match.id}>
                     <td className="sticky left-0 z-10 bg-surface px-2 py-1 font-mono text-foreground whitespace-nowrap text-[10px]">
-                      {getDisplayName(match.home_team_id)}
+                      {slotKnown ? getDisplayName(match.home_team_id) : `Match ${idx + 1}`}
                     </td>
                     <td className="sticky left-[60px] z-10 bg-surface px-2 py-1 font-mono text-foreground whitespace-nowrap text-[10px]">
-                      v {getDisplayName(match.away_team_id)}
+                      {slotKnown ? `v ${getDisplayName(match.away_team_id)}` : ''}
                     </td>
                     {predictions.map((p) => {
                       const pred = p.knockout_predictions.find(
@@ -371,7 +380,8 @@ export function PredictionGrid({
                       )
                     })}
                   </tr>
-                ))}
+                  )
+                })}
               </Fragment>
             ))
           }

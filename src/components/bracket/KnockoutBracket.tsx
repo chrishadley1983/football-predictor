@@ -26,9 +26,17 @@ interface KnockoutBracketProps {
   layout?: 'mirrored' | 'columns'
   /** Show full country names instead of 3-letter codes (wider cards). */
   fullNames?: boolean
+  /**
+   * Locked "review my own picks" mode. The bracket is read-only, but instead of
+   * the actual matchups it shows the PLAYER's full predicted bracket (resolved
+   * from their own winners, all the way to the Final) and annotates each slot
+   * with the actual winner for comparison. Without this, a plain `readonly`
+   * bracket renders the real teams/results (used on the Results page).
+   */
+  reviewMode?: boolean
 }
 
-export function KnockoutBracket({ matches, predictions = [], onPrediction, readonly = false, goldenTicketMatchId, layout = 'mirrored', fullNames = false }: KnockoutBracketProps) {
+export function KnockoutBracket({ matches, predictions = [], onPrediction, readonly = false, goldenTicketMatchId, layout = 'mirrored', fullNames = false, reviewMode = false }: KnockoutBracketProps) {
   const predictionMap = useMemo(() => {
     const map: Record<string, KnockoutPrediction> = {}
     for (const p of predictions) {
@@ -37,19 +45,27 @@ export function KnockoutBracket({ matches, predictions = [], onPrediction, reado
     return map
   }, [predictions])
 
-  // While the bracket is editable, each later round's two participants flow from
-  // the player's OWN predicted winners (W{n} sources), so they can pick a winner
-  // for every match through to the Final. Once locked, we render the real
-  // matchups/results instead. `effective` holds the per-match render model.
+  // Each later round's two participants flow from the player's OWN predicted
+  // winners (W{n} sources), so they can pick a winner for every match through to
+  // the Final. This applies while the bracket is editable AND in locked review
+  // mode (so a player always sees their full predicted bracket). A plain
+  // read-only bracket (Results page) instead renders the real matchups/results.
+  // `effective` holds the per-match render model.
   const effective = useMemo(() => {
     const map = new Map<string, { match: KnockoutMatchWithTeams; prediction?: KnockoutPrediction }>()
 
-    if (readonly) {
+    if (readonly && !reviewMode) {
       for (const m of matches) map.set(m.id, { match: m, prediction: predictionMap[m.id] })
       return map
     }
 
-    const resolved = resolveBracket(matches, predictionsToRecord(predictions))
+    // Null the downstream actual team ids first so a bracket that has since
+    // advanced on real results still resolves to the player's PREDICTED matchup
+    // (not the actual one). The Round of 32 keeps its real, admin-placed slots.
+    const basis = matches.map((m) =>
+      m.round === 'round_of_32' ? m : { ...m, home_team_id: null, away_team_id: null }
+    )
+    const resolved = resolveBracket(basis, predictionsToRecord(predictions))
     for (const m of matches) {
       const r = resolved.get(m.id)
       const effMatch: KnockoutMatchWithTeams = {
@@ -73,7 +89,7 @@ export function KnockoutBracket({ matches, predictions = [], onPrediction, reado
       map.set(m.id, { match: effMatch, prediction: effPred })
     }
     return map
-  }, [matches, predictions, predictionMap, readonly])
+  }, [matches, predictions, predictionMap, readonly, reviewMode])
 
   // Group matches by round, then split by bracket side
   const rounds = useMemo(() => {
@@ -135,6 +151,7 @@ export function KnockoutBracket({ matches, predictions = [], onPrediction, reado
         prediction={eff?.prediction}
         onSelectWinner={onPrediction}
         readonly={readonly}
+        reviewMode={reviewMode}
         goldenTicketUsed={goldenTicketMatchId === m.id}
         fullNames={fullNames}
       />
