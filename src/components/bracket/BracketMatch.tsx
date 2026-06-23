@@ -8,11 +8,18 @@ interface BracketMatchProps {
   prediction?: KnockoutPrediction
   onSelectWinner?: (matchId: string, teamId: string) => void
   readonly?: boolean
+  /**
+   * Locked "review my picks" mode: the card shows the player's PREDICTED matchup
+   * (which can differ from the real one), so we don't grey teams by the actual
+   * result. Instead we colour the player's pick correct/wrong and add a footer
+   * naming the actual winner of the slot for comparison.
+   */
+  reviewMode?: boolean
   goldenTicketUsed?: boolean
   fullNames?: boolean
 }
 
-export function BracketMatch({ match, prediction, onSelectWinner, readonly, goldenTicketUsed, fullNames }: BracketMatchProps) {
+export function BracketMatch({ match, prediction, onSelectWinner, readonly, reviewMode, goldenTicketUsed, fullNames }: BracketMatchProps) {
   const actualWinner = match.winner_team_id
   const predictedWinner = prediction?.predicted_winner_id
 
@@ -35,6 +42,13 @@ export function BracketMatch({ match, prediction, onSelectWinner, readonly, gold
 
   const canInteract = !readonly && !actualWinner && match.home_team && match.away_team
   const isDecided = !!actualWinner
+  // In review mode the displayed teams are the player's predicted matchup, which
+  // may differ from reality — so don't mark a "winner/loser" against the actual
+  // result (that's conveyed by the per-pick colour + the footer instead), and
+  // don't show the actual scoreline next to the wrong teams.
+  const showResultHighlight = isDecided && !reviewMode
+  const pickedCorrectly = !!predictedWinner && predictedWinner === actualWinner
+  const actualWinnerTeam = match.winner_team
 
   return (
     <div className={`flex flex-col gap-0.5 rounded-xl border border-border-custom bg-surface p-1 ${fullNames ? 'w-52 sm:w-56' : 'w-36 sm:w-40'}`}>
@@ -44,26 +58,43 @@ export function BracketMatch({ match, prediction, onSelectWinner, readonly, gold
       </div>
       <BracketTeam
         team={match.home_team}
-        score={match.home_score}
+        score={reviewMode ? null : match.home_score}
         selected={predictedWinner === match.home_team_id}
         correct={getHomeCorrectness()}
-        isWinner={isDecided && actualWinner === match.home_team_id}
-        isLoser={isDecided && !!match.home_team_id && actualWinner !== match.home_team_id}
+        isWinner={showResultHighlight && actualWinner === match.home_team_id}
+        isLoser={showResultHighlight && !!match.home_team_id && actualWinner !== match.home_team_id}
         clickable={!!canInteract}
         fullName={fullNames}
         onClick={() => match.home_team_id && onSelectWinner?.(match.id, match.home_team_id)}
       />
       <BracketTeam
         team={match.away_team}
-        score={match.away_score}
+        score={reviewMode ? null : match.away_score}
         selected={predictedWinner === match.away_team_id}
         correct={getAwayCorrectness()}
-        isWinner={isDecided && actualWinner === match.away_team_id}
-        isLoser={isDecided && !!match.away_team_id && actualWinner !== match.away_team_id}
+        isWinner={showResultHighlight && actualWinner === match.away_team_id}
+        isLoser={showResultHighlight && !!match.away_team_id && actualWinner !== match.away_team_id}
         clickable={!!canInteract}
         fullName={fullNames}
         onClick={() => match.away_team_id && onSelectWinner?.(match.id, match.away_team_id)}
       />
+      {/* Review footer: who actually won this slot, vs the player's pick. */}
+      {reviewMode && isDecided && (
+        <div className="mt-0.5 flex items-center justify-center gap-1 border-t border-border-custom pt-0.5 text-[9px]">
+          <span className="text-text-muted">Actual:</span>
+          <span className="font-medium text-foreground">
+            {actualWinnerTeam ? (fullNames ? actualWinnerTeam.name : actualWinnerTeam.code) : '?'}
+          </span>
+          {match.home_score !== null && match.away_score !== null && (
+            <span className="text-text-muted">({match.home_score}-{match.away_score})</span>
+          )}
+          {predictedWinner && (
+            pickedCorrectly
+              ? <span className="font-bold text-green-accent" title="Your pick was correct">✓</span>
+              : <span className="font-bold text-red-accent" title="Your pick was wrong">✗</span>
+          )}
+        </div>
+      )}
     </div>
   )
 }

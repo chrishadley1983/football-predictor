@@ -251,10 +251,13 @@ export function PredictionAnalyser({
     return playerB.group_predictions.reduce((sum, gp) => sum + gp.points_earned, 0)
   }, [playerB])
 
+  // Group every knockout match by round. Downstream rounds (R16/QF/SF) whose
+  // actual matchup isn't known yet still render — each player has a stored pick
+  // for the slot, and the matchup label fills in once results advance the
+  // bracket. (Previously these rounds were dropped, so only R32 + Final showed.)
   const knockoutByRound = useMemo(() => {
     const map = new Map<string, KnockoutMatch[]>()
     for (const match of knockoutMatches) {
-      if (!match.home_team_id || !match.away_team_id) continue
       const existing = map.get(match.round) ?? []
       existing.push(match)
       map.set(match.round, existing)
@@ -757,7 +760,8 @@ export function PredictionAnalyser({
                               {ROUND_NAMES[round]}
                             </td>
                           </tr>
-                          {matches.map((match) => {
+                          {matches.map((match, idx) => {
+                            const slotKnown = !!match.home_team_id && !!match.away_team_id
                             const predA =
                               playerA?.knockout_predictions.find(
                                 (kp) => kp.match_id === match.id
@@ -779,8 +783,14 @@ export function PredictionAnalyser({
                             return (
                               <tr key={match.id}>
                                 <td className="px-2 py-1 font-mono text-foreground whitespace-nowrap">
-                                  {getTeamName(match.home_team_id)} v{' '}
-                                  {getTeamName(match.away_team_id)}
+                                  {slotKnown ? (
+                                    <>
+                                      {getTeamName(match.home_team_id)} v{' '}
+                                      {getTeamName(match.away_team_id)}
+                                    </>
+                                  ) : (
+                                    <span className="text-text-muted">Match {idx + 1}</span>
+                                  )}
                                 </td>
                                 <td
                                   className={cn(

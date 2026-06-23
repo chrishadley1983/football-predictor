@@ -225,7 +225,9 @@ export default function KnockoutPredictionPage() {
         )}
         {isReadonly && (
           <p className="mt-2 rounded-md bg-yellow-accent/10 p-2 text-sm text-yellow-accent">
-            Predictions are locked. The deadline has passed or the knockout stage is closed.
+            Predictions are locked. This is your full bracket through to the Final — each match
+            shows your pick and, once played, the actual winner (✓/✗), so you can plan your
+            Emergency Sub.
           </p>
         )}
         {!isReadonly && (
@@ -245,6 +247,7 @@ export default function KnockoutPredictionPage() {
         predictions={predictions}
         onPrediction={handlePrediction}
         readonly={isReadonly}
+        reviewMode={isReadonly}
         goldenTicketMatchId={goldenTicket?.original_match_id}
         layout="columns"
         fullNames

@@ -162,10 +162,11 @@ export default async function PredictionsPage({
   // Everyone's knockout brackets become visible only once the bracket CLOSES —
   // i.e. kickoff of the first knockout game (status knockout_closed). While the
   // bracket is still OPEN, players are entering their picks, so the page shows
-  // ONLY the group predictions (no peeking at others' brackets). Admins can
-  // preview anytime. `forceGroup` (?stage=group) is the Group-Stage look-back.
+  // ONLY the group predictions (no peeking at others' brackets) — for everyone,
+  // admins included, so this page mirrors what real players see.
+  // `forceGroup` (?stage=group) is the Group-Stage look-back.
   const knockoutPublic = ['knockout_closed', 'completed'].includes(t.status)
-  const knockoutVisible = (isAdmin || knockoutPublic) && !forceGroup
+  const knockoutVisible = knockoutPublic && !forceGroup
   // Once the knockout brackets are shown, the Group Stage predictions are no
   // longer relevant (only the score carries over) — hide them on the main view.
   const hideGroups = knockoutPublic && !forceGroup
