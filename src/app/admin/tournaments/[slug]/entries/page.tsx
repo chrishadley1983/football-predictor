@@ -8,6 +8,7 @@ import { PaymentStatusBadge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { formatCurrency } from '@/lib/utils'
 import type { Tournament, TournamentEntry, Player, PaymentStatus } from '@/lib/types'
+import { fetchAllRows } from '@/lib/supabase/fetch-all'
 
 interface EntryWithPlayer extends TournamentEntry {
   player: Player
@@ -51,19 +52,24 @@ export default function EntriesPage() {
       setThirdPlaceQuota(data.third_place_qualifiers_count ?? null)
 
       const supabase = createClient()
-      const { data: entryData, error: entryErr } = await supabase
-        .from('tournament_entries')
-        .select('*, player:players (*)')
-        .eq('tournament_id', data.id)
-        .order('created_at')
 
-      if (entryErr) {
-        setError(entryErr.message)
+      // Page through in case a tournament ever has >1000 entries.
+      let entryRows: EntryWithPlayer[]
+      try {
+        entryRows = (await fetchAllRows((from, to) =>
+          supabase
+            .from('tournament_entries')
+            .select('*, player:players (*)')
+            .eq('tournament_id', data.id)
+            .order('created_at')
+            .order('id')
+            .range(from, to),
+        )) as EntryWithPlayer[]
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Failed to load entries')
         setLoading(false)
         return
       }
-
-      const entryRows = (entryData ?? []) as EntryWithPlayer[]
       setEntries(entryRows)
 
       const entryIds = entryRows.map((e) => e.id)
@@ -72,12 +78,17 @@ export default function EntriesPage() {
         // and rows with predicted_3rd also set as "thirds". For qualifier-style
         // tournaments (third_place_qualifiers_count != null) thirds must equal
         // the quota; for standard tournaments thirds must equal total groups.
-        const { data: gpData } = await supabase
-          .from('group_predictions')
-          .select('entry_id, predicted_1st, predicted_2nd, predicted_3rd')
-          .in('entry_id', entryIds)
+        // Paged: ~entries×12 rows, which can approach the 1000-row cap.
+        const gpData = (await fetchAllRows((from, to) =>
+          supabase
+            .from('group_predictions')
+            .select('entry_id, predicted_1st, predicted_2nd, predicted_3rd')
+            .in('entry_id', entryIds)
+            .order('id')
+            .range(from, to),
+        )) as Array<{ entry_id: string; predicted_1st: string | null; predicted_2nd: string | null; predicted_3rd: string | null }>
         const gStats: Record<string, { groups: number; thirds: number }> = {}
-        for (const p of gpData ?? []) {
+        for (const p of gpData) {
           if (!p.predicted_1st || !p.predicted_2nd) continue
           if (!gStats[p.entry_id]) gStats[p.entry_id] = { groups: 0, thirds: 0 }
           gStats[p.entry_id].groups += 1
@@ -86,12 +97,18 @@ export default function EntriesPage() {
         setGroupStats(gStats)
 
         // Knockout predictions: a row counts when predicted_winner_id is set.
-        const { data: kpData } = await supabase
-          .from('knockout_predictions')
-          .select('entry_id, predicted_winner_id')
-          .in('entry_id', entryIds)
+        // Paged: entries × 31 matches ≈ 1.6k rows — exceeds the 1000-row cap,
+        // which previously made some complete brackets display as "—".
+        const kpData = (await fetchAllRows((from, to) =>
+          supabase
+            .from('knockout_predictions')
+            .select('entry_id, predicted_winner_id')
+            .in('entry_id', entryIds)
+            .order('id')
+            .range(from, to),
+        )) as Array<{ entry_id: string; predicted_winner_id: string | null }>
         const kCounts: Record<string, number> = {}
-        for (const p of kpData ?? []) {
+        for (const p of kpData) {
           if (p.predicted_winner_id) {
             kCounts[p.entry_id] = (kCounts[p.entry_id] ?? 0) + 1
           }

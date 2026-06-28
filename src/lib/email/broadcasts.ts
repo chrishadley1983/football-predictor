@@ -6,6 +6,7 @@ import type {
   TournamentCompletedEvent,
   PlayerEmailRef,
 } from './user'
+import { fetchAllRows } from '@/lib/supabase/fetch-all'
 
 type AnyClient = SupabaseClient<Database>
 
@@ -60,16 +61,21 @@ export async function buildKnockoutOpenEvents(
     .single()
   if (tErr || !tournament) return []
 
-  const { data: entries } = await admin
-    .from('tournament_entries')
-    .select('payment_status, player:players(id, display_name, email, unsubscribe_token, email_notifications_enabled)')
-    .eq('tournament_id', tournamentId)
-    .neq('payment_status', 'refunded')
+  // Page through so entrants past the 1000-row cap still receive the broadcast.
+  const entries = await fetchAllRows<EntryRow>((from, to) =>
+    admin
+      .from('tournament_entries')
+      .select('payment_status, player:players(id, display_name, email, unsubscribe_token, email_notifications_enabled)')
+      .eq('tournament_id', tournamentId)
+      .neq('payment_status', 'refunded')
+      .order('id')
+      .range(from, to)
+  )
 
-  if (!entries) return []
+  if (entries.length === 0) return []
 
   const events: KnockoutOpenAnnouncementEvent[] = []
-  for (const row of entries as EntryRow[]) {
+  for (const row of entries) {
     const player = asPlayerRow(row.player)
     if (!player) continue
     events.push({
@@ -105,16 +111,23 @@ export async function buildTournamentCompletedEvents(
     .single()
   if (tErr || !tournament) return []
 
-  const { data: entries } = await admin
-    .from('tournament_entries')
-    .select('payment_status, total_points, overall_rank, player:players(id, display_name, email, unsubscribe_token, email_notifications_enabled)')
-    .eq('tournament_id', tournamentId)
-    .neq('payment_status', 'refunded')
+  // Page through so the full field is read — the top-3 derivation and every
+  // player's completed email depend on having all entries, not the first 1000.
+  const entries = await fetchAllRows<EntryRow>((from, to) =>
+    admin
+      .from('tournament_entries')
+      .select('payment_status, total_points, overall_rank, player:players(id, display_name, email, unsubscribe_token, email_notifications_enabled)')
+      .eq('tournament_id', tournamentId)
+      .neq('payment_status', 'refunded')
+      .order('overall_rank', { ascending: true, nullsFirst: false })
+      .order('id')
+      .range(from, to)
+  )
 
-  if (!entries || entries.length === 0) return []
+  if (entries.length === 0) return []
 
   // Sort by overall_rank (nulls last) for top-3 derivation.
-  const sortedEntries = [...(entries as EntryRow[])].sort((a, b) => {
+  const sortedEntries = [...entries].sort((a, b) => {
     if (a.overall_rank === null && b.overall_rank === null) return 0
     if (a.overall_rank === null) return 1
     if (b.overall_rank === null) return -1
