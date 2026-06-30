@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest'
-import { resolveParticipantIds, predictionsToRecord, type BracketMatchLike } from '@/lib/bracket'
+import {
+  resolveParticipantIds,
+  predictionsToRecord,
+  getEliminationRoundByTeam,
+  roundIndexOf,
+  type BracketMatchLike,
+} from '@/lib/bracket'
+import type { KnockoutMatchWithTeams } from '@/lib/types'
 
 // A tiny 2-feeders-into-1 bracket:
 //   m1 (R32 #1): A vs B
@@ -49,6 +56,45 @@ describe('resolveParticipantIds', () => {
   it('leaves downstream TBD until both feeders are picked', () => {
     const { participants } = resolveParticipantIds(MATCHES, { m1: 'A' })
     expect(participants.get('m3')).toEqual({ homeTeamId: 'A', awayTeamId: null })
+  })
+})
+
+describe('roundIndexOf', () => {
+  it('orders the knockout rounds by depth', () => {
+    expect(roundIndexOf('round_of_32')).toBe(0)
+    expect(roundIndexOf('round_of_16')).toBe(1)
+    expect(roundIndexOf('quarter_final')).toBe(2)
+    expect(roundIndexOf('semi_final')).toBe(3)
+    expect(roundIndexOf('final')).toBe(4)
+    expect(roundIndexOf('nonsense')).toBe(-1)
+  })
+})
+
+describe('getEliminationRoundByTeam', () => {
+  // Minimal raw matches — only the fields the helper reads.
+  const m = (
+    round: string,
+    home: string | null,
+    away: string | null,
+    winner: string | null
+  ) =>
+    ({ round, home_team_id: home, away_team_id: away, winner_team_id: winner } as unknown as KnockoutMatchWithTeams)
+
+  it('records each loser at the depth of the round it lost in', () => {
+    const elim = getEliminationRoundByTeam([
+      m('round_of_32', 'A', 'B', 'A'), // B out at R32 (0)
+      m('round_of_16', 'A', 'C', 'C'), // A out at R16 (1)
+    ])
+    expect(elim.get('B')).toBe(0)
+    expect(elim.get('A')).toBe(1)
+    expect(elim.has('C')).toBe(false) // C is still alive
+  })
+
+  it('ignores matches without a result and keeps winners out of the map', () => {
+    const elim = getEliminationRoundByTeam([
+      m('round_of_32', 'A', 'B', null), // not played yet
+    ])
+    expect(elim.size).toBe(0)
   })
 })
 

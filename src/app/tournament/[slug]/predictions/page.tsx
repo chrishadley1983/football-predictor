@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getCurrentPlayer } from '@/lib/auth'
 import { fetchAllRows } from '@/lib/supabase/fetch-all'
 import { PredictionGrid } from '@/components/predictions/PredictionGrid'
+import { KnockoutPredictionMatrix } from '@/components/predictions/KnockoutPredictionMatrix'
 import { PredictionAnalyser } from '@/components/predictions/PredictionAnalyser'
 import { PredictionsByCountry } from '@/components/predictions/PredictionsByCountry'
 import { PredictionsByCountryKnockout } from '@/components/predictions/PredictionsByCountryKnockout'
@@ -380,22 +381,34 @@ export default async function PredictionsPage({
         />
       )}
 
-      {/* Predictions grid comes BEFORE the Emergency Sub table */}
-      <PredictionGrid
-        predictions={predictions}
-        groups={((groups as GroupWithTeams[]) ?? [])}
-        results={((groupResults as GroupResult[]) ?? [])}
-        thirdPlaceQualifiersCount={
-          (tournament as Record<string, unknown>)
-            .third_place_qualifiers_count as number | null
-        }
-        knockoutMatches={knockoutMatches}
-        knockoutVisible={knockoutVisible}
-        goldenTickets={goldenTickets}
-        hideGroups={hideGroups}
-        useShortNames
-        decidedTeamIds={decidedTeamIds}
-      />
+      {/* Predictions grid comes BEFORE the Emergency Sub table. The knockout
+          view uses the flipped matrix (matches across the top, players down the
+          side, sortable per match, collapsible completed rounds); the group-stage
+          look-back keeps the classic grid. */}
+      {hideGroups ? (
+        <KnockoutPredictionMatrix
+          predictions={predictions}
+          knockoutMatches={knockoutMatches}
+          teams={allTeams}
+          goldenTickets={goldenTickets}
+        />
+      ) : (
+        <PredictionGrid
+          predictions={predictions}
+          groups={((groups as GroupWithTeams[]) ?? [])}
+          results={((groupResults as GroupResult[]) ?? [])}
+          thirdPlaceQualifiersCount={
+            (tournament as Record<string, unknown>)
+              .third_place_qualifiers_count as number | null
+          }
+          knockoutMatches={knockoutMatches}
+          knockoutVisible={knockoutVisible}
+          goldenTickets={goldenTickets}
+          hideGroups={hideGroups}
+          useShortNames
+          decidedTeamIds={decidedTeamIds}
+        />
+      )}
 
       {/* Emergency Sub roster — after the predictions */}
       {knockoutVisible && entryInfos.length > 0 && (

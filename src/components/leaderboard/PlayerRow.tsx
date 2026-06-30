@@ -11,11 +11,16 @@ interface PlayerRowProps {
   isCurrentUser: boolean
   rank: number
   preLaunch?: boolean
+  /** When true the TB column shows the knockout goal-total tiebreaker. */
+  showKnockoutTiebreaker?: boolean
 }
 
-export function PlayerRow({ entry, isCurrentUser, rank, preLaunch = false }: PlayerRowProps) {
+export function PlayerRow({ entry, isCurrentUser, rank, preLaunch = false, showKnockoutTiebreaker = false }: PlayerRowProps) {
   const [expanded, setExpanded] = useState(false)
   const primaryName = entry.nickname ?? entry.display_name
+
+  const tbGoals = showKnockoutTiebreaker ? entry.knockout_tiebreaker_goals : entry.tiebreaker_goals
+  const tbDiff = showKnockoutTiebreaker ? entry.knockout_tiebreaker_diff : entry.tiebreaker_diff
 
   return (
     <>
@@ -69,9 +74,9 @@ export function PlayerRow({ entry, isCurrentUser, rank, preLaunch = false }: Pla
               {entry.total_points ?? '-'}
             </td>
             <td className="whitespace-nowrap px-3 py-2 text-center text-sm text-text-muted">
-              {entry.tiebreaker_goals ?? '-'}
-              {entry.tiebreaker_diff !== null && (
-                <span className="ml-1 text-xs text-text-faint">({entry.tiebreaker_diff})</span>
+              {tbGoals ?? '-'}
+              {tbDiff != null && (
+                <span className="ml-1 text-xs text-text-faint">({tbDiff})</span>
               )}
             </td>
           </>
@@ -93,10 +98,10 @@ export function PlayerRow({ entry, isCurrentUser, rank, preLaunch = false }: Pla
                 <span className="font-medium">Knockout Pts:</span> {entry.knockout_points ?? '-'}
               </div>
               <div>
-                <span className="font-medium">Tiebreaker:</span> {entry.tiebreaker_goals ?? 'N/A'}
+                <span className="font-medium">{showKnockoutTiebreaker ? 'KO Tiebreaker:' : 'Tiebreaker:'}</span> {tbGoals ?? 'N/A'}
               </div>
               <div>
-                <span className="font-medium">Tiebreaker Diff:</span> {entry.tiebreaker_diff ?? 'N/A'}
+                <span className="font-medium">{showKnockoutTiebreaker ? 'KO Tiebreaker Diff:' : 'Tiebreaker Diff:'}</span> {tbDiff ?? 'N/A'}
               </div>
               <div>
                 <span className="font-medium">Group Rank:</span> {entry.group_stage_rank ?? '-'}

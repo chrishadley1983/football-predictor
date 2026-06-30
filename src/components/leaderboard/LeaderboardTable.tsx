@@ -17,6 +17,14 @@ type SortDir = 'asc' | 'desc'
 export function LeaderboardTable({ entries, currentPlayerId, tournamentStatus }: LeaderboardTableProps) {
   const isPreLaunch = tournamentStatus === 'draft' || tournamentStatus === 'group_stage_open'
 
+  // Once the knockout stage is under way, the tiebreaker that matters (and that
+  // players have a fresh prediction for) is the knockout goal total, so the TB
+  // column shows the knockout guess/diff instead of the group-stage one.
+  const showKnockoutTiebreaker =
+    tournamentStatus === 'knockout_open' ||
+    tournamentStatus === 'knockout_closed' ||
+    tournamentStatus === 'completed'
+
   const [sortField, setSortField] = useState<SortField>('total_points')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
 
@@ -41,8 +49,8 @@ export function LeaderboardTable({ entries, currentPlayerId, tournamentStatus }:
       let bVal: number
 
       if (sortField === 'tiebreaker_diff') {
-        aVal = a.tiebreaker_diff ?? 9999
-        bVal = b.tiebreaker_diff ?? 9999
+        aVal = (showKnockoutTiebreaker ? a.knockout_tiebreaker_diff : a.tiebreaker_diff) ?? 9999
+        bVal = (showKnockoutTiebreaker ? b.knockout_tiebreaker_diff : b.tiebreaker_diff) ?? 9999
       } else {
         aVal = a[sortField] ?? 0
         bVal = b[sortField] ?? 0
@@ -50,7 +58,7 @@ export function LeaderboardTable({ entries, currentPlayerId, tournamentStatus }:
 
       return sortDir === 'asc' ? aVal - bVal : bVal - aVal
     })
-  }, [entries, sortField, sortDir, isPreLaunch])
+  }, [entries, sortField, sortDir, isPreLaunch, showKnockoutTiebreaker])
 
   function sortIndicator(field: SortField) {
     if (sortField !== field) return null
@@ -100,7 +108,15 @@ export function LeaderboardTable({ entries, currentPlayerId, tournamentStatus }:
                 <th className={headerClass('total_points')} onClick={() => handleSort('total_points')}>
                   Total{sortIndicator('total_points')}
                 </th>
-                <th className={headerClass('tiebreaker_diff')} onClick={() => handleSort('tiebreaker_diff')}>
+                <th
+                  className={headerClass('tiebreaker_diff')}
+                  onClick={() => handleSort('tiebreaker_diff')}
+                  title={
+                    showKnockoutTiebreaker
+                      ? 'Tiebreaker: predicted total goals across the knockout stage (difference from actual in brackets)'
+                      : 'Tiebreaker: predicted total goals across the group stage (difference from actual in brackets)'
+                  }
+                >
                   TB{sortIndicator('tiebreaker_diff')}
                 </th>
               </>
@@ -115,6 +131,7 @@ export function LeaderboardTable({ entries, currentPlayerId, tournamentStatus }:
               isCurrentUser={entry.player_id === currentPlayerId}
               rank={entry.overall_rank ?? idx + 1}
               preLaunch={isPreLaunch}
+              showKnockoutTiebreaker={showKnockoutTiebreaker}
             />
           ))}
         </tbody>

@@ -1,6 +1,7 @@
 'use client'
 
 import type { KnockoutMatchWithTeams, KnockoutPrediction } from '@/lib/types'
+import { roundIndexOf } from '@/lib/bracket'
 import { BracketTeam } from './BracketTeam'
 
 interface BracketMatchProps {
@@ -17,11 +18,28 @@ interface BracketMatchProps {
   reviewMode?: boolean
   goldenTicketUsed?: boolean
   fullNames?: boolean
+  /**
+   * Real elimination round-depth per team id (from getEliminationRoundByTeam).
+   * A predicted team shown in a round LATER than its real exit is greyed out and
+   * struck through — it can't actually be there.
+   */
+  eliminationRoundByTeam?: Map<string, number>
 }
 
-export function BracketMatch({ match, prediction, onSelectWinner, readonly, reviewMode, goldenTicketUsed, fullNames }: BracketMatchProps) {
+export function BracketMatch({ match, prediction, onSelectWinner, readonly, reviewMode, goldenTicketUsed, fullNames, eliminationRoundByTeam }: BracketMatchProps) {
   const actualWinner = match.winner_team_id
   const predictedWinner = prediction?.predicted_winner_id
+
+  // A team is "dead here" when it was really eliminated in an EARLIER round than
+  // the one this card represents — i.e. it appears later in the player's bracket
+  // than it could possibly survive. (Not flagged in its own exit round, where the
+  // ✓/✗ correctness colour already tells the story.)
+  const thisRoundDepth = roundIndexOf(match.round)
+  function isEliminatedHere(teamId: string | null): boolean {
+    if (!teamId || !eliminationRoundByTeam) return false
+    const exitDepth = eliminationRoundByTeam.get(teamId)
+    return exitDepth != null && thisRoundDepth > exitDepth
+  }
 
   function getTeamCorrectness(teamId: string | null): boolean | null {
     if (!teamId || !predictedWinner) return null
@@ -63,6 +81,7 @@ export function BracketMatch({ match, prediction, onSelectWinner, readonly, revi
         correct={getHomeCorrectness()}
         isWinner={showResultHighlight && actualWinner === match.home_team_id}
         isLoser={showResultHighlight && !!match.home_team_id && actualWinner !== match.home_team_id}
+        isEliminated={isEliminatedHere(match.home_team_id)}
         clickable={!!canInteract}
         fullName={fullNames}
         onClick={() => match.home_team_id && onSelectWinner?.(match.id, match.home_team_id)}
@@ -74,6 +93,7 @@ export function BracketMatch({ match, prediction, onSelectWinner, readonly, revi
         correct={getAwayCorrectness()}
         isWinner={showResultHighlight && actualWinner === match.away_team_id}
         isLoser={showResultHighlight && !!match.away_team_id && actualWinner !== match.away_team_id}
+        isEliminated={isEliminatedHere(match.away_team_id)}
         clickable={!!canInteract}
         fullName={fullNames}
         onClick={() => match.away_team_id && onSelectWinner?.(match.id, match.away_team_id)}

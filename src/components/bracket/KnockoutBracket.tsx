@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react'
 import type { KnockoutMatchWithTeams, KnockoutPrediction } from '@/lib/types'
-import { resolveBracket, predictionsToRecord } from '@/lib/bracket'
+import { resolveBracket, predictionsToRecord, getEliminationRoundByTeam } from '@/lib/bracket'
 import { BracketMatch } from './BracketMatch'
 
 const ROUND_LABELS: Record<string, string> = {
@@ -91,6 +91,11 @@ export function KnockoutBracket({ matches, predictions = [], onPrediction, reado
     return map
   }, [matches, predictions, predictionMap, readonly, reviewMode])
 
+  // Teams that have ACTUALLY been knocked out (and in which round), derived from
+  // the raw matches' real results. Used to grey-out + strike-through a predicted
+  // team wherever it survives in the player's bracket past its real exit.
+  const eliminationRoundByTeam = useMemo(() => getEliminationRoundByTeam(matches), [matches])
+
   // Group matches by round, then split by bracket side
   const rounds = useMemo(() => {
     const roundOrder = ['round_of_32', 'round_of_16', 'quarter_final', 'semi_final', 'final']
@@ -154,6 +159,7 @@ export function KnockoutBracket({ matches, predictions = [], onPrediction, reado
         reviewMode={reviewMode}
         goldenTicketUsed={goldenTicketMatchId === m.id}
         fullNames={fullNames}
+        eliminationRoundByTeam={eliminationRoundByTeam}
       />
     )
   }
