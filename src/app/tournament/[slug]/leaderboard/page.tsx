@@ -54,6 +54,8 @@ export default async function LeaderboardPage({ params }: { params: Promise<{ sl
     total_points: e.total_points,
     tiebreaker_goals: e.tiebreaker_goals,
     tiebreaker_diff: e.tiebreaker_diff,
+    knockout_tiebreaker_goals: e.knockout_tiebreaker_goals,
+    knockout_tiebreaker_diff: e.knockout_tiebreaker_diff,
     group_stage_rank: e.group_stage_rank,
     overall_rank: e.overall_rank,
     badges: achievementsByEntry.get(e.entry_id) ?? [],

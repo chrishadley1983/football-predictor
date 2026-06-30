@@ -127,6 +127,43 @@ export function resolveBracket(
   return result
 }
 
+// Knockout rounds in tournament order; index doubles as a "depth" so a later
+// round is a strictly larger number than an earlier one.
+export const KO_ROUND_ORDER = [
+  'round_of_32',
+  'round_of_16',
+  'quarter_final',
+  'semi_final',
+  'final',
+] as const
+
+/** Depth of a knockout round (0 = Round of 32 … 4 = Final; -1 if unknown). */
+export function roundIndexOf(round: string): number {
+  return (KO_ROUND_ORDER as readonly string[]).indexOf(round)
+}
+
+/**
+ * Map each team that has ACTUALLY been knocked out to the round-depth in which it
+ * was eliminated (0 = Round of 32 … 4 = Final). Built from real results
+ * (`winner_team_id`) on the raw matches, so it stays correct even when the
+ * bracket has advanced. Teams still alive (or whose match hasn't been played)
+ * are absent. Used to grey-out + strike-through a player's predicted team
+ * wherever it appears in a round LATER than the one it actually exited in.
+ */
+export function getEliminationRoundByTeam(matches: KnockoutMatchWithTeams[]): Map<string, number> {
+  const out = new Map<string, number>()
+  for (const m of matches) {
+    if (!m.winner_team_id) continue
+    const roundIdx = roundIndexOf(m.round)
+    for (const teamId of [m.home_team_id, m.away_team_id]) {
+      if (teamId && teamId !== m.winner_team_id && !out.has(teamId)) {
+        out.set(teamId, roundIdx)
+      }
+    }
+  }
+  return out
+}
+
 /** Convert a predictions array into the `matchId -> winnerId` record the resolver expects. */
 export function predictionsToRecord(
   predictions: { match_id: string; predicted_winner_id: string | null }[]
