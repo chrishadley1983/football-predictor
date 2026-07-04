@@ -21,6 +21,7 @@ interface SyncSummary {
   fetched: number
   groupMatchesUpdated: number
   knockoutMatchesUpdated: number
+  knockoutSlotsAdvanced: number
   groupResultsWritten: number
   unmappedAbbrevs: string[]
   groupsWithDerivedStandings: number
@@ -97,7 +98,7 @@ export async function POST(
   // additional team codes used by knockout_matches that we haven't seen yet.
   const { data: koMatches } = await admin
     .from('knockout_matches')
-    .select('id, scheduled_at, home_team_id, away_team_id, winner_team_id, home_score, away_score')
+    .select('id, match_number, scheduled_at, home_team_id, away_team_id, winner_team_id, home_score, away_score')
     .eq('tournament_id', tournament.id)
 
   const koTeamIds = new Set<string>()
@@ -218,6 +219,24 @@ export async function POST(
     }
   }
 
+  // Propagate every decided knockout winner into the next round's slot. The
+  // manual game-result path does this inline via advanceWinner(); the cron path
+  // MUST do it too, or later rounds never populate — their home/away stay null
+  // and the fixtures/bracket UI shows "TBC". We re-read winners from the DB
+  // (not just this run's updates) so historically-decided rounds self-heal, and
+  // the cascade climbs one round per run as each round completes. Idempotent:
+  // advanceWinner only writes when the target slot differs.
+  let koSlotsAdvanced = 0
+  const { data: decidedKo } = await admin
+    .from('knockout_matches')
+    .select('match_number, winner_team_id')
+    .eq('tournament_id', tournament.id)
+    .not('winner_team_id', 'is', null)
+  for (const m of decidedKo ?? []) {
+    if (!m.winner_team_id) continue
+    koSlotsAdvanced += await advanceWinner(admin, tournament.id, m.match_number, m.winner_team_id)
+  }
+
   // Re-derive standings only for the groups whose matches we just touched.
   // (This is also safe to run for unchanged groups; we limit purely for speed.)
   let groupResultsWritten = 0
@@ -321,6 +340,7 @@ export async function POST(
     fetched: espnMatches.length,
     groupMatchesUpdated: groupUpdated,
     knockoutMatchesUpdated: koUpdated,
+    knockoutSlotsAdvanced: koSlotsAdvanced,
     groupResultsWritten,
     unmappedAbbrevs: [...unmapped].sort(),
     groupsWithDerivedStandings,
@@ -329,7 +349,7 @@ export async function POST(
   // Whenever results changed, re-score so points + leaderboard stay in lockstep
   // with the certainty/colour we just wrote (the colour reads group_results; the
   // points/ranks read tournament_entries — they must not drift apart).
-  if (groupUpdated > 0 || koUpdated > 0 || groupResultsWritten > 0) {
+  if (groupUpdated > 0 || koUpdated > 0 || koSlotsAdvanced > 0 || groupResultsWritten > 0) {
     try {
       await calculateAllScores(tournament.id)
     } catch (err) {
@@ -353,6 +373,48 @@ function orientScores(
     return { home: ev.homeScore, away: ev.awayScore }
   }
   return { home: ev.awayScore, away: ev.homeScore }
+}
+
+// Mirror of game-result's advanceWinner, but idempotent + returns a write count.
+// Writes this match's winner into any next-round slot fed by "W{matchNumber}",
+// skipping slots that already hold the right team so re-running the hourly cron
+// is cheap and non-clobbering.
+async function advanceWinner(
+  admin: ReturnType<typeof createAdminClient>,
+  tournamentId: string,
+  matchNumber: number,
+  winnerTeamId: string
+): Promise<number> {
+  const winnerSource = `W${matchNumber}`
+
+  const { data: nextMatches } = await admin
+    .from('knockout_matches')
+    .select('id, home_source, away_source, home_team_id, away_team_id')
+    .eq('tournament_id', tournamentId)
+    .or(`home_source.eq.${winnerSource},away_source.eq.${winnerSource}`)
+
+  if (!nextMatches || nextMatches.length === 0) return 0
+
+  let written = 0
+  for (const nm of nextMatches) {
+    if (nm.home_source === winnerSource && nm.home_team_id !== winnerTeamId) {
+      const { error } = await admin
+        .from('knockout_matches')
+        .update({ home_team_id: winnerTeamId })
+        .eq('id', nm.id)
+      if (error) console.error(`[sync-results] advance home_team_id failed: ${error.message}`)
+      else written++
+    }
+    if (nm.away_source === winnerSource && nm.away_team_id !== winnerTeamId) {
+      const { error } = await admin
+        .from('knockout_matches')
+        .update({ away_team_id: winnerTeamId })
+        .eq('id', nm.id)
+      if (error) console.error(`[sync-results] advance away_team_id failed: ${error.message}`)
+      else written++
+    }
+  }
+  return written
 }
 
 function pickKoWinner(
