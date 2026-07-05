@@ -58,6 +58,34 @@ describe('getGoldenTicketWindow', () => {
     expect(win.isOpen).toBe(false)
   })
 
+  it('is closed when a next-round match has kicked off but has no result yet', async () => {
+    // Result-sync lag: the QF has started but the ESPN cron hasn't recorded a
+    // winner. scheduled_at in the past must still close the window.
+    const past = new Date(Date.now() - 60 * 60 * 1000).toISOString()
+    current = makeFakeAdmin({
+      knockout_matches: [
+        { id: 'r16-1', tournament_id: T, round: 'round_of_16', winner_team_id: 'A' },
+        { id: 'r16-2', tournament_id: T, round: 'round_of_16', winner_team_id: 'B' },
+        { id: 'qf-1', tournament_id: T, round: 'quarter_final', winner_team_id: null, scheduled_at: past },
+      ],
+    })
+    const win = await getGoldenTicketWindow(current, T)
+    expect(win.isOpen).toBe(false)
+  })
+
+  it('is open when the next round is scheduled but has not kicked off', async () => {
+    const future = new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString()
+    current = makeFakeAdmin({
+      knockout_matches: [
+        { id: 'r16-1', tournament_id: T, round: 'round_of_16', winner_team_id: 'A' },
+        { id: 'r16-2', tournament_id: T, round: 'round_of_16', winner_team_id: 'B' },
+        { id: 'qf-1', tournament_id: T, round: 'quarter_final', winner_team_id: null, scheduled_at: future },
+      ],
+    })
+    const win = await getGoldenTicketWindow(current, T)
+    expect(win).toEqual({ isOpen: true, completedRound: 'round_of_16', nextRound: 'quarter_final' })
+  })
+
   it('is closed when there are no knockout matches', async () => {
     current = makeFakeAdmin({ knockout_matches: [] })
     const win = await getGoldenTicketWindow(current, T)
@@ -167,6 +195,39 @@ describe('applyGoldenTicket', () => {
       new_team_id: 'A',
       played_after_round: 'round_of_16',
     })
+  })
+
+  it('stops cascading where the player had the old team knocked out by another pick', async () => {
+    // Jack's real scenario. He picked Japan ("J") in m1, carried Japan to the
+    // R16 (m2), but in the QF (m3) he picked England ("E") to knock Japan out,
+    // and England to win the final (m4). Japan lost early to Brazil ("BR"), so
+    // he subs Japan -> Brazil. Brazil should carry to m2 (where he had Japan),
+    // but STOP at m3 — his England pick (and England in the final) must survive.
+    current = makeFakeAdmin({
+      knockout_matches: [
+        { id: 'm1', tournament_id: T, match_number: 1, home_source: '1C', away_source: '2F' },
+        { id: 'm2', tournament_id: T, match_number: 2, home_source: 'W1', away_source: 'W6' },
+        { id: 'm3', tournament_id: T, match_number: 3, home_source: 'W2', away_source: 'W20' },
+        { id: 'm4', tournament_id: T, match_number: 4, home_source: 'W3', away_source: 'W30' },
+      ],
+      knockout_predictions: [
+        { id: 'kp1', entry_id: 'e1', match_id: 'm1', predicted_winner_id: 'J' },
+        { id: 'kp2', entry_id: 'e1', match_id: 'm2', predicted_winner_id: 'J' },
+        { id: 'kp3', entry_id: 'e1', match_id: 'm3', predicted_winner_id: 'E' },
+        { id: 'kp4', entry_id: 'e1', match_id: 'm4', predicted_winner_id: 'E' },
+      ],
+      golden_tickets: [],
+    })
+
+    await applyGoldenTicket(current, T, 'e1', 'm1', 'BR', 'round_of_32')
+
+    const preds = Object.fromEntries(
+      current.tables.knockout_predictions.map((p: any) => [p.id, p.predicted_winner_id])
+    )
+    expect(preds.kp1).toBe('BR') // ticket match: Japan -> Brazil
+    expect(preds.kp2).toBe('BR') // R16: had Japan advancing -> Brazil carries
+    expect(preds.kp3).toBe('E')  // QF: England knocked Japan out -> England STANDS
+    expect(preds.kp4).toBe('E')  // Final: England pick preserved, not Brazil
   })
 
   it('throws when there is no existing prediction for the match', async () => {
