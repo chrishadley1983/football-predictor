@@ -11,8 +11,12 @@ type AdminClient = ReturnType<typeof createAdminClient>
 
 /**
  * Determine whether the golden ticket window is currently open.
- * The window is open when ALL matches in a round are decided AND
- * NO matches in the NEXT round have a result yet.
+ * The window is open when ALL matches in a round are decided AND NO match in
+ * the NEXT round has kicked off yet. "Kicked off" means either the match has a
+ * result OR its scheduled kickoff time has passed — so the window closes the
+ * instant the next round starts being played, not merely when results are
+ * synced (the ESPN cron lags kickoff by up to an hour). This prevents playing
+ * the Emergency Sub to carry a team forward after that round is already underway.
  */
 export async function getGoldenTicketWindow(
   admin: AdminClient,
@@ -30,12 +34,17 @@ export async function getGoldenTicketWindow(
   // Get all knockout matches grouped by round
   const { data: matches } = await admin
     .from('knockout_matches')
-    .select('id, round, winner_team_id')
+    .select('id, round, winner_team_id, scheduled_at')
     .eq('tournament_id', tournamentId)
 
   if (!matches || matches.length === 0) {
     return { isOpen: false, completedRound: null, nextRound: null }
   }
+
+  const now = Date.now()
+  const hasKickedOff = (m: { winner_team_id: string | null; scheduled_at: string | null }) =>
+    m.winner_team_id !== null ||
+    (m.scheduled_at !== null && new Date(m.scheduled_at).getTime() <= now)
 
   const matchesByRound = new Map<string, typeof matches>()
   for (const m of matches) {
@@ -44,7 +53,7 @@ export async function getGoldenTicketWindow(
     matchesByRound.set(m.round, existing)
   }
 
-  // Walk rounds in order. Find the latest completed round where the next round is untouched.
+  // Walk rounds in order. Find the latest completed round whose next round has not started.
   for (let i = existingRounds.length - 2; i >= 0; i--) {
     const round = existingRounds[i]
     const nextRound = existingRounds[i + 1]
@@ -53,9 +62,9 @@ export async function getGoldenTicketWindow(
     const nextRoundMatches = matchesByRound.get(nextRound) ?? []
 
     const allDecided = roundMatches.length > 0 && roundMatches.every((m) => m.winner_team_id !== null)
-    const noneDecided = nextRoundMatches.length > 0 && nextRoundMatches.every((m) => m.winner_team_id === null)
+    const nextRoundNotStarted = nextRoundMatches.length > 0 && !nextRoundMatches.some(hasKickedOff)
 
-    if (allDecided && noneDecided) {
+    if (allDecided && nextRoundNotStarted) {
       return { isOpen: true, completedRound: round, nextRound }
     }
   }
@@ -198,8 +207,11 @@ export async function applyGoldenTicket(
     .update({ predicted_winner_id: newTeamId })
     .eq('id', currentPred.id)
 
-  // 2. Cascade downstream: force new team as prediction for all future matches in this bracket branch
-  await cascadeDownstream(admin, tournamentId, entryId, targetMatch.match_number, newTeamId)
+  // 2. Cascade downstream: carry the new team forward, but only through matches
+  // where the player had the OLD (knocked-out) team advancing. Once their own
+  // bracket had that team losing to someone else, that genuine pick must stand —
+  // the replacement inherits the same exit and the cascade stops there.
+  await cascadeDownstream(admin, tournamentId, entryId, targetMatch.match_number, oldTeamId, newTeamId)
 
   // 3. Insert the golden ticket audit record
   await admin.from('golden_tickets').insert({
@@ -215,15 +227,20 @@ export async function applyGoldenTicket(
 /**
  * Recursively cascade a team swap through downstream matches.
  * Follows the W{matchNumber} references in home_source/away_source.
- * Forces newTeamId as the prediction for ALL downstream matches in this
- * bracket branch — the golden ticket pick is carried forward as the
- * player's selection for every subsequent round.
+ *
+ * The replacement (newTeamId) is only carried forward through matches where the
+ * player had the swapped-out team (oldTeamId) predicted to win. That mirrors how
+ * far the player's own bracket actually carried the dead team: the instant they
+ * had it losing to another team, that genuine downstream pick must be preserved
+ * and the cascade stops — the replacement inherits the same exit rather than
+ * steamrolling the player's later, still-valid predictions all the way to the final.
  */
 async function cascadeDownstream(
   admin: AdminClient,
   tournamentId: string,
   entryId: string,
   matchNumber: number,
+  oldTeamId: string,
   newTeamId: string
 ): Promise<void> {
   const winnerSource = `W${matchNumber}`
@@ -248,15 +265,18 @@ async function cascadeDownstream(
 
     if (!pred) continue
 
-    // Always set newTeamId — the golden ticket pick carries forward
-    if (pred.predicted_winner_id !== newTeamId) {
-      await admin
-        .from('knockout_predictions')
-        .update({ predicted_winner_id: newTeamId })
-        .eq('id', pred.id)
-    }
+    // Only carry the replacement forward where the player had the old team
+    // winning. If they picked the opponent here, the old team was going to be
+    // knocked out at this point anyway — so the replacement exits too, the
+    // opponent pick stands, and we stop cascading down this branch.
+    if (pred.predicted_winner_id !== oldTeamId) continue
+
+    await admin
+      .from('knockout_predictions')
+      .update({ predicted_winner_id: newTeamId })
+      .eq('id', pred.id)
 
     // Continue cascading from this match
-    await cascadeDownstream(admin, tournamentId, entryId, downstream.match_number, newTeamId)
+    await cascadeDownstream(admin, tournamentId, entryId, downstream.match_number, oldTeamId, newTeamId)
   }
 }
