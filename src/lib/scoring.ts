@@ -11,8 +11,8 @@ export async function calculateGroupStageScores(tournamentId: string): Promise<v
   const admin = createAdminClient()
 
   // Get all entries for this tournament (paginated — can exceed 1,000)
-  const entries = await fetchAllRows<{ id: string }>((from, to) =>
-    admin.from('tournament_entries').select('id').eq('tournament_id', tournamentId).range(from, to)
+  const entries = await fetchAllRows<{ id: string; group_stage_points: number }>((from, to) =>
+    admin.from('tournament_entries').select('id, group_stage_points').eq('tournament_id', tournamentId).range(from, to)
   )
   if (entries.length === 0) return
 
@@ -49,7 +49,7 @@ export async function calculateGroupStageScores(tournamentId: string): Promise<v
 
   // Get all group predictions for all entries (paginated — entries × groups can exceed 1,000)
   const entryIds = entries.map((e) => e.id)
-  const predictions = await fetchAllRows<Record<string, unknown> & { id: string; entry_id: string; group_id: string; predicted_1st: string | null; predicted_2nd: string | null; predicted_3rd: string | null }>(
+  const predictions = await fetchAllRows<Record<string, unknown> & { id: string; entry_id: string; group_id: string; predicted_1st: string | null; predicted_2nd: string | null; predicted_3rd: string | null; points_earned: number | null }>(
     (from, to) => admin.from('group_predictions').select('*').in('entry_id', entryIds).range(from, to)
   )
   if (predictions.length === 0) return
@@ -87,13 +87,17 @@ export async function calculateGroupStageScores(tournamentId: string): Promise<v
       }
     }
 
-    // Batch the update
-    predictionUpdates.push(
-      admin
-        .from('group_predictions')
-        .update({ points_earned: points })
-        .eq('id', pred.id)
-    )
+    // Batch the update — skip rows already at the right value so an hourly
+    // re-score is a handful of writes, not one per prediction (a full rewrite
+    // can outlast the serverless timeout and die mid-run).
+    if (pred.points_earned !== points) {
+      predictionUpdates.push(
+        admin
+          .from('group_predictions')
+          .update({ points_earned: points })
+          .eq('id', pred.id)
+      )
+    }
 
     // Accumulate points per entry
     pointsByEntry[pred.entry_id] = (pointsByEntry[pred.entry_id] || 0) + points
@@ -106,14 +110,16 @@ export async function calculateGroupStageScores(tournamentId: string): Promise<v
     throw new Error(`${predFailures.length} group prediction updates failed`)
   }
 
-  // Batch update entry totals in parallel
+  // Batch update entry totals in parallel (skip entries already correct)
   const entryResults = await Promise.all(
-    entries.map((entry) =>
-      admin
-        .from('tournament_entries')
-        .update({ group_stage_points: pointsByEntry[entry.id] || 0 })
-        .eq('id', entry.id)
-    )
+    entries
+      .filter((entry) => entry.group_stage_points !== (pointsByEntry[entry.id] || 0))
+      .map((entry) =>
+        admin
+          .from('tournament_entries')
+          .update({ group_stage_points: pointsByEntry[entry.id] || 0 })
+          .eq('id', entry.id)
+      )
   )
   const entryFailures = entryResults.filter((r) => (r as { error?: unknown }).error)
   if (entryFailures.length > 0) {
@@ -130,8 +136,8 @@ export async function calculateKnockoutScores(tournamentId: string): Promise<voi
   const admin = createAdminClient()
 
   // Get all entries for this tournament (paginated — can exceed 1,000)
-  const entries = await fetchAllRows<{ id: string }>((from, to) =>
-    admin.from('tournament_entries').select('id').eq('tournament_id', tournamentId).range(from, to)
+  const entries = await fetchAllRows<{ id: string; knockout_points: number }>((from, to) =>
+    admin.from('tournament_entries').select('id, knockout_points').eq('tournament_id', tournamentId).range(from, to)
   )
   if (entries.length === 0) return
 
@@ -152,7 +158,7 @@ export async function calculateKnockoutScores(tournamentId: string): Promise<voi
 
   // Get all knockout predictions for all entries (paginated — entries × matches can exceed 1,000)
   const entryIds = entries.map((e) => e.id)
-  const predictions = await fetchAllRows<Record<string, unknown> & { id: string; entry_id: string; match_id: string; predicted_winner_id: string | null }>(
+  const predictions = await fetchAllRows<Record<string, unknown> & { id: string; entry_id: string; match_id: string; predicted_winner_id: string | null; is_correct: boolean | null; points_earned: number | null }>(
     (from, to) => admin.from('knockout_predictions').select('*').in('entry_id', entryIds).range(from, to)
   )
   if (predictions.length === 0) return
@@ -184,12 +190,15 @@ export async function calculateKnockoutScores(tournamentId: string): Promise<voi
     const isCorrect = pred.predicted_winner_id === match.winner_team_id
     const pointsEarned = isGoldenTicketMatch ? -6 : isCorrect ? match.points_value : 0
 
-    knockoutUpdates.push(
-      admin
-        .from('knockout_predictions')
-        .update({ is_correct: isCorrect, points_earned: pointsEarned })
-        .eq('id', pred.id)
-    )
+    // Skip rows already at the right value (see calculateGroupStageScores)
+    if (pred.is_correct !== isCorrect || pred.points_earned !== pointsEarned) {
+      knockoutUpdates.push(
+        admin
+          .from('knockout_predictions')
+          .update({ is_correct: isCorrect, points_earned: pointsEarned })
+          .eq('id', pred.id)
+      )
+    }
 
     // Accumulate points per entry
     knockoutPointsByEntry[pred.entry_id] = (knockoutPointsByEntry[pred.entry_id] || 0) + pointsEarned
@@ -202,14 +211,16 @@ export async function calculateKnockoutScores(tournamentId: string): Promise<voi
     throw new Error(`${koFailures.length} knockout prediction updates failed`)
   }
 
-  // Batch update entry totals in parallel
+  // Batch update entry totals in parallel (skip entries already correct)
   const koEntryResults = await Promise.all(
-    entries.map((entry) =>
-      admin
-        .from('tournament_entries')
-        .update({ knockout_points: knockoutPointsByEntry[entry.id] || 0 })
-        .eq('id', entry.id)
-    )
+    entries
+      .filter((entry) => entry.knockout_points !== (knockoutPointsByEntry[entry.id] || 0))
+      .map((entry) =>
+        admin
+          .from('tournament_entries')
+          .update({ knockout_points: knockoutPointsByEntry[entry.id] || 0 })
+          .eq('id', entry.id)
+      )
   )
   const koEntryFailures = koEntryResults.filter((r) => (r as { error?: unknown }).error)
   if (koEntryFailures.length > 0) {
@@ -292,32 +303,39 @@ export async function calculateTiebreakers(tournamentId: string): Promise<void> 
     id: string
     tiebreaker_goals: number | null
     knockout_tiebreaker_goals: number | null
+    tiebreaker_diff: number | null
+    knockout_tiebreaker_diff: number | null
   }>((from, to) =>
     admin
       .from('tournament_entries')
-      .select('id, tiebreaker_goals, knockout_tiebreaker_goals')
+      .select('id, tiebreaker_goals, knockout_tiebreaker_goals, tiebreaker_diff, knockout_tiebreaker_diff')
       .eq('tournament_id', tournamentId)
       .range(from, to)
   )
   if (entries.length === 0) return
 
   const tbResults = await Promise.all(
-    entries.map((entry) => {
-      const update: { tiebreaker_diff?: number | null; knockout_tiebreaker_diff?: number | null } = {}
+    entries
+      .map((entry) => {
+        const update: { tiebreaker_diff?: number | null; knockout_tiebreaker_diff?: number | null } = {}
 
-      if (actualGroupGoals !== null) {
-        update.tiebreaker_diff =
-          entry.tiebreaker_goals !== null ? Math.abs(entry.tiebreaker_goals - actualGroupGoals) : null
-      }
-      if (actualKnockoutGoals !== null) {
-        update.knockout_tiebreaker_diff =
-          entry.knockout_tiebreaker_goals !== null
-            ? Math.abs(entry.knockout_tiebreaker_goals - actualKnockoutGoals)
-            : null
-      }
+        if (actualGroupGoals !== null) {
+          const diff =
+            entry.tiebreaker_goals !== null ? Math.abs(entry.tiebreaker_goals - actualGroupGoals) : null
+          if (diff !== entry.tiebreaker_diff) update.tiebreaker_diff = diff
+        }
+        if (actualKnockoutGoals !== null) {
+          const koDiff =
+            entry.knockout_tiebreaker_goals !== null
+              ? Math.abs(entry.knockout_tiebreaker_goals - actualKnockoutGoals)
+              : null
+          if (koDiff !== entry.knockout_tiebreaker_diff) update.knockout_tiebreaker_diff = koDiff
+        }
 
-      return admin.from('tournament_entries').update(update).eq('id', entry.id)
-    })
+        return { id: entry.id, update }
+      })
+      .filter(({ update }) => Object.keys(update).length > 0)
+      .map(({ id, update }) => admin.from('tournament_entries').update(update).eq('id', id))
   )
   const tbFailures = tbResults.filter((r) => (r as { error?: unknown }).error)
   if (tbFailures.length > 0) {
@@ -333,11 +351,11 @@ export async function calculateRankings(tournamentId: string): Promise<void> {
   const admin = createAdminClient()
 
   // Fetch all entries sorted by ranking criteria (paginated — can exceed 1,000)
-  const entries = await fetchAllRows<{ id: string; group_stage_points: number; knockout_points: number; total_points: number; tiebreaker_diff: number | null; knockout_tiebreaker_diff: number | null }>(
+  const entries = await fetchAllRows<{ id: string; group_stage_points: number; knockout_points: number; total_points: number; tiebreaker_diff: number | null; knockout_tiebreaker_diff: number | null; overall_rank: number | null; group_stage_rank: number | null }>(
     (from, to) =>
       admin
         .from('tournament_entries')
-        .select('id, group_stage_points, knockout_points, total_points, tiebreaker_diff, knockout_tiebreaker_diff')
+        .select('id, group_stage_points, knockout_points, total_points, tiebreaker_diff, knockout_tiebreaker_diff, overall_rank, group_stage_rank')
         .eq('tournament_id', tournamentId)
         .range(from, to)
   )
@@ -425,14 +443,23 @@ export async function calculateRankings(tournamentId: string): Promise<void> {
     }
   }
 
-  // Batch all rank updates in parallel
+  // Batch all rank updates in parallel (skip entries whose ranks are unchanged)
+  const currentRanks = new Map(entries.map((e) => [e.id, e]))
   const rankResults = await Promise.all(
-    Array.from(rankMap.entries()).map(([id, ranks]) =>
-      admin
-        .from('tournament_entries')
-        .update({ overall_rank: ranks.overall_rank, group_stage_rank: ranks.group_stage_rank })
-        .eq('id', id)
-    )
+    Array.from(rankMap.entries())
+      .filter(([id, ranks]) => {
+        const current = currentRanks.get(id)
+        return (
+          current?.overall_rank !== ranks.overall_rank ||
+          current?.group_stage_rank !== ranks.group_stage_rank
+        )
+      })
+      .map(([id, ranks]) =>
+        admin
+          .from('tournament_entries')
+          .update({ overall_rank: ranks.overall_rank, group_stage_rank: ranks.group_stage_rank })
+          .eq('id', id)
+      )
   )
   const rankFailures = rankResults.filter((r) => (r as { error?: unknown }).error)
   if (rankFailures.length > 0) {

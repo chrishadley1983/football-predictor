@@ -3,6 +3,9 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { requireAdmin } from '@/lib/auth'
 import { calculateAllScores } from '@/lib/scoring'
 
+// Full re-scores can involve thousands of row writes — see sync-results.
+export const maxDuration = 60
+
 // POST: Trigger scoring calculation (admin only)
 export async function POST(
   _request: Request,

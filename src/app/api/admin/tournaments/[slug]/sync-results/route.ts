@@ -15,6 +15,11 @@ import { calculateAllScores } from '@/lib/scoring'
 //   - x-cron-secret header matches CRON_SECRET  (used by pg_cron)
 //   - Logged-in admin user                     (used by the manual button)
 
+// Scoring rewrites can involve thousands of rows; the default 10s serverless
+// timeout killed a re-score mid-run on 6 Jul (predictions written, entry
+// totals not), so give this route the full minute.
+export const maxDuration = 60
+
 interface SyncSummary {
   source: 'espn'
   window: { start: string; end: string }
@@ -346,15 +351,14 @@ export async function POST(
     groupsWithDerivedStandings,
   }
 
-  // Whenever results changed, re-score so points + leaderboard stay in lockstep
-  // with the certainty/colour we just wrote (the colour reads group_results; the
-  // points/ranks read tournament_entries — they must not drift apart).
-  if (groupUpdated > 0 || koUpdated > 0 || koSlotsAdvanced > 0 || groupResultsWritten > 0) {
-    try {
-      await calculateAllScores(tournament.id)
-    } catch (err) {
-      console.error(`[sync-results] re-score failed: ${err instanceof Error ? err.message : err}`)
-    }
+  // Re-score on every run, not just when this run wrote results: if a previous
+  // re-score died mid-flight (e.g. serverless timeout), the "did anything
+  // change?" gate would leave the drift in place forever. Scoring now skips
+  // no-op writes, so a clean pass is read-mostly and cheap.
+  try {
+    await calculateAllScores(tournament.id)
+  } catch (err) {
+    console.error(`[sync-results] re-score failed: ${err instanceof Error ? err.message : err}`)
   }
 
   return NextResponse.json(summary)
