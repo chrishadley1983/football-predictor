@@ -67,14 +67,18 @@ export function KnockoutPredictionMatrix({
   goldenTickets = [],
   entries = [],
 }: KnockoutPredictionMatrixProps) {
-  // Overall total (group + knockout) per entry, when score data is supplied.
+  // Overall total (group + knockout) and official rank per entry, when score
+  // data is supplied. The rank already encodes the full leaderboard tiebreak
+  // chain (goal-difference etc.), so we lean on it to break ties on equal totals
+  // — that keeps this grid's order identical to the leaderboard's.
   const overallByEntry = useMemo(() => {
-    const m = new Map<string, number>()
-    for (const e of entries) m.set(e.entry_id, e.total_points)
+    const m = new Map<string, { total: number; rank: number }>()
+    for (const e of entries) m.set(e.entry_id, { total: e.total_points, rank: e.overall_rank ?? Number.POSITIVE_INFINITY })
     return m
   }, [entries])
   const hasTotals = overallByEntry.size > 0
-  const overallPoints = (entryId: string) => overallByEntry.get(entryId) ?? 0
+  const overallPoints = (entryId: string) => overallByEntry.get(entryId)?.total ?? 0
+  const overallRank = (entryId: string) => overallByEntry.get(entryId)?.rank ?? Number.POSITIVE_INFINITY
 
   // The knockout Pts column stays sticky next to Player; the overall Total column
   // slots between them, so the knockout column shifts right only when it's shown.
@@ -213,16 +217,26 @@ export function KnockoutPredictionMatrix({
     const ko = (p: PredictionSummary) => totalPoints.get(p.entry_id) ?? 0
     if (!sort) {
       // Default: overall standing (group + knockout) when we have score data —
-      // so the grid mirrors the leaderboard — otherwise most knockout points first.
+      // so the grid mirrors the leaderboard, ties and all — otherwise most
+      // knockout points first.
       if (hasTotals) {
         return list.sort(
-          (a, b) => overallPoints(b.entry_id) - overallPoints(a.entry_id) || ko(b) - ko(a) || byName(a, b)
+          (a, b) =>
+            overallPoints(b.entry_id) - overallPoints(a.entry_id) ||
+            overallRank(a.entry_id) - overallRank(b.entry_id) ||
+            byName(a, b)
         )
       }
       return list.sort((a, b) => ko(b) - ko(a) || byName(a, b))
     }
     if (sort.col === 'overall') {
-      return list.sort((a, b) => dir * (overallPoints(a.entry_id) - overallPoints(b.entry_id)) || byName(a, b))
+      // Break ties on equal totals by official rank so the top stays leaderboard-exact.
+      return list.sort(
+        (a, b) =>
+          dir * (overallPoints(a.entry_id) - overallPoints(b.entry_id)) ||
+          overallRank(a.entry_id) - overallRank(b.entry_id) ||
+          byName(a, b)
+      )
     }
     if (sort.col === 'total') {
       return list.sort((a, b) => dir * (ko(a) - ko(b)) || byName(a, b))
