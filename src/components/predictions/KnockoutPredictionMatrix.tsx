@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { PlayerAvatar } from '@/components/ui/PlayerAvatar'
+import type { EntryInfo } from '@/components/predictions/PredictionAnalyser'
 import type {
   PredictionSummary,
   KnockoutMatch,
@@ -41,6 +42,13 @@ interface KnockoutPredictionMatrixProps {
   teams: Team[]
   /** Emergency Subs played, so their picks are marked (🔄) rather than greyed. */
   goldenTickets?: GoldenTicket[]
+  /**
+   * Per-entry score data. When supplied, the grid gains an overall Total column
+   * (group + knockout points) and defaults to sorting by it, so its order mirrors
+   * the leaderboard. Omit it (e.g. in isolation tests) to fall back to sorting by
+   * knockout points alone.
+   */
+  entries?: EntryInfo[]
 }
 
 type SortState = { col: string; dir: 'asc' | 'desc' } | null
@@ -57,7 +65,20 @@ export function KnockoutPredictionMatrix({
   knockoutMatches,
   teams,
   goldenTickets = [],
+  entries = [],
 }: KnockoutPredictionMatrixProps) {
+  // Overall total (group + knockout) per entry, when score data is supplied.
+  const overallByEntry = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const e of entries) m.set(e.entry_id, e.total_points)
+    return m
+  }, [entries])
+  const hasTotals = overallByEntry.size > 0
+  const overallPoints = (entryId: string) => overallByEntry.get(entryId) ?? 0
+
+  // The knockout Pts column stays sticky next to Player; the overall Total column
+  // slots between them, so the knockout column shifts right only when it's shown.
+  const koStickyLeft = hasTotals ? 'left-[164px]' : 'left-[112px]'
   const teamCode = useMemo(() => {
     const m = new Map<string, string>()
     for (const t of teams) m.set(t.id, t.code)
@@ -189,12 +210,22 @@ export function KnockoutPredictionMatrix({
     const byName = (a: PredictionSummary, b: PredictionSummary) =>
       a.player.display_name.localeCompare(b.player.display_name)
 
+    const ko = (p: PredictionSummary) => totalPoints.get(p.entry_id) ?? 0
     if (!sort) {
-      // Default: most knockout points first.
-      return list.sort((a, b) => (totalPoints.get(b.entry_id) ?? 0) - (totalPoints.get(a.entry_id) ?? 0) || byName(a, b))
+      // Default: overall standing (group + knockout) when we have score data —
+      // so the grid mirrors the leaderboard — otherwise most knockout points first.
+      if (hasTotals) {
+        return list.sort(
+          (a, b) => overallPoints(b.entry_id) - overallPoints(a.entry_id) || ko(b) - ko(a) || byName(a, b)
+        )
+      }
+      return list.sort((a, b) => ko(b) - ko(a) || byName(a, b))
+    }
+    if (sort.col === 'overall') {
+      return list.sort((a, b) => dir * (overallPoints(a.entry_id) - overallPoints(b.entry_id)) || byName(a, b))
     }
     if (sort.col === 'total') {
-      return list.sort((a, b) => dir * ((totalPoints.get(a.entry_id) ?? 0) - (totalPoints.get(b.entry_id) ?? 0)) || byName(a, b))
+      return list.sort((a, b) => dir * (ko(a) - ko(b)) || byName(a, b))
     }
     if (sort.col.startsWith('round:')) {
       const round = sort.col.slice('round:'.length)
@@ -233,6 +264,12 @@ export function KnockoutPredictionMatrix({
   return (
     <div className="space-y-2">
       <p className="text-xs text-text-muted">
+        {hasTotals && (
+          <>
+            <span className="text-foreground">Total</span> is overall points (group + knockout);{' '}
+            <span className="text-foreground">KO</span> is knockout points only.{' '}
+          </>
+        )}
         Click a <span className="text-gold">match header</span> to cluster players by their pick. Click a{' '}
         <span className="text-gold">completed round header</span> to collapse it to points totals (or expand it again).
       </p>
@@ -242,18 +279,31 @@ export function KnockoutPredictionMatrix({
             {/* Round group header */}
             <tr className="bg-surface-light">
               <th
-                className="sticky left-0 z-30 bg-surface-light px-2 py-1.5 text-left font-medium text-text-muted"
+                className="sticky left-0 z-30 w-[112px] bg-surface-light px-2 py-1.5 text-left font-medium text-text-muted"
                 rowSpan={2}
               >
                 Player
               </th>
+              {hasTotals && (
+                <th
+                  className="sticky left-[112px] z-30 w-[52px] cursor-pointer select-none bg-surface-light px-2 py-1.5 text-center font-medium text-text-muted"
+                  rowSpan={2}
+                  onClick={() => handleSort('overall', true)}
+                  title="Sort by total points (group + knockout)"
+                >
+                  Total{indicator('overall')}
+                </th>
+              )}
               <th
-                className="sticky left-[112px] z-30 cursor-pointer select-none bg-surface-light px-2 py-1.5 text-center font-medium text-text-muted"
+                className={cn(
+                  'sticky z-30 w-[48px] cursor-pointer select-none bg-surface-light px-2 py-1.5 text-center font-medium text-text-muted',
+                  koStickyLeft
+                )}
                 rowSpan={2}
                 onClick={() => handleSort('total', true)}
                 title="Sort by total knockout points"
               >
-                Pts{indicator('total')}
+                KO{indicator('total')}
               </th>
               {rounds.map((r) => {
                 const collapsed = collapsedRounds.has(r.round)
@@ -328,13 +378,24 @@ export function KnockoutPredictionMatrix({
           <tbody className="divide-y divide-border-custom bg-surface">
             {sortedPlayers.map((p) => (
               <tr key={p.entry_id}>
-                <td className="sticky left-0 z-10 bg-surface px-2 py-1 text-foreground">
+                <td className="sticky left-0 z-10 w-[112px] bg-surface px-2 py-1 text-foreground">
                   <div className="flex items-center gap-1.5">
                     <PlayerAvatar avatarUrl={p.player.avatar_url} displayName={p.player.display_name} size="sm" />
                     <span className="max-w-[72px] truncate">{p.player.display_name.split(' ')[0]}</span>
                   </div>
                 </td>
-                <td className="sticky left-[112px] z-10 bg-surface px-2 py-1 text-center font-mono font-bold text-foreground">
+                {hasTotals && (
+                  <td className="sticky left-[112px] z-10 w-[52px] bg-surface px-2 py-1 text-center font-mono font-bold text-foreground">
+                    {overallPoints(p.entry_id)}
+                  </td>
+                )}
+                <td
+                  className={cn(
+                    'sticky z-10 w-[48px] bg-surface px-2 py-1 text-center font-mono font-bold',
+                    koStickyLeft,
+                    hasTotals ? 'text-text-secondary' : 'text-foreground'
+                  )}
+                >
                   {totalPoints.get(p.entry_id) ?? 0}
                 </td>
                 {leaves.map((leaf) => {

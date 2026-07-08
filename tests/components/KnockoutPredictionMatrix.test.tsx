@@ -97,4 +97,46 @@ describe('Tweak #2 — KnockoutPredictionMatrix (flipped, collapsible, sortable)
     fireEvent.click(totalHeader) // -> asc
     expect(rowOrder()).toEqual(['Bob', 'Carol', 'Alice'])
   })
+
+  // When per-entry score data is supplied, the grid gains an overall Total column
+  // (group + knockout) and defaults to leaderboard order rather than KO-only order.
+  const ENTRIES = [
+    // Bob has the fewest KO points but the most group points -> tops the overall Total.
+    entry('e1', 'Alice', 5, 2), // total 7
+    entry('e2', 'Bob', 12, 0), // total 12
+    entry('e3', 'Carol', 4, 1), // total 5
+  ]
+  function entry(entryId: string, name: string, group: number, ko: number) {
+    return {
+      entry_id: entryId,
+      player_id: entryId,
+      player: { id: entryId, display_name: name, avatar_url: null },
+      group_stage_points: group,
+      knockout_points: ko,
+      total_points: group + ko,
+      tiebreaker_goals: null,
+      tiebreaker_diff: null,
+      overall_rank: null,
+    } as unknown as import('@/components/predictions/PredictionAnalyser').EntryInfo
+  }
+
+  it('adds an overall Total column and defaults to overall-total order when entries are supplied', () => {
+    render(
+      <KnockoutPredictionMatrix
+        predictions={PREDICTIONS}
+        knockoutMatches={MATCHES}
+        teams={TEAMS}
+        entries={ENTRIES}
+      />
+    )
+    // Default order now follows overall total (Bob 12, Alice 7, Carol 5),
+    // NOT the KO-only order (Alice, Carol, Bob).
+    expect(rowOrder()).toEqual(['Bob', 'Alice', 'Carol'])
+    // Both a Total (overall) and a KO (knockout) sort header are present.
+    expect(screen.getByTitle('Sort by total points (group + knockout)')).toBeInTheDocument()
+    expect(screen.getByTitle('Sort by total knockout points')).toBeInTheDocument()
+    // Sorting by KO points reverts to the knockout order (Alice 2, Carol 1, Bob 0).
+    fireEvent.click(screen.getByTitle('Sort by total knockout points'))
+    expect(rowOrder()).toEqual(['Alice', 'Carol', 'Bob'])
+  })
 })
