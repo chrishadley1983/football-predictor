@@ -102,11 +102,11 @@ describe('Tweak #2 — KnockoutPredictionMatrix (flipped, collapsible, sortable)
   // (group + knockout) and defaults to leaderboard order rather than KO-only order.
   const ENTRIES = [
     // Bob has the fewest KO points but the most group points -> tops the overall Total.
-    entry('e1', 'Alice', 5, 2), // total 7
-    entry('e2', 'Bob', 12, 0), // total 12
-    entry('e3', 'Carol', 4, 1), // total 5
+    entry('e1', 'Alice', 5, 2, 2), // total 7, rank 2
+    entry('e2', 'Bob', 12, 0, 1), // total 12, rank 1
+    entry('e3', 'Carol', 4, 1, 3), // total 5, rank 3
   ]
-  function entry(entryId: string, name: string, group: number, ko: number) {
+  function entry(entryId: string, name: string, group: number, ko: number, rank: number) {
     return {
       entry_id: entryId,
       player_id: entryId,
@@ -116,7 +116,7 @@ describe('Tweak #2 — KnockoutPredictionMatrix (flipped, collapsible, sortable)
       total_points: group + ko,
       tiebreaker_goals: null,
       tiebreaker_diff: null,
-      overall_rank: null,
+      overall_rank: rank,
     } as unknown as import('@/components/predictions/PredictionAnalyser').EntryInfo
   }
 
@@ -138,5 +138,24 @@ describe('Tweak #2 — KnockoutPredictionMatrix (flipped, collapsible, sortable)
     // Sorting by KO points reverts to the knockout order (Alice 2, Carol 1, Bob 0).
     fireEvent.click(screen.getByTitle('Sort by total knockout points'))
     expect(rowOrder()).toEqual(['Alice', 'Carol', 'Bob'])
+  })
+
+  it('breaks ties on equal totals by official overall_rank (leaderboard-exact)', () => {
+    // Alice and Carol both total 7; Carol has the better (lower) overall_rank,
+    // so she must sort above Alice even though her KO points are lower.
+    const tied = [
+      entry('e1', 'Alice', 5, 2, 3), // total 7, rank 3
+      entry('e2', 'Bob', 0, 0, 4), // total 0, rank 4
+      entry('e3', 'Carol', 6, 1, 2), // total 7, rank 2
+    ]
+    render(
+      <KnockoutPredictionMatrix
+        predictions={PREDICTIONS}
+        knockoutMatches={MATCHES}
+        teams={TEAMS}
+        entries={tied}
+      />
+    )
+    expect(rowOrder()).toEqual(['Carol', 'Alice', 'Bob'])
   })
 })
