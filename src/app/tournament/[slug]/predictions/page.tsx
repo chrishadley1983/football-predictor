@@ -391,6 +391,7 @@ export default async function PredictionsPage({
           knockoutMatches={knockoutMatches}
           teams={allTeams}
           goldenTickets={goldenTickets}
+          entries={entryInfos}
         />
       ) : (
         <PredictionGrid
