@@ -27,7 +27,7 @@ export async function calculateAchievements(tournamentId: string): Promise<void>
 
   // Get all entries (paginated — can exceed 1,000)
   const entries = await fetchAllRows<{ id: string; tiebreaker_goals: number | null }>((from, to) =>
-    admin.from('tournament_entries').select('id, tiebreaker_goals').eq('tournament_id', tournamentId).range(from, to)
+    admin.from('tournament_entries').select('id, tiebreaker_goals').eq('tournament_id', tournamentId).order('id').range(from, to)
   )
   if (entries.length === 0) return
   const entryIds = entries.map((e) => e.id)
@@ -45,7 +45,7 @@ export async function calculateAchievements(tournamentId: string): Promise<void>
 
   // Get all group predictions (paginated — entries × groups can exceed 1,000)
   const groupPredictions = await fetchAllRows<Record<string, unknown> & { entry_id: string; group_id: string; predicted_1st: string | null; predicted_2nd: string | null; predicted_3rd: string | null; submitted_at: string }>(
-    (from, to) => admin.from('group_predictions').select('*').in('entry_id', entryIds).range(from, to)
+    (from, to) => admin.from('group_predictions').select('*').in('entry_id', entryIds).order('id').range(from, to)
   )
 
   // Get all group results
@@ -300,7 +300,7 @@ export async function calculateAchievements(tournamentId: string): Promise<void>
   if (decidedMatches.length > 0) {
     // Paginated — entries × matches can exceed 1,000
     const koPredictions = await fetchAllRows<Record<string, unknown> & { entry_id: string; match_id: string; predicted_winner_id: string | null }>(
-      (from, to) => admin.from('knockout_predictions').select('*').in('entry_id', entryIds).range(from, to)
+      (from, to) => admin.from('knockout_predictions').select('*').in('entry_id', entryIds).order('id').range(from, to)
     )
 
     // Crystal Ball: correctly predicted the tournament winner (final match)
