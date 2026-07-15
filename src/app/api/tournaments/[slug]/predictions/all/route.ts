@@ -60,6 +60,7 @@ export async function GET(
             )
           `)
           .eq('tournament_id', tournament.id)
+          .order('id')
           .range(from, to)
     )
 
@@ -82,6 +83,7 @@ export async function GET(
             predicted_3rd_team:teams!group_predictions_predicted_3rd_fkey (*)
           `)
           .in('entry_id', entryIds)
+          .order('id')
           .range(from, to)
     )
 
@@ -98,6 +100,7 @@ export async function GET(
               predicted_winner:teams!knockout_predictions_predicted_winner_id_fkey (*)
             `)
             .in('entry_id', entryIds)
+            .order('id')
             .range(from, to)
       )
     }

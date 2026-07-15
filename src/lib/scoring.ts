@@ -12,7 +12,7 @@ export async function calculateGroupStageScores(tournamentId: string): Promise<v
 
   // Get all entries for this tournament (paginated — can exceed 1,000)
   const entries = await fetchAllRows<{ id: string; group_stage_points: number }>((from, to) =>
-    admin.from('tournament_entries').select('id, group_stage_points').eq('tournament_id', tournamentId).range(from, to)
+    admin.from('tournament_entries').select('id, group_stage_points').eq('tournament_id', tournamentId).order('id').range(from, to)
   )
   if (entries.length === 0) return
 
@@ -50,7 +50,7 @@ export async function calculateGroupStageScores(tournamentId: string): Promise<v
   // Get all group predictions for all entries (paginated — entries × groups can exceed 1,000)
   const entryIds = entries.map((e) => e.id)
   const predictions = await fetchAllRows<Record<string, unknown> & { id: string; entry_id: string; group_id: string; predicted_1st: string | null; predicted_2nd: string | null; predicted_3rd: string | null; points_earned: number | null }>(
-    (from, to) => admin.from('group_predictions').select('*').in('entry_id', entryIds).range(from, to)
+    (from, to) => admin.from('group_predictions').select('*').in('entry_id', entryIds).order('id').range(from, to)
   )
   if (predictions.length === 0) return
 
@@ -137,7 +137,7 @@ export async function calculateKnockoutScores(tournamentId: string): Promise<voi
 
   // Get all entries for this tournament (paginated — can exceed 1,000)
   const entries = await fetchAllRows<{ id: string; knockout_points: number }>((from, to) =>
-    admin.from('tournament_entries').select('id, knockout_points').eq('tournament_id', tournamentId).range(from, to)
+    admin.from('tournament_entries').select('id, knockout_points').eq('tournament_id', tournamentId).order('id').range(from, to)
   )
   if (entries.length === 0) return
 
@@ -159,13 +159,13 @@ export async function calculateKnockoutScores(tournamentId: string): Promise<voi
   // Get all knockout predictions for all entries (paginated — entries × matches can exceed 1,000)
   const entryIds = entries.map((e) => e.id)
   const predictions = await fetchAllRows<Record<string, unknown> & { id: string; entry_id: string; match_id: string; predicted_winner_id: string | null; is_correct: boolean | null; points_earned: number | null }>(
-    (from, to) => admin.from('knockout_predictions').select('*').in('entry_id', entryIds).range(from, to)
+    (from, to) => admin.from('knockout_predictions').select('*').in('entry_id', entryIds).order('id').range(from, to)
   )
   if (predictions.length === 0) return
 
   // Fetch golden tickets so we can award the penalty on the golden ticket match itself
   const goldenTickets = await fetchAllRows<{ entry_id: string; original_match_id: string }>((from, to) =>
-    admin.from('golden_tickets').select('entry_id, original_match_id').eq('tournament_id', tournamentId).range(from, to)
+    admin.from('golden_tickets').select('entry_id, original_match_id').eq('tournament_id', tournamentId).order('entry_id').order('original_match_id').range(from, to)
   )
 
   // Build lookup: "entryId:matchId" -> true for golden ticket matches
@@ -310,6 +310,7 @@ export async function calculateTiebreakers(tournamentId: string): Promise<void> 
       .from('tournament_entries')
       .select('id, tiebreaker_goals, knockout_tiebreaker_goals, tiebreaker_diff, knockout_tiebreaker_diff')
       .eq('tournament_id', tournamentId)
+      .order('id')
       .range(from, to)
   )
   if (entries.length === 0) return
@@ -357,6 +358,7 @@ export async function calculateRankings(tournamentId: string): Promise<void> {
         .from('tournament_entries')
         .select('id, group_stage_points, knockout_points, total_points, tiebreaker_diff, knockout_tiebreaker_diff, overall_rank, group_stage_rank')
         .eq('tournament_id', tournamentId)
+        .order('id')
         .range(from, to)
   )
   if (entries.length === 0) return

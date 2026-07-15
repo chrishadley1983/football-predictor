@@ -47,6 +47,7 @@ export async function GET(
           `)
           .eq('tournament_id', tournament.id)
           .order('overall_rank', { ascending: true, nullsFirst: false })
+          .order('id')
           .range(from, to)
       )
     } catch (e) {
